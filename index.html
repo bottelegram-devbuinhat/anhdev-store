@@ -793,26 +793,32 @@
           <button id="tabRegister" data-i18n="authRegTab">Đăng ký</button>
         </div>
         <div class="form-err" id="authErr"></div>
+        <!-- Đăng nhập bằng tài khoản web (tên đăng nhập/mật khẩu): SẮP CÓ.
+             Shop là trang tĩnh, chưa có server để tạo/xác thực tài khoản web,
+             nên form này bị vô hiệu hoá để không ai tạo tài khoản ảo rồi tưởng là thật. -->
         <form id="authForm">
           <div class="field" id="nameField" style="display:none">
             <label for="authName" data-i18n="authNameL">Tên hiển thị</label>
-            <input id="authName" autocomplete="name" placeholder="Ví dụ: Anh Dev" data-i18n-ph="authNamePh" />
+            <input id="authName" autocomplete="name" placeholder="Ví dụ: Anh Dev" data-i18n-ph="authNamePh" disabled />
           </div>
           <div class="field">
             <label for="authUser" data-i18n="authUserL">Tên đăng nhập</label>
-            <input id="authUser" autocomplete="username" placeholder="Tên đăng nhập của bạn" data-i18n-ph="authUserPh" />
+            <input id="authUser" autocomplete="username" placeholder="Tên đăng nhập của bạn" data-i18n-ph="authUserPh" disabled />
           </div>
           <div class="field">
             <label for="authPass" data-i18n="authPassL">Mật khẩu</label>
-            <input id="authPass" type="password" autocomplete="current-password" placeholder="Mật khẩu (từ 6 ký tự)" data-i18n-ph="authPassPh" />
+            <input id="authPass" type="password" autocomplete="current-password" placeholder="Mật khẩu (từ 6 ký tự)" data-i18n-ph="authPassPh" disabled />
           </div>
-          <button class="btn btn-wine" type="submit" id="authSubmit" style="width:100%">Đăng nhập</button>
+          <button class="btn btn-wine" type="submit" id="authSubmit" style="width:100%" disabled>Sắp có</button>
         </form>
+        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center">Tài khoản web (tên đăng nhập/mật khẩu) sắp có. Hiện tại đăng nhập bằng Telegram bên dưới để dùng ngay.</p>
         <div class="divider">hoặc</div>
-        <button class="btn-telegram" id="telegramLogin">
-          <svg viewBox="0 0 24 24"><path d="M21.9 4.6 19 19.3c-.2 1-.8 1.2-1.7.8l-4.6-3.4-2.2 2.1c-.3.3-.5.5-.9.5l.3-4.6 8.4-7.6c.4-.3-.1-.5-.6-.2L7.6 13.2 3.2 11.8c-1-.3-1-1 .2-1.4l17.2-6.6c.8-.3 1.5.2 1.3.8z"/></svg>
-          <span data-i18n="tgBtn">Đăng nhập bằng Telegram</span>
-        </button>
+        <!-- Đăng nhập Telegram THẬT bằng Telegram Login Widget (bot @devbn_bot).
+             Cần vào @BotFather → /setdomain → đăng ký domain bottelegram-devbuinhat.github.io
+             thì nút này mới hiện và hoạt động được. -->
+        <div id="telegramLoginWrap" style="display:flex;justify-content:center">
+          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="devbn_bot" data-size="large" data-lang="vi" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        </div>
         <p class="hint" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center" data-i18n="tgHint">Mở shop trong Telegram Mini App thì bước này tự xong — shop tự nhận tài khoản Telegram đang dùng.</p>
       </div>
     </div>
@@ -918,7 +924,7 @@
 
       /* ================= STATE (in-session) ================= */
       var state = {
-        user: null,            // {name, username, via}
+        user: null,            // {name, username, telegram_id, photo_url, auth_date, via} — chỉ user Telegram thật
         balance: 0,
         orders: [],            // {code, productName, price, time, user, pass}
         invoices: [],          // {code, amount, method, time}
@@ -951,6 +957,7 @@
         soldOut:{ vi:"Hết hàng", en:"Out of stock" },
         submitLogin:{ vi:"Đăng nhập", en:"Log In" },
         submitRegister:{ vi:"Tạo tài khoản", en:"Create account" },
+        soon:{ vi:"Sắp có", en:"Coming soon" },
         payConfirm:{ vi:"Xác nhận đã chuyển", en:"I've transferred" },
         payWaiting:{ vi:"Đang chờ thanh toán", en:"Waiting for payment" },
         payDone:{ vi:"Đã chuyển khoản", en:"Transferred" },
@@ -1034,7 +1041,11 @@
         var nameEl = $("#userName"), av = $("#userAvatar"), loginBtn = $("#topLoginBtn");
         if (state.user){
           nameEl.textContent = state.user.name;
-          av.textContent = state.user.name.trim().charAt(0).toUpperCase() || "A";
+          if (state.user.photo_url){
+            av.innerHTML = '<img src="' + esc(state.user.photo_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" />';
+          } else {
+            av.textContent = state.user.name.trim().charAt(0).toUpperCase() || "A";
+          }
           loginBtn.textContent = L("logout");
         } else {
           nameEl.textContent = L("guest");
@@ -1042,7 +1053,26 @@
           loginBtn.textContent = L("login");
         }
       }
-      function setUser(u){ state.user = u; refreshUserUI(); renderAccount(); }
+      /* Đăng nhập Telegram THẬT — lưu phiên vào localStorage để tải lại trang vẫn còn đăng nhập.
+         Bản demo trước đây chỉ giữ user trong bộ nhớ (tải lại trang là mất) nên chưa có key cũ;
+         key mới là "anhdev_user". Chỉ lưu user Telegram thật (có telegram_id). */
+      var USER_KEY = "anhdev_user";
+      function saveUser(u){
+        try {
+          if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
+          else localStorage.removeItem(USER_KEY);
+        } catch (e) { /* trình duyệt chặn localStorage thì phiên chỉ còn trong bộ nhớ */ }
+      }
+      function loadSavedUser(){
+        try {
+          var raw = localStorage.getItem(USER_KEY);
+          if (!raw) return null;
+          var u = JSON.parse(raw);
+          if (!u || typeof u !== "object" || !u.telegram_id) return null;
+          return u;
+        } catch (e) { return null; }
+      }
+      function setUser(u){ state.user = u; saveUser(u); refreshUserUI(); renderAccount(); }
 
       /* ================= PRODUCTS ================= */
       function visibleProducts(){
@@ -1254,29 +1284,38 @@
         $("#tabLogin").classList.toggle("on", mode === "login");
         $("#tabRegister").classList.toggle("on", mode === "register");
         $("#nameField").style.display = mode === "register" ? "block" : "none";
-        $("#authSubmit").textContent = mode === "register" ? L("submitRegister") : L("submitLogin");
+        $("#authSubmit").textContent = L("soon"); // tài khoản web sắp có — nút luôn hiển thị "Sắp có"
         $("#authErr").classList.remove("show");
       }
       $("#tabLogin").addEventListener("click", function(){ setAuthMode("login"); });
       $("#tabRegister").addEventListener("click", function(){ setAuthMode("register"); });
       function authError(msg){ var e = $("#authErr"); e.textContent = msg; e.classList.add("show"); }
+      /* Đăng nhập bằng tài khoản web: SẮP CÓ — form đã bị vô hiệu hoá ở HTML.
+         Giữ lại submit handler chỉ để chặn và báo, không tạo tài khoản ảo nữa. */
       $("#authForm").addEventListener("submit", function(e){
         e.preventDefault();
-        var username = $("#authUser").value.trim();
-        var pass = $("#authPass").value;
-        var name = $("#authName").value.trim();
-        if (username.length < 3) return authError("Tên đăng nhập cần ít nhất 3 ký tự.");
-        if (pass.length < 6) return authError("Mật khẩu cần ít nhất 6 ký tự.");
-        if (authMode === "register" && !name) return authError("Nhập tên hiển thị để shop gọi bạn cho đúng.");
-        setUser({ name: authMode === "register" ? name : username, username: username, via:"Tài khoản web" });
-        closeModal($("#authModal"));
-        toast(authMode === "register" ? "Tạo tài khoản thành công — chào " + name + "!" : "Đăng nhập thành công, chào " + username + "!");
+        authError("Đăng nhập bằng tài khoản web sắp có. Đăng nhập bằng Telegram bên dưới để dùng ngay nhé.");
       });
-      $("#telegramLogin").addEventListener("click", function(){
-        setUser({ name:"Khách Telegram", username:"telegram_user", via:"Telegram" });
+      /* Đăng nhập Telegram THẬT (Telegram Login Widget, bot @devbn_bot).
+         Telegram gọi hàm này sau khi người dùng bấm nút và xác nhận trong popup.
+         LƯU Ý: trang tĩnh không có server nên KHÔNG xác thực được hash mà Telegram trả về.
+         Việc này chấp nhận được ở đây vì shop chỉ dùng telegram_id để đối chiếu số dư/đơn
+         với bot, không dùng nó để cấp quyền nhạy cảm. Khi nào có backend thì xác thực hash ở server. */
+      window.onTelegramAuth = function(user){
+        if (!user || !user.id) return;
+        var name = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username || "Khách Telegram";
+        setUser({
+          name: name,
+          username: user.username || ("tg" + user.id),
+          telegram_id: user.id,
+          photo_url: user.photo_url || null,
+          auth_date: user.auth_date || null,
+          via: "Telegram"
+        });
+        refreshWebBalance();
         closeModal($("#authModal"));
-        toast("Đã đăng nhập bằng Telegram.");
-      });
+        toast("Đăng nhập Telegram thành công, chào " + name + "!");
+      };
       $("#topLoginBtn").addEventListener("click", function(){
         if (state.user){
           setUser(null); state.balance = 0; refreshUserUI();
@@ -1301,11 +1340,22 @@
             name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || "Khách Telegram",
             username: tgUser.username || ("tg" + tgUser.id),
             telegram_id: tgUser.id,
+            photo_url: tgUser.photo_url || null,
             via:"Telegram Mini App"
           });
           refreshWebBalance();
         }
       } catch (err) { /* mở trên web thường thì bỏ qua */ }
+
+      /* Khôi phục phiên Telegram đã đăng nhập trước đó (web thường).
+         Mini App ở trên đã tự đăng nhập thì không ghi đè. */
+      if (!state.user){
+        var savedUser = loadSavedUser();
+        if (savedUser){
+          setUser(savedUser);
+          refreshWebBalance();
+        }
+      }
 
       /* ================= BUY FLOW ================= */
       var buyTarget = null;
@@ -1511,7 +1561,7 @@
       function renderAccount(){
         var box = $("#accountBody");
         if (!state.user){
-          box.innerHTML = '<div class="empty-box"><b>Bạn chưa đăng nhập</b>Tạo tài khoản web hoặc đăng nhập Telegram để mua acc và nạp tiền.<br /><br /><button class="btn btn-wine" id="accLogin">Đăng nhập / Đăng ký</button></div>';
+          box.innerHTML = '<div class="empty-box"><b>Bạn chưa đăng nhập</b>Đăng nhập bằng Telegram để mua acc và nạp tiền.<br /><br /><button class="btn btn-wine" id="accLogin">Đăng nhập bằng Telegram</button></div>';
           var b = $("#accLogin"); if (b) b.addEventListener("click", function(){ setAuthMode("login"); openModal("#authModal"); });
           return;
         }
