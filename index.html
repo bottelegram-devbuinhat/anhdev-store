@@ -78,6 +78,8 @@
       .balance-card .val{font-size:20px;font-weight:800;margin-top:2px}
       .balance-card .topup-link{margin-top:8px;width:100%;border:1px solid var(--wine);background:transparent;color:var(--wine);border-radius:10px;font-weight:700;font-size:13px;padding:6px 10px}
       .balance-card .topup-link:hover{background:var(--wine);color:#fff}
+      .balance-card .sync-note{margin-top:6px;font-size:11px;font-weight:700;color:var(--ok)}
+      .balance-card .sync-note.warn{color:var(--danger)}
       .nav-group h4{margin:14px 8px 6px;font-size:10.5px;letter-spacing:.12em;color:var(--muted);font-weight:700;text-transform:uppercase}
       .nav-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;padding:10px 10px;border-radius:11px;color:var(--ink-2);font-size:14px;font-weight:600;min-height:44px}
       .nav-item svg{width:19px;height:19px;flex:0 0 19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -420,6 +422,7 @@
         <div class="balance-card">
           <div class="lbl"><span data-i18n="balLabel">Số Dư</span><b data-i18n="balDisc">Giảm 0%</b></div>
           <div class="val" data-balance>0đ</div>
+          <div class="sync-note warn" data-balance-note>Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ</div>
         </div>
 
         <nav>
@@ -917,15 +920,25 @@
       ];
       var DEMO_PRODUCTS = PRODUCTS.slice(); // catalog mẫu — chỉ hiển thị khi API kho thật không kết nối được
 
-      /* ================= ĐỒNG BỘ KHO THẬT (API trên host) ================= */
-      var API_BASE = "https://shoplq.duckdns.org"; // admin Flask app — kho dùng chung với bot Telegram
+      /* ================= API CLOUDFLARE (Worker + D1) =================
+         Worker xác thực Telegram initData phía server rồi trả ĐÚNG số dư của
+         chính người dùng. Thay URL dưới đây bằng URL Worker sau khi deploy;
+         còn placeholder thì web dùng số dư demo cục bộ và ghi rõ "chưa đồng bộ". */
+      var API_BASE = "https://anhdev-balance.REPLACE-WITH-YOUR-SUBDOMAIN.workers.dev";
+      var API_TIMEOUT_MS = 8000;
       var BOT_LINK = "https://t.me/devbn_bot";
       var SYNC = { mode:"syncing", updatedAt:null }; // mode: "syncing" | "live" | "saved" | "demo"
+      // Số dư thật lấy từ bot; synced=false nghĩa là đang dùng số dư demo cục bộ.
+      var BALANCE = { synced:false, updatedAt:null };
 
       /* ================= STATE (in-session) ================= */
       var state = {
         user: null,            // {name, username, telegram_id, photo_url, auth_date, via} — chỉ user Telegram thật
         balance: 0,
+        coins: 0,              // xu trong bot (số dư thật do bot giữ)
+        tgInitData: "",        // Telegram.WebApp.initData (Mini App) để Worker xác thực
+        tgLoginData: "",       // query string Telegram Login Widget đã ký (web thường)
+        depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
         orders: [],            // {code, productName, price, time, user, pass}
         invoices: [],          // {code, amount, method, time}
         filter: { cat:"all", q:"", sort:"default", onlyStock:false },
@@ -1009,6 +1022,8 @@
         });
         closeSidebar();
         window.scrollTo({top:0, behavior:"smooth"});
+        // Quay lại shop / ví → lấy lại số dư thật từ bot.
+        if ((name === "home" || name === "topup" || name === "account") && state.user) refreshWebBalance();
         if (name === "orders") renderOrders();
         if (name === "invoices") renderInvoices();
         if (name === "account") renderAccount();
@@ -1037,7 +1052,22 @@
 
       /* ================= USER / BALANCE UI ================= */
       function refreshUserUI(){
-        $$("[data-balance]").forEach(function(el){ el.textContent = fmt(state.balance); });
+        $$("[data-balance]").forEach(function(el){
+          el.textContent = fmt(state.balance);
+          el.title = BALANCE.synced
+            ? "Số dư thật từ bot Telegram" + (BALANCE.updatedAt ? " · cập nhật " + BALANCE.updatedAt : "")
+            : "Số dư demo trên trình duyệt — CHƯA đồng bộ với bot";
+        });
+        var coinsLine = (BALANCE.synced && state.coins > 0)
+          ? " · " + Number(state.coins).toLocaleString("vi-VN") + " xu" : "";
+        var note = BALANCE.synced
+          ? "✓ Đồng bộ bot" + coinsLine + (BALANCE.updatedAt ? " · " + BALANCE.updatedAt : "")
+          : (state.user ? "Chưa đồng bộ với bot — số dư demo trên trình duyệt"
+                        : "Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ");
+        $$("[data-balance-note]").forEach(function(el){
+          el.className = "sync-note" + (BALANCE.synced ? "" : " warn");
+          el.textContent = note;
+        });
         var nameEl = $("#userName"), av = $("#userAvatar"), loginBtn = $("#topLoginBtn");
         if (state.user){
           nameEl.textContent = state.user.name;
@@ -1072,7 +1102,19 @@
           return u;
         } catch (e) { return null; }
       }
-      function setUser(u){ state.user = u; saveUser(u); refreshUserUI(); renderAccount(); }
+      function setUser(u){
+        stopDepositPoll();
+        state.user = u;
+        if (u && u.login_data) state.tgLoginData = u.login_data;
+        if (!u){
+          state.tgInitData = ""; state.tgLoginData = "";
+          state.balance = 0; state.coins = 0;
+          BALANCE.synced = false; BALANCE.updatedAt = null;
+        }
+        saveUser(u); refreshUserUI(); renderAccount();
+        loadInvoices();
+        if (u) resumePendingDeposit();
+      }
 
       /* ================= PRODUCTS ================= */
       function visibleProducts(){
@@ -1242,13 +1284,129 @@
           })
           .catch(function(){ useDemoStock(); });
       }
+      /* ===== GỌI API CLOUDFLARE: số dư thật do bot giữ ===== */
+      function apiReady(){ return !!API_BASE && API_BASE.indexOf("REPLACE-WITH") === -1; }
+      function tgHeaders(){
+        var h = { "Content-Type":"application/json" };
+        if (state.tgInitData) h["X-Telegram-Init-Data"] = state.tgInitData;
+        else if (state.tgLoginData) h["X-Telegram-Login-Data"] = state.tgLoginData;
+        return h;
+      }
+      function apiFetch(path, options){
+        options = options || {};
+        if (!apiReady()) return Promise.reject(new Error("API Cloudflare chưa cấu hình"));
+        if (!state.tgInitData && !state.tgLoginData) return Promise.reject(new Error("Chưa có xác thực Telegram"));
+        var ctrl = new AbortController();
+        var timer = setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS);
+        var init = { method: options.method || "GET", headers: tgHeaders(), cache:"no-store", signal: ctrl.signal };
+        if (options.body != null) init.body = JSON.stringify(options.body);
+        return fetch(API_BASE.replace(/\/$/, "") + path, init)
+          .then(function(r){
+            return r.text().then(function(text){
+              var data = null;
+              try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+              if (!r.ok) throw new Error((data && data.error) || ("HTTP " + r.status));
+              return data;
+            });
+          })
+          .then(function(data){ clearTimeout(timer); return data; },
+                function(err){ clearTimeout(timer); throw err; });
+      }
+      function applyBalance(b){
+        if (!b) return;
+        if (typeof b.shop_balance === "number") state.balance = b.shop_balance;
+        if (typeof b.coins === "number") state.coins = b.coins;
+        BALANCE.synced = true;
+        BALANCE.updatedAt = b.updated_at ? new Date(b.updated_at).toLocaleString("vi-VN") : null;
+        refreshUserUI(); renderAccount();
+      }
+      function markBalanceUnsynced(){
+        BALANCE.synced = false; BALANCE.updatedAt = null; refreshUserUI();
+      }
       function refreshWebBalance(){
         var tid = state.user && state.user.telegram_id;
-        if (!tid) return;
-        fetch(API_BASE + "/api/balance?telegram_id=" + encodeURIComponent(tid), { cache:"no-store" })
-          .then(function(r){ return r.json(); })
-          .then(function(b){ if (b && b.ok){ state.balance = b.shop_balance; refreshUserUI(); } })
-          .catch(function(){ /* giữ số dư hiện tại */ });
+        if (!tid){ markBalanceUnsynced(); return Promise.resolve(false); }
+        // apiFetch tự từ chối khi thiếu URL Worker hoặc thiếu xác thực Telegram.
+        return apiFetch("/api/balance?telegram_id=" + encodeURIComponent(tid))
+          .then(function(b){
+            if (!b || typeof b.shop_balance !== "number"){ markBalanceUnsynced(); return false; }
+            applyBalance(b); return true;
+          })
+          .catch(function(){ markBalanceUnsynced(); return false; });
+      }
+
+      /* ===== HOÁ ĐƠN NẠP: lưu localStorage + poll trạng thái từ Worker ===== */
+      function invoiceStorageKey(){
+        return "anhdev_invoices_" + ((state.user && state.user.telegram_id) || "guest");
+      }
+      function saveInvoices(){
+        try { localStorage.setItem(invoiceStorageKey(), JSON.stringify(state.invoices.slice(0, 20))); } catch (e) { /* bị chặn */ }
+      }
+      function loadInvoices(){
+        try {
+          var raw = localStorage.getItem(invoiceStorageKey());
+          var list = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(list)) state.invoices = list.filter(function(x){ return x && x.code; }).slice(0, 20);
+        } catch (e) { /* bỏ qua */ }
+        renderInvoices();
+      }
+      function stopDepositPoll(){
+        if (state.depositTimer){ clearTimeout(state.depositTimer); state.depositTimer = null; }
+      }
+      function startDepositPoll(iv){
+        stopDepositPoll();
+        if (!iv || !iv.remote || iv.status !== "pending") return;
+        var tries = 0;
+        var tick = function(){
+          state.depositTimer = null;
+          if (!iv || iv.status !== "pending") return;
+          tries += 1;
+          if (tries > 100) return; // ~10 phút là dừng
+          checkDeposit(iv, false).then(function(){
+            if (iv.status === "pending") state.depositTimer = setTimeout(tick, 6000);
+          });
+        };
+        state.depositTimer = setTimeout(tick, 4000);
+      }
+      function checkDeposit(iv, manual){
+        if (!iv || !iv.remote) return Promise.resolve(false);
+        // Gửi cả mã lệnh nạp lẫn mã hoá đơn trong một request — Worker đọc tham số nào nó dùng.
+        var q = "/api/deposit/status?deposit_id=" + encodeURIComponent(iv.depositId || iv.code) +
+                "&code=" + encodeURIComponent(iv.code);
+        return apiFetch(q)
+          .then(function(d){
+            if (!d) return false;
+            var st = d.status || (d.approved ? "approved" : "");
+            if (st === "approved" || st === "success" || st === "credited"){
+              iv.status = "success";
+              iv.credited = (typeof d.credited_amount === "number") ? d.credited_amount
+                : (typeof d.amount === "number" ? d.amount : iv.amount);
+              iv.detail = "SePay đã đối soát · bot đã cộng " + fmtVND(iv.credited);
+              if (d.balance) applyBalance(d.balance);
+              else refreshWebBalance();
+              saveInvoices(); renderInvoices(); updatePayStatus();
+              toast("Nạp thành công! Bot đã cộng " + fmtVND(iv.credited) + " vào ví.");
+              stopDepositPoll();
+              return true;
+            }
+            if (st === "rejected" || st === "cancelled" || st === "failed"){
+              iv.status = "failed";
+              iv.detail = "Lệnh nạp bị huỷ hoặc từ chối";
+              saveInvoices(); renderInvoices(); updatePayStatus();
+              stopDepositPoll();
+              return false;
+            }
+            if (manual) toast("SePay chưa thấy giao dịch. Đợi 1–2 phút rồi thử lại.");
+            return false;
+          })
+          .catch(function(){
+            if (manual) toast("Không kiểm tra được trạng thái, thử lại sau.");
+            return false;
+          });
+      }
+      function resumePendingDeposit(){
+        var pending = state.invoices.filter(function(iv){ return iv.remote && iv.status === "pending"; })[0];
+        if (pending) startDepositPoll(pending);
       }
       $("#searchInput").addEventListener("input", function(e){ state.filter.q = e.target.value.trim(); renderProducts(); });
       $("#sortSelect").addEventListener("change", function(e){ state.filter.sort = e.target.value; renderProducts(); });
@@ -1304,13 +1462,23 @@
       window.onTelegramAuth = function(user){
         if (!user || !user.id) return;
         var name = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username || "Khách Telegram";
+        // Giữ nguyên toàn bộ payload Telegram đã ký để Worker tự xác thực hash.
+        var authParts = [];
+        Object.keys(user).forEach(function(k){
+          var v = user[k];
+          if (v === null || v === undefined || v === "") return;
+          authParts.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+        });
+        var loginData = authParts.join("&");
+        state.tgLoginData = loginData;
         setUser({
           name: name,
           username: user.username || ("tg" + user.id),
           telegram_id: user.id,
           photo_url: user.photo_url || null,
           auth_date: user.auth_date || null,
-          via: "Telegram"
+          via: "Telegram",
+          login_data: loginData
         });
         refreshWebBalance();
         closeModal($("#authModal"));
@@ -1336,6 +1504,7 @@
         if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user){
           var tgUser = Telegram.WebApp.initDataUnsafe.user;
           Telegram.WebApp.ready(); Telegram.WebApp.expand();
+          state.tgInitData = Telegram.WebApp.initData || ""; // chuỗi đã ký để Worker xác thực
           setUser({
             name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || "Khách Telegram",
             username: tgUser.username || ("tg" + tgUser.id),
@@ -1368,54 +1537,21 @@
         buyTarget = p;
         openBuyModal(p);
       });
-      function renderBuyModalBody(p){
-        var body = $("#buyBody"), actions = $("#buyActions");
-        var rows =
+      function openBotBuyModal(p){
+        /* Acc thật: kho, ví và giao acc nằm trong bot — web chỉ dẫn sang bot,
+           không tự trừ ví và không gọi /api/buy trên Worker. */
+        $("#buyBody").innerHTML =
           '<div class="sum-row"><span>Sản phẩm</span><b>' + esc(p.name) + '</b></div>' +
           '<div class="sum-row"><span>Giá</span><b>' + fmt(p.price) + '</b></div>' +
-          '<div class="sum-row"><span>Số dư ví hiện tại</span><b>' + fmt(state.balance) + '</b></div>';
-        if (state.balance >= p.price){
-          body.innerHTML = rows + '<div class="sum-row total"><span>Sau khi mua còn</span><b>' + fmt(state.balance - p.price) + '</b></div>';
-          actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine" data-buy-confirm>Xác nhận mua</button>';
-        } else {
-          var short = p.price - state.balance;
-          body.innerHTML = rows +
-            '<div class="shortfall">Ví chưa đủ tiền: giá <b>' + fmt(p.price) + '</b> · số dư <b>' + fmt(state.balance) + '</b> · còn thiếu <b>' + fmt(short) + '</b>. Nạp thêm qua VietQR là mua được ngay.</div>';
-          actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Để sau</button><button class="btn btn-wine" data-buy-topup>Nạp tiền ngay</button>';
-        }
-      }
-      function openApiBuyModal(p){
-        var tid = state.user && state.user.telegram_id;
-        if (!tid){
-          $("#buyBody").innerHTML = '<div class="shortfall">Mua acc thật cần đăng nhập bằng Telegram để trừ đúng ví bot. Mở shop trong Telegram Mini App, hoặc mua trực tiếp qua bot <b>@devbn_bot</b>.</div>';
-          $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener">Mở bot Telegram</a>';
-          openModal("#buyModal");
-          return;
-        }
-        $("#buyBody").innerHTML = '<div class="shortfall">Đang kiểm tra số dư ví bot...</div>';
-        $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button>';
+          '<div class="shortfall">Acc thật được giao và trừ ví ngay trong bot Telegram <b>@devbn_bot</b>. Bấm nút bên dưới rồi chọn đúng sản phẩm này trong bot.</div>';
+        $("#buyActions").innerHTML =
+          '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>' +
+          '<a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener">Mua trong bot @devbn_bot</a>';
         openModal("#buyModal");
-        fetch(API_BASE + "/api/balance?telegram_id=" + encodeURIComponent(tid), { cache:"no-store" })
-          .then(function(r){ return r.json(); })
-          .then(function(b){
-            if (b && b.ok){
-              state.balance = b.shop_balance; refreshUserUI(); renderBuyModalBody(p);
-            } else if (b && b.exists === false){
-              $("#buyBody").innerHTML = '<div class="shortfall">Chưa thấy ví của bạn trong bot. Mở bot <b>@devbn_bot</b>, bấm /start để tạo ví rồi quay lại mua.</div>';
-              $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener">Mở bot Telegram</a>';
-            } else {
-              $("#buyBody").innerHTML = '<div class="shortfall">Không kiểm tra được số dư ví. Thử lại sau hoặc mua trực tiếp qua bot <b>@devbn_bot</b>.</div>';
-              $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>';
-            }
-          })
-          .catch(function(){
-            $("#buyBody").innerHTML = '<div class="shortfall">Không kết nối được kho thật. Thử lại sau hoặc mua trực tiếp qua bot <b>@devbn_bot</b>.</div>';
-            $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>';
-          });
       }
       function openBuyModal(p){
         $("#buySub").textContent = p.name + " · " + CATS[p.cat].title;
-        if (p.api){ openApiBuyModal(p); return; }
+        if (p.api){ openBotBuyModal(p); return; }
         var body = $("#buyBody"), actions = $("#buyActions");
         var rows =
           '<div class="sum-row"><span>Sản phẩm</span><b>' + esc(p.name) + '</b></div>' +
@@ -1437,48 +1573,7 @@
         if (e.target.closest("[data-buy-topup]")){ closeModal($("#buyModal")); showView("topup"); }
         if (e.target.closest("[data-buy-confirm]") && buyTarget) completePurchase(buyTarget);
       });
-      function completeApiPurchase(p){
-        var tid = state.user && state.user.telegram_id;
-        if (!tid){ toast("Cần đăng nhập bằng Telegram để mua acc thật."); closeModal($("#buyModal")); return; }
-        $("#buyActions").innerHTML = '<button class="btn btn-ghost" disabled>Đang xử lý...</button>';
-        fetch(API_BASE + "/api/buy", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ code:p.code, buyer_telegram_id:tid })
-        })
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          if (data && data.ok){
-            if (typeof data.balance_after === "number"){ state.balance = data.balance_after; refreshUserUI(); }
-            p.stock = 0;
-            state.orders.unshift({ code:"AD" + data.order_id, productName:p.name, price:data.price, time:nowStr(), user:null, pass:null, api:true });
-            renderProducts(); renderStats();
-            $("#buySub").textContent = "Mua thành công · Mã đơn AD" + data.order_id;
-            $("#buyBody").innerHTML =
-              '<div class="cred"><div class="cred-row"><span class="k">Mã đơn</span><code>AD' + data.order_id + '</code></div>' +
-              '<div class="cred-row"><span class="k">Acc</span><code>' + esc(p.code) + '</code></div></div>' +
-              '<p style="font-size:13px;color:var(--muted);margin:12px 0 0">Tài khoản + mật khẩu KHÔNG hiện ở đây. Mở bot Telegram <b>@devbn_bot</b> → Đơn hàng của tôi → xem thông tin acc ' + esc(p.code) + ' (bảo hành ' + (p.warranty_days || 3) + ' ngày).</p>';
-            $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener">Mở bot để nhận acc</a>';
-            toast("Mua thành công! Đã trừ " + fmt(data.price) + " khỏi ví bot.");
-          } else if (data && data.code === "insufficient_balance"){
-            var short = Math.max(0, data.price - state.balance);
-            $("#buyBody").innerHTML =
-              '<div class="shortfall">Ví chưa đủ tiền: giá <b>' + fmt(data.price) + '</b> · số dư <b>' + fmt(state.balance) + '</b> · còn thiếu <b>' + fmt(short) + '</b>. Nạp thêm qua VietQR là mua được ngay.</div>';
-            $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Để sau</button><button class="btn btn-wine" data-buy-topup>Nạp tiền ngay</button>';
-            toast(data.error || "Số dư không đủ.");
-          } else {
-            $("#buyBody").innerHTML = '<div class="shortfall">' + esc((data && data.error) || "Không mua được acc, thử lại sau.") + '</div>';
-            $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>';
-            toast((data && data.error) || "Không mua được acc.");
-          }
-        })
-        .catch(function(){
-          $("#buyBody").innerHTML = '<div class="shortfall">Không kết nối được kho thật, thử lại sau.</div>';
-          $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>';
-        });
-      }
       function completePurchase(p){
-        if (p.api){ completeApiPurchase(p); return; }
         state.balance -= p.price;
         p.stock -= 1;
         var order = {
@@ -1569,7 +1664,11 @@
           '<div class="sum-row"><span>Tên hiển thị</span><b>' + esc(state.user.name) + '</b></div>' +
           '<div class="sum-row"><span>Tên đăng nhập</span><b>' + esc(state.user.username) + '</b></div>' +
           '<div class="sum-row"><span>Đăng nhập qua</span><b>' + esc(state.user.via) + '</b></div>' +
-          '<div class="sum-row"><span>Số dư ví</span><b>' + fmt(state.balance) + '</b></div>' +
+          '<div class="sum-row"><span>Số dư ví</span><b>' + fmt(state.balance) +
+            (BALANCE.synced
+              ? ' <span style="font-size:11px;color:var(--ok)">✓ đồng bộ bot' +
+                (state.coins > 0 ? ' · ' + Number(state.coins).toLocaleString("vi-VN") + ' xu' : '') + '</span>'
+              : ' <span style="font-size:11px;color:var(--danger)">chưa đồng bộ</span>') + '</b></div>' +
           '<div class="sum-row"><span>Tổng đơn đã mua</span><b>' + state.orders.length + ' đơn</b></div>' +
           '<div class="modal-actions"><button class="btn btn-ghost" id="accTopup">Nạp tiền</button><button class="btn btn-wine" id="accLogout">Đăng xuất</button></div>' +
           '<p style="font-size:12.5px;color:var(--muted);margin-top:14px">Liên kết Telegram: mở bot <b>@devbn_bot</b>, mọi acc mua trên bot cũng hiện trong ví và lịch sử này.</p>';
@@ -1612,48 +1711,88 @@
       $("#makeQrBtn").addEventListener("click", function(){
         if (!requireLogin()) return;
         if (!selectedAmount || selectedAmount < 1000){ toast("Chọn hoặc nhập số tiền nạp từ 1.000đ."); return; }
-        var code = invoiceCode();
-        var iv = {
-          code: code,
-          amount: selectedAmount,
-          credited: null,
-          method: "Ngân Hàng · SePay / VietQR",
-          status: "pending",
-          time: nowStr(),
-          detail: "MBBank · Nội dung CK: " + code
+        var btn = this;
+        var amount = selectedAmount;
+        var createLocal = function(message){
+          var code = invoiceCode();
+          var iv = {
+            code: code, amount: amount, credited: null,
+            method: "Ngân Hàng · Demo (chưa đồng bộ bot)", status: "pending",
+            time: nowStr(), remote: false,
+            detail: "MBBank · Nội dung CK: " + code
+          };
+          state.invoices.unshift(iv);
+          state.currentPay = iv;
+          saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
+          toast(message);
         };
-        state.invoices.unshift(iv);
-        state.currentPay = iv;
-        renderInvoices();
-        renderPayment();
-        showView("payment");
-        toast("Đã tạo hoá đơn " + code + " — quét VietQR để thanh toán.");
+        if (!apiReady()){
+          createLocal("Chưa cấu hình API Worker — hoá đơn demo, chưa đồng bộ bot.");
+          return;
+        }
+        btn.disabled = true;
+        apiFetch("/api/deposit", {
+          method: "POST",
+          body: { telegram_id: (state.user && state.user.telegram_id) || null, amount: amount, method: "sepay" }
+        })
+          .then(function(d){
+            var code = d && (d.code || d.invoice_code || d.deposit_id || d.id);
+            if (!code) throw new Error((d && d.error) || "Không tạo được lệnh nạp");
+            var iv = {
+              code: code,
+              amount: (typeof d.amount === "number" ? d.amount : amount),
+              credited: null,
+              method: "Ngân Hàng · SePay / VietQR",
+              status: "pending",
+              time: nowStr(),
+              remote: true,
+              depositId: d.deposit_id || d.id || code,
+              bank: d.bank,
+              qr_url: d.qr_url,
+              detail: "Chuyển đúng số tiền + nội dung " + code + " — bot tự cộng ví"
+            };
+            state.invoices.unshift(iv);
+            state.currentPay = iv;
+            saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
+            toast("Đã tạo lệnh nạp " + code + " — quét VietQR để thanh toán.");
+            startDepositPoll(iv);
+          })
+          .catch(function(err){
+            var why = (err && err.message) ? err.message : "lỗi mạng";
+            createLocal("Không gọi được API (" + why + ") — hoá đơn demo, chưa đồng bộ bot.");
+          })
+          .then(function(){ btn.disabled = false; });
       });
       function renderPayment(){
         var iv = state.currentPay; if (!iv) return;
+        var bank = iv.bank || BANK;
         $("#payCodeLbl").textContent = iv.code;
-        $("#payBank").textContent = BANK.name;
-        $("#payAcc").textContent = BANK.account;
-        $("#payHolder").textContent = BANK.holder;
+        $("#payBank").textContent = bank.name || bank.code || BANK.name;
+        $("#payAcc").textContent = bank.account || BANK.account;
+        $("#payHolder").textContent = bank.holder || BANK.holder;
         $("#payAmount").textContent = fmtVND(iv.amount);
         $("#payNote").textContent = iv.code;
-        $("#payAccCopy").setAttribute("data-copy", BANK.account);
+        $("#payAccCopy").setAttribute("data-copy", bank.account || BANK.account);
         $("#payNoteCopy").setAttribute("data-copy", iv.code);
         var img = $("#payQrImg");
         $("#payQrFallback").hidden = true;
         img.hidden = false;
-        img.src = "https://img.vietqr.io/image/" + BANK.code + "-" + BANK.account + "-qr_only.png?amount=" + iv.amount +
-          "&addInfo=" + encodeURIComponent(iv.code) + "&accountName=" + encodeURIComponent(BANK.holder);
+        img.src = iv.qr_url ? iv.qr_url
+          : "https://img.vietqr.io/image/" + (bank.code || BANK.code) + "-" + (bank.account || BANK.account) + "-qr_only.png?amount=" + iv.amount +
+            "&addInfo=" + encodeURIComponent(iv.code) + "&accountName=" + encodeURIComponent(bank.holder || BANK.holder);
         updatePayStatus();
+        if (iv.remote && iv.status === "pending") startDepositPoll(iv);
       }
       function updatePayStatus(){
         var iv = state.currentPay; if (!iv) return;
+        if (iv.status === "approved") iv.status = "success";
         var st = $("#payStatus"), btn = $("#payConfirmBtn"), back = $("#payBackBtn"), sup = $("#paySupport");
         var link = $("#paySupportLink"); if (link) link.href = ADMIN_SUPPORT_URL;
         st.classList.remove("done", "cancelled");
         if (iv.status === "success"){
           // ĐÃ CHUYỂN: trạng thái xanh + hiện dòng Hỗ trợ (link acc admin)
-          st.innerHTML = "✓ " + L("payDone");
+          st.innerHTML = "✓ " + L("payDone") +
+            (iv.remote ? " · bot đã cộng " + fmtVND(iv.credited != null ? iv.credited : iv.amount) : " · demo, chưa đồng bộ bot");
           st.classList.add("done");
           btn.style.display = "";
           btn.textContent = L("payViewInv");
@@ -1683,21 +1822,26 @@
       $("#payConfirmBtn").addEventListener("click", function(){
         var iv = state.currentPay; if (!iv) return;
         if (this.hasAttribute("data-pay-done")){ showView("invoices"); return; }
+        if (iv.remote){
+          // Lệnh nạp thật: tiền do SePay/bot xác nhận, không tự cộng trên trình duyệt.
+          toast("Đang kiểm tra giao dịch với SePay...");
+          checkDeposit(iv, true);
+          return;
+        }
         iv.status = "success";
         iv.credited = iv.amount;
-        iv.detail = "MBBank · Nội dung CK: " + iv.code + " · SePay đã đối soát";
+        iv.detail = "Demo cục bộ · chưa đồng bộ bot";
         state.balance += iv.amount;
-        refreshUserUI();
-        renderInvoices();
-        updatePayStatus();
-        toast("Đã ghi nhận bạn đã chuyển khoản hoá đơn " + iv.code + " — cộng " + fmtVND(iv.amount) + " vào ví!");
+        markBalanceUnsynced();
+        saveInvoices(); renderInvoices(); updatePayStatus();
+        toast("Đã cộng " + fmtVND(iv.amount) + " vào số dư demo (chưa đồng bộ bot).");
       });
       $("#payBackBtn").addEventListener("click", function(){
         var iv = state.currentPay;
         if (iv && iv.status === "pending"){
           iv.status = "cancelled";
           iv.detail = "MBBank · Nội dung CK: " + iv.code + " · Đã huỷ";
-          renderInvoices();
+          saveInvoices(); renderInvoices();
           toast("Đã huỷ hoá đơn " + iv.code + ".");
         }
         showView("topup");
@@ -1774,7 +1918,7 @@
           detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
         };
         state.invoices.unshift(iv);
-        renderInvoices();
+        saveInvoices(); renderInvoices();
         $("#cardSerial").value = ""; $("#cardPin").value = "";
         toast("Đã gửi thẻ " + telcoName + " " + fmt(amount) + " lên TheSieuRe — trạng thái: Chờ xử lý.");
         submitCardToThesieure(
@@ -1784,6 +1928,7 @@
               iv.status = "success";
               iv.credited = result.value;
               state.balance += result.value;
+              markBalanceUnsynced(); // thẻ cào trên web chưa đi qua bot
               iv.detail += " · thực nhận " + fmt(result.value) + " (đã trừ chiết khấu TheSieuRe)";
               refreshUserUI();
               toast("Nạp thẻ thành công! Cộng " + fmt(result.value) + " vào ví.");
@@ -1809,6 +1954,7 @@
             var amt = 1 + Math.floor(Math.random() * 500);
             state.checkin = amt;
             state.balance += amt;
+            markBalanceUnsynced(); // điểm danh thật nằm trong bot
             refreshUserUI();
             renderCheckin();
             toast("Điểm danh thành công! +" + fmt(amt) + " vào ví.");
@@ -1971,6 +2117,14 @@
       renderInvoices();
       renderAccount();
       syncStock();
+      /* Số dư thật: làm mới mỗi 60 giây khi tab đang hiển thị, và ngay khi
+         người dùng quay lại tab (mở lại shop). */
+      setInterval(function(){
+        if (document.visibilityState === "visible" && state.user) refreshWebBalance();
+      }, 60000);
+      document.addEventListener("visibilitychange", function(){
+        if (document.visibilityState === "visible" && state.user) refreshWebBalance();
+      });
     })();
     </script>
   </body>
