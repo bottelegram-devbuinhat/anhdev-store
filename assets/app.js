@@ -11,19 +11,23 @@
   var ADMIN_SUPPORT_URL = "https://t.me/devbn_bot";
 
   /* ===== BACKEND VPS — TÀI KHOẢN WEB + NẠP THẺ CÀO (Flask) =====
-     Điền domain backend VPS của bạn vào đây, vd "https://api.anhdev.store".
+     API_BASE_URL là CHỖ DUY NHẤT giữ địa chỉ backend Flask (VPS) — chỉ
+     cần dán 1 link https://... vào đây là cả web dùng được (đăng nhập
+     TK/MK, nạp thẻ cào, điểm danh). Vd "https://api.anhdev.store".
      Để trống "" = chưa cấu hình: form nạp thẻ qua máy chủ + đăng nhập TK/MK
      sẽ báo "chưa cấu hình backend", còn đăng nhập Telegram + các luồng demo
      vẫn chạy bình thường.
      KHI ĐÃ ĐIỀN: nhớ thêm domain này vào connect-src của CSP trong
-     index.html (meta Content-Security-Policy) — nếu không trình duyệt sẽ
-     chặn fetch tới backend.
+     index.html (meta Content-Security-Policy — tìm dòng có ghi chú
+     "DOI-DOMAIN-BACKEND") — nếu không trình duyệt sẽ chặn fetch tới backend.
      TUYỆT ĐỐI KHÔNG điền PARTNER_ID / PARTNER_KEY / JWT_SECRET vào file này
      — chúng chỉ nằm trong file .env trên VPS. Frontend không bao giờ gọi
      thẳng cổng gạch thẻ (TheSieuRe): mọi thẻ cào đi qua backend, backend
-     mới ký sign = md5(partnerKey + code + serial) và gọi cổng thẻ. */
-  var BACKEND_API_BASE = "";
-  function backendReady(){ return !!BACKEND_API_BASE && BACKEND_API_BASE.indexOf("REPLACE-WITH") === -1; }
+     mới ký sign = md5(partnerKey + code + serial) và gọi cổng thẻ.
+     API số dư / nạp tiền SePay qua Cloudflare Worker là API_BASE riêng
+     (đừng nhầm với API_BASE_URL này). */
+  var API_BASE_URL = "";
+  function backendReady(){ return !!API_BASE_URL && API_BASE_URL.indexOf("REPLACE-WITH") === -1; }
 
   /* ===== BẢNG CHIẾT KHẤU NẠP THẺ (CHỈ ĐỂ HIỂN THỊ) =====
      % chiết khấu theo từng nhà mạng — hiển thị trong form "Nạp Thẻ" để khách
@@ -186,6 +190,7 @@
     authErrMatch:{ vi:"Mật khẩu nhập lại không khớp.", en:"Passwords do not match." },
     authErrGeneric:{ vi:"Sai tên đăng nhập hoặc mật khẩu.", en:"Wrong username or password." },
     authNoBackend:{ vi:"Chưa cấu hình backend — đăng nhập bằng tài khoản web chưa dùng được. Đăng nhập bằng Telegram bên dưới nhé.", en:"Backend is not configured yet — web-account login is unavailable. Log in with Telegram below." },
+    netErr:{ vi:"Không kết nối được máy chủ. Kiểm tra lại mạng hoặc thử lại sau.", en:"Cannot reach the server. Check your connection and try again." },
     authWelcome:{ vi:"Chào ", en:"Welcome " },
     balWebSynced:{ vi:"✓ Số dư thật từ máy chủ", en:"✓ Real balance from server" },
     accSyncedWeb:{ vi:"✓ số dư thật (máy chủ)", en:"✓ real balance (server)" },
@@ -1114,6 +1119,13 @@
        cookie — fetch dùng credentials:"include" để cookie đi kèm).
      - Content-Type: application/json. */
   var WEB_TOKEN_KEY = "anhdev_web_token";
+  function isNetworkError(err){
+    /* Loi mang (VPS tat / mat mang / het timeout): fetch khong nhan duoc
+       HTTP response nen err khong co .status — khac voi loi HTTP tu server
+       (backendFetch gan .status + .data cho loi HTTP). Dung de hien Toast
+       ro rang thay vi message ky thuat ("Failed to fetch"). */
+    return !!err && typeof err.status !== "number";
+  }
   function backendFetch(path, options){
     options = options || {};
     if (!backendReady()) return Promise.reject(new Error(L("authNoBackend")));
@@ -1123,7 +1135,7 @@
     if (state.webToken) headers["Authorization"] = "Bearer " + state.webToken;
     var init = { method: options.method || "GET", headers: headers, credentials:"include", signal: ctrl.signal };
     if (options.body != null) init.body = JSON.stringify(options.body);
-    return fetch(BACKEND_API_BASE.replace(/\/$/, "") + path, init)
+    return fetch(API_BASE_URL.replace(/\/$/, "") + path, init)
       .then(function(r){
         return r.text().then(function(text){
           var data = null;
@@ -1304,10 +1316,10 @@
   });
 
   /* ================= AUTH — TÀI KHOẢN WEB (TK/MK qua backend VPS) =================
-     Tab "Đăng nhập" / "Tạo tài khoản" gọi backend VPS (BACKEND_API_BASE).
+     Tab "Đăng nhập" / "Tạo tài khoản" gọi backend VPS (API_BASE_URL).
      Backend băm mật khẩu bằng bcrypt, cấp JWT + HttpOnly cookie (session);
      frontend chỉ giữ token trong bộ nhớ + localStorage để gửi kèm header
-     Bearer. Chưa cấu hình BACKEND_API_BASE thì form báo rõ, không tạo
+     Bearer. Chưa cấu hình API_BASE_URL thì form báo rõ, không tạo
      tài khoản ảo. Lỗi đăng nhập backend trả về luôn là thông báo chung
      ("Sai tên đăng nhập hoặc mật khẩu") để tránh dò tài khoản. */
   var authMode = "login";
@@ -1355,7 +1367,7 @@
   $("#authForm").addEventListener("submit", function(e){
     e.preventDefault();
     if (authBusy) return;
-    if (!backendReady()){ authError(L("authNoBackend")); return; }
+    if (!backendReady()){ authError(L("authNoBackend")); toast(L("authNoBackend")); return; }
     var username = normalizeUsername($("#authUser").value);
     var pass = $("#authPass").value;
     var pass2 = authMode === "register" ? $("#authPass2").value : null;
@@ -1369,6 +1381,9 @@
       .then(function(d){ return afterWebAuth(d, username); })
       .catch(function(err){
         setAuthBusy(false);
+        // Loi mang (VPS tat / mat mang): hien Toast ro rang, khong de nut
+        // ket o "Đang gửi…" va khong hien message ky thuat ("Failed to fetch").
+        if (isNetworkError(err)){ toast(L("netErr")); authError(L("netErr")); return; }
         authError(err && err.message ? err.message : L("authErrGeneric"));
       });
   });
@@ -1878,7 +1893,7 @@
      Luồng: web gửi thẻ lên backend (POST /api/topup/card) → backend ký sign
      và gạch thẻ với TheSieuRe → callback của cổng thẻ cộng tiền vào ví.
      Frontend KHÔNG bao giờ gọi thẳng thesieure.com (partnerKey chỉ nằm trong
-     .env trên VPS). Chưa cấu hình BACKEND_API_BASE thì chạy chế độ demo
+     .env trên VPS). Chưa cấu hình API_BASE_URL thì chạy chế độ demo
      (mô phỏng cục bộ, ghi rõ "Demo", số dư chỉ là demo). */
   function cardExpectedCredit(amount, telco){
     var fee = (CARD_DISCOUNT_RATES[telco] || 0) / 100;
@@ -2005,7 +2020,7 @@
           saveInvoices(); renderInvoices();
           $("#cardSerial").value = ""; $("#cardPin").value = "";
         }
-        toast(L("cardSendFail") + (err && err.message ? ": " + err.message : ""));
+        toast(isNetworkError(err) ? L("netErr") : (L("cardSendFail") + (err && err.message ? ": " + err.message : "")));
       });
   });
 
@@ -2045,7 +2060,9 @@
               }
               // Thông báo lỗi lấy từ server (409 đã điểm danh / 429 vượt IP /
               // 403 chưa đủ điều kiện) — server luôn trả message tiếng Việt rõ ràng.
-              toast(err && err.message ? err.message : L("ciErrGeneric"));
+              // Lỗi mạng (VPS tắt / mất mạng) thì hiện Toast rõ ràng thay vì
+              // message kỹ thuật.
+              toast(isNetworkError(err) ? L("netErr") : (err && err.message ? err.message : L("ciErrGeneric")));
             });
           return;
         }

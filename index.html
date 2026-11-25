@@ -6,10 +6,13 @@
          style-src giu 'unsafe-inline' vi trang co <style> noi tuyen + nhieu style="..."
          (doi het sang file rieng la refactor lon, de vo giao dien). script-src KHONG co
          'unsafe-inline' vi script chinh da doi sang assets/app.js.
-         Khi da dien BACKEND_API_BASE trong assets/app.js, them domain backend VPS
-         vao connect-src o duoi (vd https://api.anhdev.store) — neu khong trinh duyet
-         se chan fetch toi backend. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
+         [DOI-DOMAIN-BACKEND] Khi da dien API_BASE_URL trong assets/app.js
+         (vd "https://api.anhdev.store"), DOI domain do trong connect-src o
+         duoi — thay "https://api.anhdev.store" thanh domain that cua ban
+         (vd domain Cloudflare Tunnel). Neu khong trinh duyet se chan fetch
+         toi backend. API phai la https:// (khong dung http://) neu khong
+         se bi Mixed Content / bi chan. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://api.anhdev.store; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
@@ -868,7 +871,7 @@
         <div class="form-err" id="authErr"></div>
         <!-- Đăng nhập / Tạo tài khoản web (tên đăng nhập + mật khẩu) qua backend VPS.
              Backend (Flask) băm mật khẩu bằng bcrypt và cấp JWT + HttpOnly cookie;
-             xem BACKEND_API_BASE trong assets/app.js. Chưa cấu hình backend thì form
+             xem API_BASE_URL trong assets/app.js. Chưa cấu hình backend thì form
              báo rõ "chưa cấu hình", không tạo tài khoản ảo. -->
         <form id="authForm" novalidate>
           <div class="field">

@@ -550,3 +550,128 @@ hero banner.
   the store a few times on a real phone + Mini App and confirm a different
   hero appears each reload (never the same twice in a row) and the banner is
   never broken or stretched.
+
+---
+
+## PART 6 — Finalization: kết nối Frontend (GitHub Pages) ↔ Backend Flask (VPS)
+
+Chốt kết nối để bấm thật không bị trình duyệt chặn. Hai API của web không
+đổi vai trò: Cloudflare Worker (`API_BASE`, số dư / nạp SePay) đã có URL
+thật — **không đụng tới**; Flask backend (tài khoản web / nạp thẻ / điểm
+danh) giờ chỉ còn **1 chỗ cấu hình duy nhất là `API_BASE_URL`**.
+
+### Backend (store-backend/) — CORS + ProxyFix + cookie
+
+- **CORS** (`app.py` + `config.py`): chỉ origin
+  `https://bottelegram-devbuinhat.github.io` + `http://localhost` /
+  `http://127.0.0.1` (bất kỳ port nào, bằng regex `re:` — vì flask-cors
+  khớp chính xác nên localhost cần regex để chấp nhận :3000/:5500/:8000).
+  Methods `GET, POST, OPTIONS`; headers `Content-Type, Authorization`;
+  `supports_credentials=true`. Không dùng `*`.
+- **Preflight**: `OPTIONS` vào `/api/*` luôn trả `200` ngay qua
+  `before_request` — không bao giờ bị JWT hay rate limit chặn (vì chúng
+  nằm trong view). Header CORS do flask-cors thêm ở `after_request`.
+- **ProxyFix / IP thật** (`app.py` + `security.py`): `ProxyFix(x_for=1,
+  x_proto=1, x_host=1, x_port=1)`; `client_ip()` ưu tiên
+  `CF-Connecting-IP` (Cloudflare Tunnel) → `X-Forwarded-For` (mục đầu,
+  Nginx) → `remote_addr`. Mọi rate limiter (register, login-fail, card,
+  check-in IP) đều dùng IP này nên chạy sau Tunnel/Nginx không bị gom
+  hết về 127.0.0.1. Server phải chạy sau proxy/tunnel tin cậy.
+- **Cookie** (`auth.py` + `config.py`): thêm `COOKIE_SECURE` (mặc định
+  `false`). Trên VPS đặt `true` → cookie `session` được set
+  `SameSite=None; Secure` (bắt buộc để trình duyệt gửi kèm khi Frontend
+  cross-site gọi API); test local qua http thì `SameSite=Lax`, không
+  Secure. `logout` xóa cookie bằng cùng thuộc tính.
+- Không đổi endpoint hay hành vi nào (auth, nạp thẻ + callback, điểm danh,
+  giới hạn chống spam giữ nguyên).
+
+### Frontend (store-upgrade/) — 1 config + CSP + Toast lỗi mạng
+
+- **`API_BASE_URL`** (`assets/app.js`, dòng 29): đổi tên từ
+  `BACKEND_API_BASE` → `API_BASE_URL` — **chỗ duy nhất** giữ địa chỉ
+  backend Flask. Mọi tham chiếu (fetch, `backendReady()`, comment) đã
+  đổi theo; 0 tham chiếu `BACKEND_API_BASE` còn lại. `API_BASE` (Worker)
+  giữ nguyên URL thật. Khi `API_BASE_URL` trống, thông báo "chưa cấu
+  hình backend" vẫn hiện và Telegram/demo vẫn chạy.
+- **CSP** (`index.html`): `connect-src` thêm `https://api.anhdev.store`
+  (placeholder — dòng có ghi chú `[DOI-DOMAIN-BACKEND]`, ghi rõ đổi thành
+  domain thật khi đổi Tunnel). Phần còn lại của CSP không đổi. API phải
+  là `https://` (không Mixed Content).
+- **Lỗi mạng** (`assets/app.js`): thêm `isNetworkError(err)` (lỗi fetch
+  không có `.status` = VPS tắt / mất mạng / timeout) + chuỗi `netErr`
+  ("Không kết nối được máy chủ. Kiểm tra lại mạng hoặc thử lại sau.").
+  Đăng nhập/đăng ký, nạp thẻ, điểm danh đều hiện Toast rõ ràng khi gặp
+  lỗi mạng và **mở khóa nút** (không kẹt ở "Đang gửi…" / "Đang gửi thẻ").
+  Lỗi từ server (sai mật khẩu, 409 đã điểm danh, 429 vượt IP…) vẫn hiện
+  đúng message tiếng Việt của server.
+- **Banner kho mẫu**: đã xác nhận gỡ hẳn — `setSyncStatus()` đặt
+  `el.hidden = (mode === "demo")` nên banner đỏ "catalog mẫu" không bao
+  giờ hiện; chỉ banner trạng thái kho thật (live/saved) hiện.
+- **Mục "Mua acc trong 4 bước"**: **KHÔNG xóa** (theo lệnh của Anh — chỉ
+  xóa sau khi mọi nhiệm vụ xong 100%).
+
+### Files changed
+
+- `store-backend/app.py` — ProxyFix, CORS regex origins + methods/headers,
+  `before_request` preflight 200.
+- `store-backend/config.py` — `ALLOWED_ORIGINS` mặc định thêm localhost
+  regex; thêm `COOKIE_SECURE`.
+- `store-backend/security.py` — `client_ip()` ưu tiên `CF-Connecting-IP`.
+- `store-backend/auth.py` — cookie `SameSite=None; Secure` khi
+  `COOKIE_SECURE=true`; `logout` xóa cookie cùng thuộc tính.
+- `store-backend/.env.example` — `ALLOWED_ORIGINS` mới + `COOKIE_SECURE`.
+- `store-backend/tests/test_self.py` — thêm mục 8 (18 test mới).
+- `store-backend/tests/test_live.sh` — **mới**: test curl trên server thật.
+- `store-backend/VPS_DEPLOY.md` — **mới**: hướng dẫn lên VPS.
+- `store-backend/README.md` — bảng file, `COOKIE_SECURE`, link
+  `VPS_DEPLOY.md` + `test_live.sh`, số test mới.
+- `store-backend/API_CONTRACT.md` — mục CORS/cookie/IP/`API_BASE_URL`.
+- `store-upgrade/assets/app.js` — `BACKEND_API_BASE` → `API_BASE_URL`,
+  `netErr` + `isNetworkError()`, Toast lỗi mạng cho auth/card/check-in.
+- `store-upgrade/index.html` — CSP `connect-src` thêm placeholder API
+  domain + ghi chú `[DOI-DOMAIN-BACKEND]`; comment `API_BASE_URL`.
+- `store-upgrade/REPORT2.md` — phần này.
+
+### Verification
+
+- Backend unit: `python tests/test_self.py` → **85 PASS, 0 FAIL**
+  (67 cũ + 18 mới: preflight 200 + header CORS đúng origin, origin lạ
+  không có Allow-Origin, localhost bất kỳ port nào được chấp nhận,
+  preflight vào endpoint cần auth vẫn 200 (không 401),
+  `client_ip` ưu tiên CF-Connecting-IP, cookie `SameSite=None; Secure`
+  khi `COOKIE_SECURE=true`).
+- Backend live (curl, server local port 5511, `CARD_API_URL` trỏ về
+  127.0.0.1:9 để cổng thẻ không gọi được → hóa đơn giữ pending):
+  `bash tests/test_live.sh http://127.0.0.1:5511` → **21 PASS, 0 FAIL,
+  0 SKIP** — health, preflight (GitHub Pages + localhost:5500 + origin
+  lạ), register 201 + token, login 200, `/me` balance 0, topup/card
+  pending, callback JSON đúng chữ ký → success +80.000đ (100k × 0.8),
+  sai chữ ký → **403**, gọi trùng → không cộng 2 lần; callback FORM
+  đúng chữ ký → success +40.000đ (50k × 0.8), gọi trùng → không cộng
+  2 lần (tổng 120.000đ).
+- Frontend: `node --check` PASS cả `app.js` + `animations.js`;
+  jsdom e2e (`/tmp/e2e/test.js`, file thật): **57 passed, 0 failed**
+  (auth, card, check-in, search "murad" = 162 — không lộ random,
+  logout, khôi phục phiên); search test vs stock thật: **31/31**,
+  demo: **7/7**. Guards: 0 inline `onclick`, 0 base64 blob,
+  0 `BACKEND_API_BASE`, Worker `API_BASE` vẫn URL thật, anti-leak
+  (random chỉ hiện mô tả chung), autocomplete, sidebar fix
+  (`setActiveNav`), search/pagination (`PAGE_SIZE = 12`), hero xoay
+  (20 ảnh) đều còn nguyên.
+
+### VPS guide
+
+Xem `store-backend/VPS_DEPLOY.md`: biến `.env` bắt buộc, Cloudflare
+Tunnel (nhanh + cố định) hoặc Nginx + SSL, cách lấy link dán vào
+`API_BASE_URL`, đăng ký `POST https://<domain>/api/callback/card` trên
+TheSieuRe, và thứ tự khởi động Flask API + bot `@devbn_bot` song song
+(Flask dùng `store.db`, bot dùng `data/bot.db` — khác file nên không
+xung đột).
+
+### Not verified (needs a live check after deploy)
+
+- Chưa test trên VPS thật (chưa có VPS/domain). Sau khi lên sóng, chạy
+  `bash tests/test_live.sh https://<domain-that>` (đặt
+  `CARD_PARTNER_KEY` trùng `.env` trên VPS) và kiểm tra trên điện thoại
+  + Mini App: đăng nhập TK/MK, nạp thẻ thật 10.000đ, điểm danh — xem
+  Toast có rõ ràng khi VPS tắt/mất mạng không.
