@@ -422,7 +422,7 @@
         <div class="brand">
           <div class="brand-mark">A</div>
           <div>
-            <div class="brand-name">ANHDEV<em>.STORE</em></div>
+            <div class="brand-name">AnhDev <em>Store</em></div>
             <div class="brand-sub" data-i18n="brandSub">Shop acc Liên Quân</div>
           </div>
         </div>
@@ -708,7 +708,7 @@
                 <div class="pay-card">
                   <div class="pay-brand">
                     <div class="brand-mark">A</div>
-                    <div><b>ANHDEV.STORE</b><small>Hoá đơn <span id="payCodeLbl">—</span></small></div>
+                    <div><b>AnhDev Store</b><small>Hoá đơn <span id="payCodeLbl">—</span></small></div>
                   </div>
                   <div class="pay-row">
                     <span class="pay-ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21V10m4 11V10m4 11V10m4 11V10m4 11V10"/><path d="m2 10 10-6 10 6z"/></svg></span>
@@ -1133,7 +1133,13 @@
         var list = PRODUCTS.filter(function(p){
           if (f.cat !== "all" && p.cat !== f.cat) return false;
           if (f.onlyStock && p.stock <= 0) return false;
-          if (f.q && (p.name + " " + p.desc).toLowerCase().indexOf(f.q.toLowerCase()) === -1) return false;
+          if (f.q){
+            var hay = (p.name + " " + p.desc).toLowerCase();
+            var words = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+            for (var i = 0; i < words.length; i++){
+              if (hay.indexOf(words[i]) === -1) return false;
+            }
+          }
           return true;
         });
         if (f.sort === "price-asc") list.sort(function(a,b){ return a.price - b.price; });
@@ -1159,7 +1165,7 @@
         } else if (p.img){
           head = '<div class="card-cover"><img src="' + p.img + '" alt="Ảnh bìa ' + esc(p.name) + '" loading="lazy" /></div>';
         } else {
-          head = '<div class="card-head"><div class="game">AnhDev.Store · Liên Quân</div><div class="ttl">LIÊN QUÂN</div></div>';
+          head = '<div class="card-head"><div class="game">AnhDev Store · Liên Quân</div><div class="ttl">LIÊN QUÂN</div></div>';
         }
         var btn = p.stock > 0
           ? '<button class="buy-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>'
