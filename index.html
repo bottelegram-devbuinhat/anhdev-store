@@ -184,6 +184,14 @@
       .cat-title{display:flex;align-items:center;gap:10px;margin:26px 0 14px;font-size:18px;font-weight:800}
       .cat-title small{font-weight:500;color:var(--muted);font-size:12.5px}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
+      .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+      .pg-btn{background:var(--wine);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
+      .pg-btn:disabled{opacity:.35;cursor:default}
+      .pg-nums{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+      .pg-num{min-width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;cursor:pointer}
+      .pg-num.on{background:var(--wine);border-color:var(--wine);color:#fff}
+      .pg-info{font-size:12.8px;color:var(--muted)}
+      .pg-dots{color:var(--muted)}
       .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
       .card:hover{border-color:color-mix(in srgb,var(--wine) 45%,var(--line))}
       .card-head{background:var(--head-tint);padding:16px 18px 14px;min-height:96px}
@@ -940,7 +948,7 @@
         depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
         orders: [],            // {code, productName, price, time, user, pass}
         invoices: [],          // {code, amount, method, time}
-        filter: { cat:"all", q:"", sort:"default", onlyStock:false },
+        filter: { cat:"all", q:"", sort:"default", onlyStock:false, page:1 },
         pendingTopup: null,    // (giữ tương thích)
         currentPay: null,      // hoá đơn ngân hàng đang mở ở trang thanh toán
         checkin: null,         // số tiền đã điểm danh trong phiên (null = chưa điểm danh)
@@ -980,7 +988,11 @@
         ciDoneB:{ vi:" đã cộng vào ví.", en:" added to your wallet." },
         lbYou:{ vi:"Bạn", en:"You" },
         lbOrders:{ vi:"đơn", en:"orders" },
-        payInvoiceBtn:{ vi:"Thanh toán hoá đơn", en:"Pay this invoice" }
+        payInvoiceBtn:{ vi:"Thanh toán hoá đơn", en:"Pay this invoice" },
+        pgPrev:{ vi:"Trang trước", en:"Previous" },
+        pgNext:{ vi:"Trang sau", en:"Next" },
+        pgShowing:{ vi:"Hiển thị", en:"Showing" },
+        pgPage:{ vi:"Trang", en:"Page" }
       };
       function L(k){ var d = DYN[k]; return d ? (d[state.lang] || d.vi) : k; }
       function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -1165,6 +1177,23 @@
       function catInfo(key){
         return state.lang === "en" && CATS_EN[key] ? CATS_EN[key] : CATS[key];
       }
+      var PAGE_SIZE = 12; // 1 trang chỉ render 12 acc — render 12.126 acc cùng lúc làm trình duyệt đứng
+      function pagerHtml(total, totalPages, start){
+        if (totalPages <= 1) return "";
+        var p = state.filter.page;
+        var end = Math.min(start + PAGE_SIZE, total);
+        var nums = "";
+        var from = Math.max(1, p - 2), to = Math.min(totalPages, p + 2);
+        if (from > 1) nums += '<button class="pg-num" data-page="1">1</button><span class="pg-dots">…</span>';
+        for (var i = from; i <= to; i++){
+          nums += '<button class="pg-num' + (i === p ? ' on' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+        if (to < totalPages) nums += '<span class="pg-dots">…</span><button class="pg-num" data-page="' + totalPages + '">' + totalPages + '</button>';
+        return '<div class="pager"><button class="pg-btn" data-page="' + (p - 1) + '"' + (p <= 1 ? ' disabled' : '') + '>&larr; ' + L("pgPrev") + '</button>'
+          + '<span class="pg-info">' + L("pgShowing") + ' ' + (start + 1) + '–' + end + ' / ' + total + ' · ' + L("pgPage") + ' ' + p + '/' + totalPages + '</span>'
+          + '<div class="pg-nums">' + nums + '</div>'
+          + '<button class="pg-btn" data-page="' + (p + 1) + '"' + (p >= totalPages ? ' disabled' : '') + '>' + L("pgNext") + ' &rarr;</button></div>';
+      }
       function renderProducts(){
         var list = visibleProducts();
         var area = $("#productArea");
@@ -1177,19 +1206,30 @@
           }
           return;
         }
-        if (state.filter.cat !== "all" || state.filter.q){
-          area.innerHTML = '<div class="grid">' + list.map(cardHtml).join("") + '</div>';
+        // Kho nhỏ (catalog mẫu) thì giữ kiểu nhóm theo danh mục như cũ.
+        // Kho lớn thì phân trang phẳng — chỉ render 12 thẻ/trang, không render hết 12.126 acc cùng lúc.
+        if (list.length <= PAGE_SIZE){
+          if (state.filter.cat !== "all" || state.filter.q){
+            area.innerHTML = '<div class="grid">' + list.map(cardHtml).join("") + '</div>';
+            return;
+          }
+          var html = "";
+          Object.keys(CATS).forEach(function(key){
+            var items = list.filter(function(p){ return p.cat === key; });
+            if (!items.length) return;
+            var ci = catInfo(key);
+            html += '<div class="cat-title">' + esc(ci.title) + (ci.sub ? ' <small>' + esc(ci.sub) + '</small>' : '') + '</div>';
+            html += '<div class="grid">' + items.map(cardHtml).join("") + '</div>';
+          });
+          area.innerHTML = html;
           return;
         }
-        var html = "";
-        Object.keys(CATS).forEach(function(key){
-          var items = list.filter(function(p){ return p.cat === key; });
-          if (!items.length) return;
-          var ci = catInfo(key);
-          html += '<div class="cat-title">' + esc(ci.title) + (ci.sub ? ' <small>' + esc(ci.sub) + '</small>' : '') + '</div>';
-          html += '<div class="grid">' + items.map(cardHtml).join("") + '</div>';
-        });
-        area.innerHTML = html;
+        var totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+        if (state.filter.page > totalPages) state.filter.page = totalPages;
+        if (state.filter.page < 1) state.filter.page = 1;
+        var start = (state.filter.page - 1) * PAGE_SIZE;
+        var pageItems = list.slice(start, start + PAGE_SIZE);
+        area.innerHTML = '<div class="grid">' + pageItems.map(cardHtml).join("") + '</div>' + pagerHtml(list.length, totalPages, start);
       }
       function renderStats(){
         var totalStock = PRODUCTS.reduce(function(s,p){ return s + p.stock; }, 0);
@@ -1252,6 +1292,7 @@
         var accs = (data.accounts || []).map(apiProduct);
         var prods = (data.products || []).map(apiProductForProduct);
         PRODUCTS = accs.concat(prods);
+        state.filter.page = 1;
         SYNC.updatedAt = data.updated_at || null;
         var when = SYNC.updatedAt ? new Date(SYNC.updatedAt).toLocaleString("vi-VN") : "";
         var counts = accs.length + " acc · " + prods.length + " sản phẩm";
@@ -1264,6 +1305,7 @@
       }
       function useDemoStock(){
         PRODUCTS = DEMO_PRODUCTS;
+        state.filter.page = 1;
         setSyncStatus("demo", "Không kết nối được kho thật — đang hiển thị catalog mẫu (không phải kho thật). Mua acc thật qua bot Telegram @devbn_bot.");
         renderProducts(); renderStats();
       }
@@ -1407,12 +1449,13 @@
         var pending = state.invoices.filter(function(iv){ return iv.remote && iv.status === "pending"; })[0];
         if (pending) startDepositPoll(pending);
       }
-      $("#searchInput").addEventListener("input", function(e){ state.filter.q = e.target.value.trim(); renderProducts(); });
-      $("#sortSelect").addEventListener("change", function(e){ state.filter.sort = e.target.value; renderProducts(); });
+      $("#searchInput").addEventListener("input", function(e){ state.filter.q = e.target.value.trim(); state.filter.page = 1; renderProducts(); });
+      $("#sortSelect").addEventListener("change", function(e){ state.filter.sort = e.target.value; state.filter.page = 1; renderProducts(); });
       $("#stockToggle").addEventListener("click", function(){
         state.filter.onlyStock = !state.filter.onlyStock;
         this.classList.toggle("on", state.filter.onlyStock);
         this.setAttribute("aria-pressed", state.filter.onlyStock);
+        state.filter.page = 1;
         renderProducts();
       });
       $("#catChips").addEventListener("click", function(e){
@@ -1420,7 +1463,14 @@
         $$("#catChips .chip").forEach(function(c){ c.classList.remove("on"); });
         chip.classList.add("on");
         state.filter.cat = chip.getAttribute("data-cat");
+        state.filter.page = 1;
         renderProducts();
+      });
+      $("#productArea").addEventListener("click", function(e){
+        var b = e.target.closest("[data-page]"); if (!b || b.disabled) return;
+        state.filter.page = parseInt(b.getAttribute("data-page"), 10) || 1;
+        renderProducts();
+        var t = document.getElementById("products"); if (t) t.scrollIntoView({ behavior:"smooth" });
       });
 
       /* ================= MODALS ================= */
@@ -2011,6 +2061,7 @@
         if (!link) return;
         var cat = link.getAttribute("data-catlink");
         state.filter.cat = cat;
+        state.filter.page = 1;
         $$("#catChips .chip").forEach(function(c){ c.classList.toggle("on", c.getAttribute("data-cat") === cat); });
         showView("home");
         renderProducts();
