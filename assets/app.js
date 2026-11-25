@@ -226,7 +226,12 @@
     ciOkA:{ vi:"Điểm danh thành công! Cộng ", en:"Check-in successful! Added " },
     ciOkB:{ vi:" vào ví · Số dư mới: ", en:" to your wallet · New balance: " },
     ciAlready:{ vi:"Bạn đã điểm danh hôm nay rồi. Quay lại ngày mai nhé.", en:"You already checked in today. Come back tomorrow." },
-    ciErrGeneric:{ vi:"Điểm danh thất bại. Thử lại sau.", en:"Check-in failed. Please try again." }
+    ciErrGeneric:{ vi:"Điểm danh thất bại. Thử lại sau.", en:"Check-in failed. Please try again." },
+    /* Mua acc truc tiep tren web (tra tk|mk ngay) */
+    buyWebProcessing:{ vi:"Đang xử lý mua hàng…", en:"Processing your purchase…" },
+    buyWebSoldOut:{ vi:"Acc này vừa được người khác mua mất rồi.", en:"This account was just sold to someone else." },
+    buyWebFail:{ vi:"Mua trên web hiện không dùng được — chuyển sang mua trong bot nhé.", en:"Web purchase is unavailable right now — please buy in the bot instead." },
+    buyOneTime:{ vi:"Lưu lại ngay — tài khoản và mật khẩu chỉ hiện một lần duy nhất ở đây.", en:"Save these now — the username and password are only shown once here." }
   };
   function L(k){ var d = DYN[k]; return d ? (d[state.lang] || d.vi) : k; }
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -1695,9 +1700,20 @@
       '<a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener noreferrer">Mua trong bot @devbn_bot</a>';
     openModal("#buyModal");
   }
+  function canWebBuy(p){
+    /* Chi mua truc tiep tren web khi: acc that co ma (kind=acc, co code),
+       user dang dang nhap bang tai khoan web (co vi tren backend) va
+       backend san sang. San pham so (kind=product, khong co tk|mk) van
+       qua bot nhu cu. */
+    return !!p && p.api && p.kind === "acc" && !!p.code
+      && state.user && state.user.web && backendReady();
+  }
   function openBuyModal(p){
     $("#buySub").textContent = p.name + " · " + CATS[p.cat].title;
-    if (p.api){ openBotBuyModal(p); return; }
+    if (p.api){
+      if (canWebBuy(p)){ openWebBuyModal(p); return; }
+      openBotBuyModal(p); return;
+    }
     var body = $("#buyBody"), actions = $("#buyActions");
     var rows =
       '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
@@ -1714,11 +1730,89 @@
     }
     openModal("#buyModal");
   }
+  function openWebBuyModal(p){
+    /* Mua truc tiep tren web: tru vi backend, tra tk|mk ngay trong modal.
+       Nhan "Xác nhận mua" se goi completeWebBuy(p). */
+    var body = $("#buyBody"), actions = $("#buyActions");
+    var rows =
+      '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyBal") + '</span><b>' + fmt(state.balance) + '</b></div>';
+    if (state.balance >= p.price){
+      body.innerHTML = rows + '<div class="sum-row total"><span>' + L("buyAfter") + '</span><b>' + fmt(state.balance - p.price) + '</b></div>';
+      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine" data-buy-confirm>Xác nhận mua</button>';
+    } else {
+      var short = p.price - state.balance;
+      body.innerHTML = rows +
+        '<div class="shortfall">' + L("shortA") + '<b>' + fmt(p.price) + '</b>' + L("shortB") + '<b>' + fmt(state.balance) + '</b>' + L("shortC") + '<b>' + fmt(short) + '</b>' + L("shortD") + '</div>';
+      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Để sau</button><button class="btn btn-wine" data-buy-topup>Nạp tiền ngay</button>';
+    }
+    openModal("#buyModal");
+  }
+  function completeWebBuy(p){
+    /* Nut "Xác nhận mua" da bi disable o handler click (chong double-click).
+       Trong luc cho backend: hien trang thai dang xu ly, khong cho bam lai. */
+    $("#buyBody").innerHTML = '<div class="empty-box"><b>' + L("buyWebProcessing") + '</b></div>';
+    $("#buyActions").innerHTML = "";
+    backendFetch("/api/shop/buy", { method:"POST", body:{ code: p.code } })
+      .then(function(d){
+        var order = d.order || {}, acc = d.account || {};
+        state.balance = order.balance;
+        p.stock = 0; // acc da ban — khong mua lai duoc tu luoi hien tai
+        state.orders.unshift({
+          code: order.code, demo: false, productName: p.name,
+          price: order.price, time: nowStr(),
+          user: acc.username, pass: acc.password
+        });
+        refreshUserUI(); renderProducts(); renderStats();
+        $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
+        $("#buyBody").innerHTML =
+          '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+          '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(order.price) + '</b></div>' +
+          '<div class="sum-row total"><span>' + L("buyAfter") + '</span><b>' + fmt(order.balance) + '</b></div>' +
+          '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(acc.username) + '</code><button class="copy-btn" data-copy="' + esc(acc.username) + '">Sao chép</button></div>' +
+          '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code>' + esc(acc.password) + '</code><button class="copy-btn" data-copy="' + esc(acc.password) + '">Sao chép</button></div></div>' +
+          '<p class="buy-once">' + L("buyOneTime") + '</p>';
+        $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><button class="btn btn-wine" data-buy-orders>Xem đơn hàng</button>';
+        toast("Mua thành công! Đã trừ " + fmt(order.price) + " khỏi ví.");
+      })
+      .catch(function(err){
+        if (err && err.status === 409){
+          /* Acc vua bi nguoi khac mua: danh dau het hang, giu modal mo. */
+          p.stock = 0; renderProducts();
+          toast(L("buyWebSoldOut"), "error");
+          $("#buyBody").innerHTML = '<div class="shortfall">' + L("buyWebSoldOut") + '</div>';
+          $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener noreferrer">Mua trong bot @devbn_bot</a>';
+          return;
+        }
+        if (err && err.data && err.data.error === "insufficient_balance"){
+          var d = err.data;
+          var bal = (typeof d.balance === "number") ? d.balance : state.balance;
+          var short = (typeof d.shortfall === "number") ? d.shortfall : (p.price - bal);
+          $("#buyBody").innerHTML =
+            '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+            '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
+            '<div class="sum-row"><span>' + L("buyBal") + '</span><b>' + fmt(bal) + '</b></div>' +
+            '<div class="shortfall">' + L("shortA") + '<b>' + fmt(p.price) + '</b>' + L("shortB") + '<b>' + fmt(bal) + '</b>' + L("shortC") + '<b>' + fmt(short) + '</b>' + L("shortD") + '</div>';
+          $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Để sau</button><button class="btn btn-wine" data-buy-topup>Nạp tiền ngay</button>';
+          toast(L("shortA") + fmt(p.price) + L("shortB") + fmt(bal) + L("shortC") + fmt(short) + L("shortD"), "error");
+          return;
+        }
+        /* Loi mang / 500 (giai ma that bai) / loi khac: ve modal bot cu. */
+        toast(L("buyWebFail"), "error");
+        openBotBuyModal(p);
+      });
+  }
   $("#buyModal").addEventListener("click", function(e){
     if (e.target.closest("[data-buy-cancel]")) closeModal($("#buyModal"));
     if (e.target.closest("[data-buy-topup]")){ closeModal($("#buyModal")); showView("topup"); }
     var cb = e.target.closest("[data-buy-confirm]");
-    if (cb && buyTarget){ if (cb.disabled) return; cb.disabled = true; completePurchase(buyTarget); }
+    if (cb && buyTarget){
+      if (cb.disabled) return;
+      cb.disabled = true;
+      if (canWebBuy(buyTarget)) completeWebBuy(buyTarget);
+      else completePurchase(buyTarget);
+    }
   });
   function completePurchase(p){
     state.balance -= p.price;
