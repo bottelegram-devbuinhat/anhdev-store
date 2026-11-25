@@ -129,7 +129,10 @@
     /* active doi khi showView() chay (app.js) -> quan sat class */
     var navObs = new MutationObserver(function(){ positionIndicator(); });
     navObs.observe(nav, { attributes:true, attributeFilter:["class"], subtree:true });
-    window.addEventListener("resize", positionIndicator);
+    var rsTick = false;
+    window.addEventListener("resize", function(){
+      if (!rsTick){ rsTick = true; requestAnimationFrame(function(){ rsTick = false; positionIndicator(); }); }
+    });
     /* cho font/layout on dinh roi moi dinh vi lan dau */
     setTimeout(positionIndicator, 60);
     setTimeout(positionIndicator, 400);
@@ -192,12 +195,32 @@
     setTimeout(function(){ area.classList.remove("flip"); }, 450);
   });
 
-  /* ================= 8. Modal: khoa cuon body khi mo ================= */
+  /* ================= 8. Modal: khoa cuon body khi mo (GIU NGUYEN VI TRI CUON) =================
+     Khoa kieu cu (chi overflow:hidden) tren mot so WebView co the lam trang
+     nhay ve dau khi modal mo. Khoa kieu moi: body position:fixed + top:-scrollY
+     (ky thuat chuan); mo khoa thi tra lai scrollY NGAY LAP TUC (khong smooth). */
+  var lockY = 0, locked = false;
+  function lockScroll(on){
+    if (on && !locked){
+      locked = true;
+      lockY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = "-" + lockY + "px";
+      document.body.classList.add("modal-lock");
+    } else if (!on && locked){
+      locked = false;
+      document.body.classList.remove("modal-lock");
+      document.body.style.top = "";
+      var de = document.documentElement, prev = de.style.scrollBehavior;
+      de.style.scrollBehavior = "auto";
+      window.scrollTo(0, lockY);
+      de.style.scrollBehavior = prev;
+    }
+  }
   var wraps = $all(".modal-wrap");
   if (wraps.length){
     var lockObs = new MutationObserver(function(){
       var anyOpen = wraps.some(function(w){ return w.classList.contains("open"); });
-      document.body.classList.toggle("modal-lock", anyOpen);
+      lockScroll(anyOpen);
     });
     wraps.forEach(function(w){
       lockObs.observe(w, { attributes:true, attributeFilter:["class"] });

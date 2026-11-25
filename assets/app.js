@@ -10,21 +10,29 @@
      (vd "https://t.me/ten_admin"). Mặc định đang trỏ về bot @devbn_bot. */
   var ADMIN_SUPPORT_URL = "https://t.me/devbn_bot";
 
-  /* ===== THESIEURE — NẠP THẺ CÀO (thesieure.com) =====
-     Điền 2 giá trị lấy từ trang quản trị đối tác của thesieure.com vào đây:
-       partnerId  : Partner ID của bạn trên TheSieuRe
-       partnerKey : Partner Key (API key) — dùng để ký chữ ký sign cho mỗi thẻ gửi lên
-     Để trống thì form nạp thẻ vẫn tạo giao dịch "Chờ xử lý" nhưng chưa gạch được thẻ thật.
-     Lưu ý khi nối thật: chữ ký sign = md5(partnerKey + code + serial) và lệnh gạch thẻ
-     nên gọi từ phía server để không lộ partnerKey trên trình duyệt.
-     fees: chiết khấu % theo từng loại thẻ — để 0 nếu chưa có bảng phí, số thực nhận lấy theo
-     giá trị TheSieuRe trả về (trường "value") khi có callback. */
-  var THESIEURE = {
-    partnerId: "",
-    partnerKey: "",
-    apiUrl: "https://thesieure.com/chargingws/v2",
-    fees: { VIETTEL: 0, VINAPHONE: 0, MOBIFONE: 0, VIETNAMOBILE: 0, ZING: 0 }
-  };
+  /* ===== BACKEND VPS — TÀI KHOẢN WEB + NẠP THẺ CÀO (Flask) =====
+     Điền domain backend VPS của bạn vào đây, vd "https://api.anhdev.store".
+     Để trống "" = chưa cấu hình: form nạp thẻ qua máy chủ + đăng nhập TK/MK
+     sẽ báo "chưa cấu hình backend", còn đăng nhập Telegram + các luồng demo
+     vẫn chạy bình thường.
+     KHI ĐÃ ĐIỀN: nhớ thêm domain này vào connect-src của CSP trong
+     index.html (meta Content-Security-Policy) — nếu không trình duyệt sẽ
+     chặn fetch tới backend.
+     TUYỆT ĐỐI KHÔNG điền PARTNER_ID / PARTNER_KEY / JWT_SECRET vào file này
+     — chúng chỉ nằm trong file .env trên VPS. Frontend không bao giờ gọi
+     thẳng cổng gạch thẻ (TheSieuRe): mọi thẻ cào đi qua backend, backend
+     mới ký sign = md5(partnerKey + code + serial) và gọi cổng thẻ. */
+  var BACKEND_API_BASE = "";
+  function backendReady(){ return !!BACKEND_API_BASE && BACKEND_API_BASE.indexOf("REPLACE-WITH") === -1; }
+
+  /* ===== BẢNG CHIẾT KHẤU NẠP THẺ (CHỈ ĐỂ HIỂN THỊ) =====
+     % chiết khấu theo từng nhà mạng — hiển thị trong form "Nạp Thẻ" để khách
+     xem trước số thực nhận dự kiến.
+     SỐ TIỀN THỰC NHẬN THẬT DO BACKEND TÍNH theo CARD_DISCOUNT_RATES trong
+     file .env trên VPS (backend là nguồn duy nhất đúng). Khi backend đổi
+     bảng phí, sửa lại bảng này cho khớp. */
+  var CARD_DISCOUNT_RATES = { VIETTEL: 20, VINAPHONE: 20, MOBIFONE: 20, ZING: 20, GARENA: 20, VTC: 20, GATE: 20 };
+  var CARD_TELCOS = ["VIETTEL", "VINAPHONE", "MOBIFONE", "ZING", "GARENA", "VTC", "GATE"];
 
   /* ================= DATA (mẫu catalog theo accaov.store) ================= */
   var CATS = {
@@ -76,13 +84,15 @@
   var BOT_LINK = "https://t.me/devbn_bot";
   var SYNC = { mode:"syncing", updatedAt:null }; // mode: "syncing" | "live" | "saved" | "demo"
   // Số dư thật lấy từ bot; synced=false nghĩa là đang dùng số dư demo cục bộ.
-  var BALANCE = { synced:false, updatedAt:null };
+  var BALANCE = { synced:false, web:false, updatedAt:null };
 
   /* ================= STATE (in-session) ================= */
   var state = {
     user: null,            // {name, username, telegram_id, photo_url, auth_date, via} — chỉ user Telegram thật
     balance: 0,
     coins: 0,              // xu trong bot (số dư thật do bot giữ)
+    discount: 0,           // % giảm giá của tài khoản web (từ /api/auth/me)
+    webToken: null,        // JWT tài khoản web (từ /api/auth/login|register)
     tgInitData: "",        // Telegram.WebApp.initData (Mini App) để Worker xác thực
     tgLoginData: "",       // query string Telegram Login Widget đã ký (web thường)
     depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
@@ -92,6 +102,7 @@
     pendingTopup: null,    // (giữ tương thích)
     currentPay: null,      // hoá đơn ngân hàng đang mở ở trang thanh toán
     checkin: null,         // số tiền đã điểm danh trong phiên (null = chưa điểm danh)
+    checkinDone: false,   // true khi server báo đã điểm danh hôm nay (409)
     lang: "vi",
     currency: "VND",
     topupTab: "qr"
@@ -132,10 +143,80 @@
     pgPrev:{ vi:"Trang trước", en:"Previous" },
     pgNext:{ vi:"Trang sau", en:"Next" },
     pgShowing:{ vi:"Hiển thị", en:"Showing" },
-    pgPage:{ vi:"Trang", en:"Page" }
+    pgPage:{ vi:"Trang", en:"Page" },
+    sugPopular:{ vi:"Từ khoá phổ biến", en:"Popular keywords" },
+    buyProd:{ vi:"Sản phẩm", en:"Product" },
+    buyPrice:{ vi:"Giá", en:"Price" },
+    buyBal:{ vi:"Số dư ví hiện tại", en:"Current wallet balance" },
+    buyAfter:{ vi:"Sau khi mua còn", en:"Balance after purchase" },
+    shortA:{ vi:"Ví chưa đủ tiền: giá ", en:"Not enough in wallet: price " },
+    shortB:{ vi:" · số dư ", en:" · balance " },
+    shortC:{ vi:" · còn thiếu ", en:" · short " },
+    shortD:{ vi:". Nạp thêm qua VietQR là mua được ngay.", en:". Top up via VietQR and you can buy right away." },
+    botNote:{ vi:"Acc thật được giao và trừ ví ngay trong bot Telegram @devbn_bot. Bấm nút bên dưới rồi chọn đúng sản phẩm này trong bot.", en:"Real accounts are delivered and paid for inside the Telegram bot @devbn_bot. Tap the button below and pick this exact product in the bot." },
+    credUser:{ vi:"Tài khoản", en:"Username" },
+    credPass:{ vi:"Mật khẩu", en:"Password" },
+    credNote:{ vi:"Thông tin này cũng nằm trong “Đơn hàng của tôi” và đồng bộ sang bot Telegram — mua ở đâu cũng xem lại được.", en:"This also appears under “My orders” and syncs to the Telegram bot — buy anywhere, view it here." },
+    ordLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
+    ordLoginS:{ vi:"Đăng nhập để xem đơn hàng của bạn.", en:"Log in to view your orders." },
+    ordEmptyT:{ vi:"Chưa có đơn hàng nào", en:"No orders yet" },
+    ordEmptyS:{ vi:"Acc bạn mua ở web, Mini App hay bot Telegram sẽ hiện ở đây.", en:"Accounts you buy on the web, Mini App or Telegram bot will appear here." },
+    ordRecv:{ vi:"Nhận acc", en:"Delivery" },
+    ordRecvBot:{ vi:"Mở bot @devbn_bot → Đơn hàng của tôi để xem tài khoản + mật khẩu.", en:"Open the bot @devbn_bot → My orders to view the username + password." },
+    invEmptyT:{ vi:"Chưa có hoá đơn nạp nào", en:"No top-up invoices yet" },
+    invEmptyS:{ vi:"Nạp tiền qua VietQR / SePay hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR / SePay or TheSieuRe prepaid cards — invoices and their status will be saved here." },
+    accLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
+    accLoginS:{ vi:"Đăng nhập để xem thông tin tài khoản, số dư và lịch sử của bạn.", en:"Log in to view your account info, balance and history." },
+    accName:{ vi:"Tên hiển thị", en:"Display name" },
+    accUser:{ vi:"Tên đăng nhập", en:"Username" },
+    accVia:{ vi:"Đăng nhập qua", en:"Signed in via" },
+    accBal:{ vi:"Số dư ví", en:"Wallet balance" },
+    accOrders:{ vi:"Tổng đơn đã mua", en:"Total orders" },
+    accTopup:{ vi:"Nạp tiền", en:"Top up" },
+    accNote:{ vi:"Liên kết Telegram: mở bot @devbn_bot, mọi acc mua trên bot cũng hiện trong ví và lịch sử này.", en:"Telegram link: open the bot @devbn_bot — accounts bought in the bot also appear in this wallet and history." },
+    accSynced:{ vi:"✓ đồng bộ bot", en:"✓ synced with bot" },
+    accUnsync:{ vi:"chưa đồng bộ", en:"not synced" },
+    ordUnit:{ vi:" đơn", en:" orders" },
+    viaWeb:{ vi:"Tài khoản web", en:"Web account" },
+    sending:{ vi:"Đang gửi…", en:"Sending…" },
+    eyeShow:{ vi:"Hiện mật khẩu", en:"Show password" },
+    eyeHide:{ vi:"Ẩn mật khẩu", en:"Hide password" },
+    authErrUser:{ vi:"Tên đăng nhập 4–24 ký tự, chỉ gồm chữ không dấu, số và dấu _.", en:"Username must be 4–24 characters: letters (no accents), numbers and _ only." },
+    authErrPass:{ vi:"Mật khẩu tối thiểu 6 ký tự.", en:"Password must be at least 6 characters." },
+    authErrMatch:{ vi:"Mật khẩu nhập lại không khớp.", en:"Passwords do not match." },
+    authErrGeneric:{ vi:"Sai tên đăng nhập hoặc mật khẩu.", en:"Wrong username or password." },
+    authNoBackend:{ vi:"Chưa cấu hình backend — đăng nhập bằng tài khoản web chưa dùng được. Đăng nhập bằng Telegram bên dưới nhé.", en:"Backend is not configured yet — web-account login is unavailable. Log in with Telegram below." },
+    authWelcome:{ vi:"Chào ", en:"Welcome " },
+    balWebSynced:{ vi:"✓ Số dư thật từ máy chủ", en:"✓ Real balance from server" },
+    accSyncedWeb:{ vi:"✓ số dư thật (máy chủ)", en:"✓ real balance (server)" },
+    accNoteWeb:{ vi:"Tài khoản web có ví riêng trên máy chủ. Muốn nhận acc qua Telegram, mở bot @devbn_bot và liên kết tài khoản.", en:"Web accounts have their own wallet on the server. To receive accounts via Telegram, open the bot @devbn_bot and link your account." },
+    cardNoBackend:{ vi:"Chưa cấu hình backend: nạp thẻ đang chạy ở chế độ demo — thẻ không được gạch thật, số dư chỉ là demo.", en:"Backend not configured: card top-up is running in demo mode — cards are not really charged, the balance is only a demo." },
+    cardNeedBoth:{ vi:"Nhập đủ số seri và mã thẻ.", en:"Enter both the serial and the card code." },
+    cardBadFormat:{ vi:"Seri (10–16 số) và mã thẻ (10–15 số) chỉ gồm chữ số — kiểm tra lại.", en:"Serial (10–16 digits) and card code (10–15 digits) must be digits only — please check." },
+    cardDemoSent:{ vi:"Đã gửi thẻ (demo) — trạng thái: Chờ xử lý.", en:"Card sent (demo) — status: Pending." },
+    cardDemoOk:{ vi:"Nạp thẻ demo thành công! Cộng ", en:"Demo card top-up succeeded! Added " },
+    cardDemoNote:{ vi:"Demo — chưa qua máy chủ", en:"Demo — not via server" },
+    cardSentOk:{ vi:"Đã gửi thẻ lên máy chủ — trạng thái: Chờ xử lý. Tiền sẽ cộng sau khi cổng thẻ xác nhận.", en:"Card sent to the server — status: Pending. The balance will be credited once the card gateway confirms." },
+    cardSendFail:{ vi:"Gửi thẻ thất bại", en:"Failed to send the card" },
+    discRate:{ vi:"chiết khấu {r}% · thực nhận {v} / 100.000đ", en:"fee {r}% · you get {v} per 100,000đ" },
+    cardExpectedA:{ vi:"Thực nhận dự kiến: ", en:"Estimated credit: " },
+    cardExpectedB:{ vi:" (chiết khấu {r}%) — số tiền thật do máy chủ tính.", en:" (fee {r}%) — the server computes the final amount." },
+    ciOkA:{ vi:"Điểm danh thành công! Cộng ", en:"Check-in successful! Added " },
+    ciOkB:{ vi:" vào ví · Số dư mới: ", en:" to your wallet · New balance: " },
+    ciAlready:{ vi:"Bạn đã điểm danh hôm nay rồi. Quay lại ngày mai nhé.", en:"You already checked in today. Come back tomorrow." },
+    ciErrGeneric:{ vi:"Điểm danh thất bại. Thử lại sau.", en:"Check-in failed. Please try again." }
   };
   function L(k){ var d = DYN[k]; return d ? (d[state.lang] || d.vi) : k; }
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function prefersReduced(){ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  /* Cuộn về đầu NGAY LẬP TỨC (không smooth): html{scroll-behavior:smooth} làm
+     cả window.scrollTo() thường cũng trượt mượt — tắt tạm rồi trả lại. */
+  function instantScrollTop(){
+    var de = document.documentElement, prev = de.style.scrollBehavior;
+    de.style.scrollBehavior = "auto";
+    window.scrollTo(0, 0);
+    de.style.scrollBehavior = prev;
+  }
   var toastTimer = null;
   function toast(msg){
     var t = $("#toast"); t.textContent = msg; t.classList.add("show");
@@ -161,40 +242,91 @@
   applyThemeButtons();
 
   /* ================= NAV / VIEWS ================= */
-  function showView(name){
+  /* ============ NAV: 1 NGUỒN SỰ THẬT DUY NHẤT CHO MỤC ĐANG ACTIVE ============
+     Trước đây showView() tự toggle .active trên [data-nav] — nhưng nút "Kho acc"
+     ở bottom-nav cũng có data-nav="home" nên "Trang Chủ" và "Kho acc" sáng cùng
+     lúc; còn link danh mục (data-catlink) không có data-nav nên "Trang Chủ" cứ
+     sáng mãi dù đang xem Random. Giờ chỉ setActiveNav() được phép đổi .active. */
+  function setActiveNav(key){
+    $$("#sidebar .nav-item, .bottom-nav button").forEach(function(b){ b.classList.remove("active"); });
+    var sb = $("#sidebar"), bn = $(".bottom-nav");
+    var mark = function(sel, root){ var el = root ? $(sel, root) : $(sel); if (el) el.classList.add("active"); };
+    if (key === "home"){
+      mark('.nav-item[data-nav="home"]:not([data-scroll])', sb);
+      mark('button[data-nav="home"]:not([data-scroll])', bn);
+    } else if (key === "home:products"){
+      mark('.nav-item[data-nav="home"]:not([data-scroll])', sb);
+      mark('button[data-nav="home"][data-scroll="products"]', bn);
+    } else if (key === "orders" || key === "leaderboard" || key === "invoices"){
+      mark('.nav-item[data-nav="' + key + '"]', sb);
+      mark('button[data-nav="' + key + '"]', bn);
+    } else if (key === "account"){
+      mark('button[data-nav="account"]', bn);
+    } else if (key === "topup:qr" || key === "topup:card"){
+      var tab = key.split(":")[1];
+      mark('.nav-item[data-nav="topup"][data-tab="' + tab + '"]', sb);
+      mark('button[data-nav="topup"]', bn);
+    } else if (key && key.indexOf("cat:") === 0){
+      var cat = key.slice(4);
+      mark('.nav-item[data-catlink="' + cat + '"]', sb);
+      mark('button[data-nav="home"][data-scroll="products"]', bn);
+      /* Giữ submenu "Mua Tài Khoản" mở khi đang xem 1 danh mục con. */
+      var sub = $("#buySubmenu"), tog = $("#buyMenuToggle");
+      if (sub) sub.classList.add("open");
+      if (tog){ tog.classList.add("open"); tog.setAttribute("aria-expanded", "true"); }
+    }
+    /* "payment" và các key lạ: không mục nào sáng — đúng vì đó không phải tab nav. */
+  }
+  function navKeyForView(name){
+    if (name === "topup") return "topup:" + (state.topupTab || "qr");
+    return name; /* home | orders | leaderboard | invoices | account | payment */
+  }
+  function navKeyForClick(btn){
+    var name = btn.getAttribute("data-nav");
+    var tb = btn.getAttribute("data-tab");
+    if (name === "topup") return "topup:" + (tb || state.topupTab || "qr");
+    if (btn.getAttribute("data-scroll")) return "home:products";
+    return name;
+  }
+  /* ============ CHUYỂN VIEW NGUYÊN TỬ (KHÔNG FLASH VỀ TRANG CHỦ) ============
+     NGUYÊN NHÂN GỐC CỦA BUG: showView() cũ luôn window.scrollTo({top:0,
+     behavior:"smooth"}) — rồi handler [data-catlink]/[data-scroll] lại
+     setTimeout(60ms) scrollIntoView(#products). Hai lần cuộn mượt nối nhau:
+     trang trượt lên đầu (thấy hero Trang Chủ) rồi mới trượt xuống kho.
+     Sửa: đổi view trong 1 lần DOM duy nhất; view khác thì về đầu NGAY LẬP TỨC
+     (không animation); ở Trang Chủ mà có đích cuộn thì cuộn THẲNG tới đích,
+     không qua đầu trang, không setTimeout. Modal không đụng tới scroll. */
+  function showView(name, opts){
+    opts = opts || {};
     $$(".view").forEach(function(v){ v.classList.remove("active"); });
     var el = $("#view-" + name); if (el) el.classList.add("active");
-    $$("[data-nav]").forEach(function(b){
-      if (b.classList.contains("nav-item") || (b.parentElement && b.parentElement.classList.contains("bottom-nav"))){
-        var act = b.getAttribute("data-nav") === name;
-        if (b.hasAttribute("data-tab")) act = name === "topup" && b.getAttribute("data-tab") === state.topupTab;
-        b.classList.toggle("active", act);
-      }
-    });
+    if (opts.navKey !== false) setActiveNav(opts.navKey || navKeyForView(name));
     closeSidebar();
-    window.scrollTo({top:0, behavior:"smooth"});
+    if (opts.targetId){
+      var t = document.getElementById(opts.targetId);
+      if (t) t.scrollIntoView({ behavior: prefersReduced() ? "auto" : "smooth", block: "start" });
+    } else {
+      instantScrollTop();
+    }
     // Quay lại shop / ví → lấy lại số dư thật từ bot.
     if ((name === "home" || name === "topup" || name === "account") && state.user) refreshWebBalance();
     if (name === "orders") renderOrders();
-    if (name === "invoices") renderInvoices();
+    if (name === "invoices"){ renderInvoices(); refreshBackendInvoices(); }
     if (name === "account") renderAccount();
     if (name === "leaderboard") renderLeaderboard();
   }
   document.addEventListener("click", function(e){
     var navBtn = e.target.closest("[data-nav]");
     if (navBtn){
-      showView(navBtn.getAttribute("data-nav"));
+      var name = navBtn.getAttribute("data-nav");
       var tb = navBtn.getAttribute("data-tab");
+      showView(name, { targetId: navBtn.getAttribute("data-scroll") || null, navKey: navKeyForClick(navBtn) });
       if (tb) setTopupTab(tb);
-      var sc = navBtn.getAttribute("data-scroll");
-      if (sc) setTimeout(function(){ var t = document.getElementById(sc); if (t) t.scrollIntoView({behavior:"smooth"}); }, 60);
       return;
     }
     var scBtn = e.target.closest("[data-scroll]");
     if (scBtn){
-      showView("home");
-      var id = scBtn.getAttribute("data-scroll");
-      setTimeout(function(){ var t = document.getElementById(id); if (t) t.scrollIntoView({behavior:"smooth"}); }, 60);
+      showView("home", { targetId: scBtn.getAttribute("data-scroll"), navKey: "home:products" });
     }
   });
   function closeSidebar(){ $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("show"); }
@@ -211,10 +343,14 @@
     });
     var coinsLine = (BALANCE.synced && state.coins > 0)
       ? " · " + Number(state.coins).toLocaleString("vi-VN") + " xu" : "";
-    var note = BALANCE.synced
-      ? "✓ Đồng bộ bot" + coinsLine + (BALANCE.updatedAt ? " · " + BALANCE.updatedAt : "")
-      : (state.user ? "Chưa đồng bộ với bot — số dư demo trên trình duyệt"
-                    : "Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ");
+    var note;
+    if (BALANCE.synced){
+      note = BALANCE.web ? L("balWebSynced")
+        : ("✓ Đồng bộ bot" + coinsLine + (BALANCE.updatedAt ? " · " + BALANCE.updatedAt : ""));
+    } else {
+      note = state.user ? "Chưa đồng bộ với bot — số dư demo trên trình duyệt"
+        : "Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ";
+    }
     $$("[data-balance-note]").forEach(function(el){
       el.className = "sync-note" + (BALANCE.synced ? "" : " warn");
       el.textContent = note;
@@ -233,8 +369,40 @@
       av.textContent = "?";
       loginBtn.textContent = L("login");
     }
+    // Badge "Giảm x%" ở thẻ số dư: lấy từ discount_percent của tài khoản web.
+    var db = $("#discountBadge");
+    if (db) db.textContent = state.lang === "en" ? (state.discount + "% off") : ("Giảm " + state.discount + "%");
     // Hook cho animations.js: số dư thay đổi -> ticker + tia sáng viền.
     document.dispatchEvent(new CustomEvent("anhdev:balance", { detail:{ value: state.balance, synced: BALANCE.synced } }));
+    refreshMoneyLabels();
+  }
+  /* Nhãn tiền tệ động: mọi chuỗi "đ" cứng trong HTML đều được vẽ lại bằng fmt()
+     mỗi khi đổi tiền tệ / ngôn ngữ — badge điểm danh, label/hint nạp tiền,
+     các nút chọn mệnh giá. */
+  function refreshMoneyLabels(){
+    var b = $("#checkinBadge");
+    if (b) b.textContent = fmt(1) + "–" + fmt(500);
+    var sub = $("#ciSub");
+    if (sub) sub.textContent = state.lang === "en"
+      ? "Check in once a day to receive a random " + fmt(1) + "–" + fmt(500) + " straight into your wallet."
+      : "Mỗi ngày điểm danh 1 lần, nhận ngẫu nhiên " + fmt(1) + "–" + fmt(500) + " cộng thẳng vào ví.";
+    var unit = state.currency === "USD" ? "$" : "đ";
+    var amtL = $("[data-i18n=\"amtLabel\"]");
+    if (amtL) amtL.textContent = (state.lang === "en" ? "Top-up amount (" : "Số tiền nạp (") + unit + ")";
+    var amtH = $("[data-i18n=\"amtHint\"]");
+    if (amtH) amtH.textContent = state.lang === "en"
+      ? "Minimum " + fmt(1000) + ". After creating the invoice, transfer the exact amount with the invoice code as the note — SePay credits the right wallet automatically."
+      : "Tối thiểu " + fmt(1000) + ". Tạo hoá đơn xong, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — SePay tự cộng tiền vào đúng ví của bạn.";
+    $$("#amountGrid .amount-btn").forEach(function(x){
+      var v = parseInt(x.getAttribute("data-amt"), 10);
+      if (!isNaN(v)) x.textContent = fmt(v);
+    });
+    $$("#cardAmount option").forEach(function(o){
+      var v = parseInt(o.value, 10);
+      if (!isNaN(v)) o.textContent = fmt(v);
+    });
+    if (typeof renderCardDiscount === "function") renderCardDiscount();
+    if (typeof updateCardExpected === "function") updateCardExpected();
   }
   /* Đăng nhập Telegram THẬT — lưu phiên vào localStorage để tải lại trang vẫn còn đăng nhập.
      Bản demo trước đây chỉ giữ user trong bộ nhớ (tải lại trang là mất) nên chưa có key cũ;
@@ -261,10 +429,20 @@
     if (u && u.login_data) state.tgLoginData = u.login_data;
     if (!u){
       state.tgInitData = ""; state.tgLoginData = "";
-      state.balance = 0; state.coins = 0;
-      BALANCE.synced = false; BALANCE.updatedAt = null;
+      state.balance = 0; state.coins = 0; state.discount = 0;
+      state.checkin = null; state.checkinDone = false;
+      BALANCE.synced = false; BALANCE.web = false; BALANCE.updatedAt = null;
+      clearWebToken(true); // đăng xuất tài khoản web ở backend (nếu đang có phiên web)
+      saveUser(null);
+    } else if (u.web){
+      state.discount = (typeof u.discount_percent === "number") ? u.discount_percent : state.discount;
+      saveUser(null); // phiên web thắng: xoá phiên Telegram đã lưu để lần mở sau không nhảy lại
+    } else {
+      state.discount = 0; // tài khoản Telegram: mức giảm giá lấy từ bot, không dùng discount web
+      clearWebToken(false); // phiên Telegram thắng: xoá token web đã lưu (không gọi logout backend)
+      saveUser(u);
     }
-    saveUser(u); refreshUserUI(); renderAccount();
+    refreshUserUI(); renderAccount();
     loadInvoices();
     if (u) resumePendingDeposit();
   }
@@ -276,8 +454,11 @@
       if (f.cat !== "all" && p.cat !== f.cat) return false;
       if (f.onlyStock && p.stock <= 0) return false;
       if (f.q){
-        var hay = (p.name + " " + p.desc).toLowerCase();
-        var words = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+        // Lọc trên _searchKey đã chuẩn hoá sẵn lúc index (chỉ còn indexOf, <15ms cho 12k acc).
+        // Random chỉ có từ chung chung trong _searchKey nên gõ tên skin không bao giờ
+        // moi được acc random ra — chống cherry-pick.
+        var hay = p._searchKey || normText(p.name + " " + p.desc);
+        var words = expandQueryTokens(f.q);
         for (var i = 0; i < words.length; i++){
           if (hay.indexOf(words[i]) === -1) return false;
         }
@@ -342,10 +523,21 @@
       + '<div class="pg-nums">' + nums + '</div>'
       + '<button class="pg-btn" data-page="' + (p + 1) + '"' + (p >= totalPages ? ' disabled' : '') + '>' + L("pgNext") + ' &rarr;</button></div>';
   }
+  /* Chèn HTML đã build vào #productArea qua DocumentFragment — 1 lần append,
+     tránh nhiều lần reflow khi render. (Chuỗi HTML vẫn build bằng cardHtml/esc
+     như cũ nên không đổi hành vi XSS-safe.) */
+  function setAreaHtml(area, html){
+    var tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    var frag = document.createDocumentFragment();
+    while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+    area.textContent = "";
+    area.appendChild(frag);
+  }
   function renderProducts(){
     var list = visibleProducts();
     var area = $("#productArea");
-    $("#prodCount").textContent = list.length + " / " + PRODUCTS.length + " sản phẩm";
+    $("#prodCount").textContent = list.length + " / " + PRODUCTS.length + (state.lang === "en" ? " products" : " sản phẩm");
     if (!list.length){
       if (SYNC.mode === "live" || SYNC.mode === "saved"){
         area.innerHTML = '<div class="empty-box"><b>Kho thật hiện đang hết hàng</b>Chưa có acc hay sản phẩm nào đang bán. Quay lại sau hoặc mua qua bot Telegram @devbn_bot.</div>';
@@ -358,7 +550,7 @@
     // Kho lớn thì phân trang phẳng — chỉ render 12 thẻ/trang, không render hết 12.126 acc cùng lúc.
     if (list.length <= PAGE_SIZE){
       if (state.filter.cat !== "all" || state.filter.q){
-        area.innerHTML = '<div class="grid">' + list.map(cardHtml).join("") + '</div>';
+        setAreaHtml(area, '<div class="grid">' + list.map(cardHtml).join("") + '</div>');
         return;
       }
       var html = "";
@@ -369,7 +561,7 @@
         html += '<div class="cat-title">' + esc(ci.title) + (ci.sub ? ' <small>' + esc(ci.sub) + '</small>' : '') + '</div>';
         html += '<div class="grid">' + items.map(cardHtml).join("") + '</div>';
       });
-      area.innerHTML = html;
+      setAreaHtml(area, html);
       return;
     }
     var totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -377,7 +569,7 @@
     if (state.filter.page < 1) state.filter.page = 1;
     var start = (state.filter.page - 1) * PAGE_SIZE;
     var pageItems = list.slice(start, start + PAGE_SIZE);
-    area.innerHTML = '<div class="grid">' + pageItems.map(cardHtml).join("") + '</div>' + pagerHtml(list.length, totalPages, start);
+    setAreaHtml(area, '<div class="grid">' + pageItems.map(cardHtml).join("") + '</div>' + pagerHtml(list.length, totalPages, start));
   }
   function renderStats(){
     var totalStock = PRODUCTS.reduce(function(s,p){ return s + p.stock; }, 0);
@@ -396,7 +588,347 @@
       return '<div class="dist-row"><span>' + b.label + '</span><span class="dist-bar"><i style="width:' + Math.round(b.n/max*100) + '%"></i></span><b>' + b.n + '</b></div>';
     }).join("");
   }
+  /* ================= TÌM KIẾM THÔNG MINH (autocomplete + index 1 lần) =================
+     Index build 1 lần sau mỗi lần PRODUCTS thay đổi (kho thật / catalog mẫu).
+     CHỐNG LỘ ACC RANDOM: index chỉ đọc các field CÔNG KHAI của PRODUCTS
+     (đã qua apiProduct() — acc random chỉ còn tên "Acc LQxxxx" + mô tả chung),
+     KHÔNG BAO GIỜ đọc field gốc của stock.json (rank/skin/desc gốc của acc
+     random). Gõ tên skin không thể moi acc random ra khỏi kho. */
+  /* ==SEARCH-CORE-BEGIN== */
+  function normText(s){
+    /* Bỏ dấu tiếng Việt + chữ thường. Độ dài chuỗi giữ nguyên với tiếng Việt
+       (mỗi ký tự có dấu tách thành base + dấu kết hợp, loại dấu còn đúng 1 ký
+       tự) nên vị trí highlight map 1:1 về chuỗi gốc. */
+    return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  }
+  /* Alias tốc ký Liên Quân — THÊM ALIAS MỚI TẠI ĐÂY (key: từ người dùng gõ,
+     value: từ chuẩn). Key/value đều được normText() trước khi so khớp. */
+  var SEARCH_ALIASES = {
+    nak:"nakroth", flo:"florentino", mu:"murad", lili:"liliana", vio:"violet",
+    tel:"tel'annas", raz:"raz", tul:"tulen", lau:"lauriel", tri:"triệu vân",
+    ngo:"ngộ không", ngokhong:"ngộ không", but:"butterfly", ryo:"ryoma",
+    yan:"yan", val:"valhein"
+  };
+  var SEARCH_INDEX = { phrases:{}, popular:[], built:false, updatedAt:null };
+  function expandToken(tok){
+    var a = SEARCH_ALIASES[tok];
+    return a ? normText(a) : tok;
+  }
+  /* Tách query thành token đã mở alias (alias nhiều từ như "triệu vân" tách tiếp). */
+  function expandQueryTokens(q){
+    var out = [];
+    normText(q).split(/\s+/).forEach(function(t){
+      if (!t) return;
+      expandToken(t).split(/\s+/).forEach(function(w){ if (w) out.push(w); });
+    });
+    return out;
+  }
+  var TIER_LABEL = { "sss":"SSS", "ss+":"SS+", "ss":"SS", "s+":"S+", "ssm":"SSM", "anime":"Anime" };
+  var TIER_RES = [
+    ["sss", /(^|[^a-z0-9])sss([^a-z0-9]|$)/],
+    ["ss+", /(^|[^a-z0-9])ss\+([^a-z0-9]|$)/],
+    ["ss", /(^|[^a-z0-9])ss(?!\+)([^a-z0-9]|$)/],
+    ["s+", /(^|[^a-z0-9])s\+([^a-z0-9]|$)/],
+    ["ssm", /(^|[^a-z0-9])ssm([^a-z0-9]|$)/],
+    ["anime", /(^|[^a-z0-9])anime([^a-z0-9]|$)/]
+  ];
+  var STOP_WORDS = { acc:1, random:1, skin:1, "tài":1, "khoản":1, "khoan":1 };
+  /* Tách mô tả CÔNG KHAI của 1 sản phẩm thành các cụm có thể gợi ý:
+     tên skin đầy đủ ("Nakroth Thứ Nguyên Vệ Thần"), tên tướng (từ đầu của
+     tên skin), bậc skin (SSS/SS/...) có thật trong acc, rank ("Cao Thủ"). */
+  function extractPhrases(p){
+    var found = {};
+    var text = (p.name || "") + " · " + (p.desc || "");
+    var norm = normText(text);
+    /* Bậc skin: chỉ tính khi acc có >=1 skin bậc đó ("sss:2" trong mô tả). */
+    var m, re = /\b(sss|ss\+|ss|s\+|ssm|anime)\s*:\s*(\d+)/g;
+    while ((m = re.exec(norm))){
+      if (parseInt(m[2], 10) > 0) found[TIER_LABEL[m[1]] || m[1]] = true;
+    }
+    /* Bậc skin trong tên gói mẫu ("100% Skin SSS") — CHỈ áp cho gói demo
+       (kind "pack"): acc thật lấy bậc từ chuỗi ":số" ở trên. Nhãn
+       "[100% Skin SS / SS+]" trong mô tả acc thật là tên NHÓM chung, không có
+       nghĩa acc có đủ cả 2 bậc (vd có acc ss+:0 nhưng vẫn mang nhãn đó) nên
+       không được quét nhãn này — nếu không số acc SS+ sẽ bị đội lên. */
+    if (p.kind === "pack"){
+      var normNoStats = norm.replace(/\([^)]*(?:sss|ss\+|ss|s\+|ssm|anime)\s*:\s*\d[^)]*\)/g, "");
+      TIER_RES.forEach(function(pair){
+        if (pair[1].test(normNoStats)) found[TIER_LABEL[pair[0]]] = true;
+      });
+    }
+    /* Rank: "Rank Cao Thủ" -> "Cao Thủ". */
+    var rm = /(?:^|·)\s*rank\s+([^·—]+)/i.exec(p.desc || "");
+    if (rm){
+      var rank = rm[1].trim().replace(/\s+/g, " ");
+      if (rank) found[rank] = true;
+    }
+    /* Tên skin: mỗi đoạn sau "·" rồi tách "," — bỏ các đoạn đếm (Rank/Lv/N tướng/N skin)
+       và đoạn thống kê [Skin thường...] (sss:0...). Mỗi tên skin -> cụm đầy đủ +
+       từ đầu tiên (= tên tướng). */
+    /* Tên sản phẩm (gói demo): cả tên là 1 cụm ("Random Tài Khoản 100% Có Skin
+       Thứ Nguyên Vệ Thần", dài tới 60 ký tự). Acc thật có tên là mã LQxxxxx —
+       đã loại ở dưới. Tên không tách từ đầu (= tên tướng) vì từ đầu của tên
+       gói luôn là từ chung ("Random", "100%"). */
+    var namePh = (p.name || "").trim().replace(/\s+/g, " ").replace(/\s*\[[^\]]*\]\s*$/, "").trim();
+    if (namePh && namePh.length >= 2 && namePh.length <= 60 && !/^acc\s+[a-z]{0,3}\d+$/i.test(namePh)) found[namePh] = true;
+    (p.desc || "").split("·").forEach(function(seg){
+      if (/^\s*(rank|lv\b|\d+\s*tướng|\d+\s*skin)/i.test(seg)) return;
+      if (/\[skin thường/i.test(seg)) return;
+      /* Cắt câu sau dấu "—" TRƯỚC khi tách "," — nếu không, đuôi câu của mô tả
+         chung ("..., không xem trước thông tin") sẽ thành cụm gợi ý rác. */
+      seg.split("—")[0].split(",").forEach(function(part){
+        var ph = part.trim().replace(/\s+/g, " ");
+        ph = ph.replace(/^[\(\[][^\)\]]*[\)\]]\s*/, "").replace(/\s*\[[^\]]*\]\s*$/, "").trim();
+        if (!ph || ph.length < 2 || ph.length > 40 || /^\d+$/.test(ph)) return;
+        if (/^acc\s+[a-z]{0,3}\d+$/i.test(ph)) return; /* mã acc (LQxxxxx) không làm gợi ý */
+        if (ph.indexOf(" ") === -1 && STOP_WORDS[normText(ph)]) return;
+        found[ph] = true;
+        var first = ph.split(" ")[0];
+        if (first && first.length >= 2 && !/^\d/.test(first) && !STOP_WORDS[normText(first)]) found[first] = true;
+      });
+    });
+    return Object.keys(found);
+  }
+  /* Chỉ chuẩn hoá _searchKey (không build lại cụm) — dùng khi kho về lại đúng
+     bản đã index rồi (cache + mạng trùng updated_at). */
+  function keyProducts(list){
+    list.forEach(function(p){ p._searchKey = normText((p.name || "") + " " + (p.desc || "")); });
+  }
+  function buildSearchIndex(){
+    keyProducts(PRODUCTS);
+    var phrases = {};
+    PRODUCTS.forEach(function(p){
+      extractPhrases(p).forEach(function(ph){
+        var key = normText(ph);
+        if (!key) return;
+        if (!phrases[key]) phrases[key] = { label: ph, count: 0, norm: key };
+        phrases[key].count++;
+      });
+    });
+    /* Cụm tên danh mục ("Acc sẵn thông tin", "Random Liên Quân", ...) */
+    Object.keys(CATS).forEach(function(cat){
+      var n = 0;
+      PRODUCTS.forEach(function(p){ if (p.cat === cat) n++; });
+      if (!n) return;
+      var label = CATS[cat].title, key = normText(label);
+      if (!phrases[key]) phrases[key] = { label: label, count: 0, norm: key };
+      phrases[key].count = Math.max(phrases[key].count, n);
+    });
+    var all = Object.keys(phrases).map(function(k){ return phrases[k]; });
+    /* Từ khoá phổ biến: top tướng/skin/bậc theo số acc, bỏ cụm danh mục chung. */
+    var generic = { "acc random":1, "acc san thong tin":1, "random tai khoan lien quan":1, "san pham so":1 };
+    var popular = all.filter(function(e){ return !generic[e.norm]; })
+      .sort(function(a, b){ return b.count - a.count || (a.label < b.label ? -1 : 1); })
+      .slice(0, 6);
+    SEARCH_INDEX = { phrases: phrases, popular: popular, built: true, updatedAt: SYNC.updatedAt || null };
+  }
+  /* Gợi ý 6–8 cụm: (1) prefix nguyên cụm -> (2) mọi token là tiền tố của 1 từ
+     trong cụm -> (3) mọi token là chuỗi con; trong cùng hạng thì số acc nhiều
+     lên trước. Chỉ cụm có >=1 acc (mọi cụm trong index đều có >=1). */
+  function searchSuggestions(q){
+    var nq = normText(q).trim();
+    if (!nq) return { type: "popular", items: SEARCH_INDEX.popular };
+    var tokens = expandQueryTokens(q);
+    var cands = [];
+    Object.keys(SEARCH_INDEX.phrases).forEach(function(key){
+      var e = SEARCH_INDEX.phrases[key];
+      var words = e.norm.split(/\s+/);
+      var ok = tokens.every(function(t){
+        return words.some(function(w){ return w.indexOf(t) !== -1; });
+      });
+      if (!ok) return;
+      var rank;
+      if (e.norm.indexOf(nq) === 0) rank = 0;
+      else if (tokens.every(function(t){ return words.some(function(w){ return w.indexOf(t) === 0; }); })) rank = 1;
+      else rank = 2;
+      cands.push({ e: e, rank: rank });
+    });
+    cands.sort(function(a, b){
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      if (b.e.count !== a.e.count) return b.e.count - a.e.count;
+      return a.e.label < b.e.label ? -1 : 1;
+    });
+    return { type: "suggest", items: cands.slice(0, 8).map(function(c){ return c.e; }) };
+  }
+  /* Vị trí các đoạn khớp trong chuỗi đã chuẩn hoá (để bold trên chuỗi gốc). */
+  function highlightRanges(normLabel, rawTokens){
+    var ranges = [];
+    rawTokens.forEach(function(t){
+      if (!t) return;
+      var idx = 0;
+      for (;;){
+        var i = normLabel.indexOf(t, idx);
+        if (i === -1) break;
+        ranges.push([i, i + t.length]);
+        idx = i + t.length;
+      }
+    });
+    ranges.sort(function(a, b){ return a[0] - b[0]; });
+    var merged = [];
+    ranges.forEach(function(r){
+      var last = merged[merged.length - 1];
+      if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+      else merged.push([r[0], r[1]]);
+    });
+    return merged;
+  }
+  /* ==SEARCH-CORE-END== */
+  /* Bold đoạn khớp bằng DOM node (createTextNode + <strong>), KHÔNG innerHTML. */
+  function labelWithHighlight(label, ranges){
+    var frag = document.createDocumentFragment();
+    if (!ranges.length || label.length !== normText(label).length){
+      frag.appendChild(document.createTextNode(label));
+      return frag;
+    }
+    var pos = 0;
+    ranges.forEach(function(r){
+      if (r[0] > pos) frag.appendChild(document.createTextNode(label.slice(pos, r[0])));
+      var st = document.createElement("strong");
+      st.textContent = label.slice(r[0], r[1]);
+      frag.appendChild(st);
+      pos = r[1];
+    });
+    if (pos < label.length) frag.appendChild(document.createTextNode(label.slice(pos)));
+    return frag;
+  }
+  var sugBox = null, sugInput = null, sugActive = -1, sugItems = [], sugTimer = null, sugOpen = false;
+  function sugIconSvg(){
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", "11"); c.setAttribute("cy", "11"); c.setAttribute("r", "7");
+    var p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", "m20 20-3.8-3.8");
+    svg.appendChild(c); svg.appendChild(p);
+    return svg;
+  }
+  function closeSuggest(){
+    if (!sugBox) return;
+    sugOpen = false; sugActive = -1; sugItems = [];
+    sugBox.classList.remove("open");
+    sugBox.hidden = true;
+    if (sugInput) sugInput.setAttribute("aria-expanded", "false");
+  }
+  function openSuggest(){
+    if (!sugBox) return;
+    sugOpen = true;
+    sugBox.hidden = false;
+    requestAnimationFrame(function(){ if (sugBox) sugBox.classList.add("open"); });
+    if (sugInput) sugInput.setAttribute("aria-expanded", "true");
+  }
+  function renderSuggest(res, rawQuery){
+    if (!sugBox) return;
+    sugBox.textContent = "";
+    sugItems = res.items || [];
+    sugActive = -1;
+    if (!sugItems.length){ closeSuggest(); return; }
+    if (res.type === "popular"){
+      var head = document.createElement("div");
+      head.className = "sug-head";
+      head.textContent = L("sugPopular");
+      sugBox.appendChild(head);
+    }
+    var rawTokens = normText(rawQuery).split(/\s+/).filter(Boolean);
+    sugItems.forEach(function(it){
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "sug-row";
+      row.setAttribute("role", "option");
+      var ic = document.createElement("span");
+      ic.className = "sug-ic";
+      ic.appendChild(sugIconSvg());
+      row.appendChild(ic);
+      var lb = document.createElement("span");
+      lb.className = "sug-label";
+      if (res.type === "suggest") lb.appendChild(labelWithHighlight(it.label, highlightRanges(it.norm, rawTokens)));
+      else lb.textContent = it.label;
+      row.appendChild(lb);
+      var ct = document.createElement("span");
+      ct.className = "sug-count";
+      ct.textContent = it.count.toLocaleString("vi-VN") + " acc";
+      row.appendChild(ct);
+      row.addEventListener("mousedown", function(e){
+        e.preventDefault(); /* chặn blur input trước khi chọn kịp chạy */
+        applySuggestion(it.label);
+      });
+      sugBox.appendChild(row);
+    });
+    openSuggest();
+  }
+  function applySuggestion(label){
+    if (!sugInput) return;
+    sugInput.value = label;
+    state.filter.q = label.trim();
+    state.filter.page = 1;
+    closeSuggest();
+    renderProducts();
+    if (window.matchMedia && window.matchMedia("(pointer:coarse)").matches) sugInput.blur();
+  }
+  function updateSuggest(){
+    if (!SEARCH_INDEX.built || !sugInput) return;
+    var q = sugInput.value;
+    renderSuggest(searchSuggestions(q), q);
+  }
+  function initSearch(){
+    sugBox = $("#searchSuggest");
+    sugInput = $("#searchInput");
+    if (!sugBox || !sugInput) return;
+    sugInput.addEventListener("input", function(){
+      if (sugTimer) clearTimeout(sugTimer);
+      sugTimer = setTimeout(function(){
+        state.filter.q = sugInput.value.trim();
+        state.filter.page = 1;
+        renderProducts();
+        updateSuggest();
+      }, 120); /* debounce 120ms — gõ 60fps, không lọc 12k acc mỗi phím */
+    });
+    /* Nút × mặc định của input[type=search]: reset ngay, không chờ debounce. */
+    sugInput.addEventListener("search", function(){
+      if (sugTimer) clearTimeout(sugTimer);
+      state.filter.q = "";
+      state.filter.page = 1;
+      renderProducts();
+      updateSuggest();
+    });
+    sugInput.addEventListener("focus", function(){
+      if (!sugInput.value.trim()) updateSuggest(); /* focus ô trống -> từ khoá phổ biến */
+    });
+    sugInput.addEventListener("keydown", function(e){
+      if (!sugOpen){ if (e.key === "ArrowDown") updateSuggest(); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp"){
+        e.preventDefault();
+        var rows = $$(".sug-row", sugBox);
+        if (!rows.length) return;
+        sugActive = e.key === "ArrowDown"
+          ? (sugActive + 1) % rows.length
+          : (sugActive - 1 + rows.length) % rows.length;
+        rows.forEach(function(r, i){ r.classList.toggle("active", i === sugActive); });
+      } else if (e.key === "Enter"){
+        if (sugActive >= 0 && sugItems[sugActive]){
+          e.preventDefault();
+          applySuggestion(sugItems[sugActive].label);
+        } else {
+          closeSuggest(); /* Enter không chọn gợi ý -> lọc theo chữ đã gõ */
+        }
+      } else if (e.key === "Escape"){
+        closeSuggest();
+      }
+    });
+    document.addEventListener("click", function(e){
+      if (sugOpen && sugBox && !sugBox.contains(e.target) && e.target !== sugInput){
+        closeSuggest();
+      }
+    });
+    document.addEventListener("focusin", function(e){
+      if (sugOpen && sugBox && !sugBox.contains(e.target) && e.target !== sugInput){
+        closeSuggest();
+      }
+    });
+  }
+
   /* ================= ĐỒNG BỘ KHO THẬT (stock.json tĩnh) ================= */
+  /* ==APIPRODUCT-BEGIN== */
   function apiProduct(a){
     var img = null;
     if (a.photos && a.photos.length && /^https?:\/\//.test(a.photos[0])) img = a.photos[0];
@@ -441,17 +973,29 @@
       price: p.price, stock: p.stock, img: null, warranty_days: p.warranty_days
     };
   }
+  /* ==APIPRODUCT-END== */
   function setSyncStatus(mode, text){
     SYNC.mode = mode;
     var el = $("#syncStatus");
-    if (el){ el.className = "sync-status " + mode; el.textContent = text; }
+    if (el){
+      el.className = "sync-status " + mode;
+      el.textContent = text;
+      /* Banner cảnh báo kho mẫu đã gỡ: kho thật đang live nên không hiện banner
+         đỏ "catalog mẫu" nữa. Khi stock.json lại mới, banner kho thật tự hiện lại. */
+      el.hidden = (mode === "demo");
+    }
   }
   function useLiveStock(data, label){
+    var sameData = !!(SYNC.updatedAt && data.updated_at && SYNC.updatedAt === data.updated_at);
     var accs = (data.accounts || []).map(apiProduct);
     var prods = (data.products || []).map(apiProductForProduct);
     PRODUCTS = accs.concat(prods);
     state.filter.page = 1;
     SYNC.updatedAt = data.updated_at || null;
+    /* Kho về lại đúng bản đã index (cache + mạng trùng nhau) thì chỉ chuẩn hoá
+       _searchKey cho object mới, khỏi build lại cụm. */
+    if (sameData && SEARCH_INDEX.built) keyProducts(PRODUCTS);
+    else buildSearchIndex();
     var when = SYNC.updatedAt ? new Date(SYNC.updatedAt).toLocaleString("vi-VN") : "";
     var counts = accs.length + " acc · " + prods.length + " sản phẩm";
     if (label === "saved"){
@@ -463,9 +1007,48 @@
   }
   function useDemoStock(){
     PRODUCTS = DEMO_PRODUCTS;
+    buildSearchIndex();
     state.filter.page = 1;
     setSyncStatus("demo", "Không kết nối được kho thật — đang hiển thị catalog mẫu (không phải kho thật). Mua acc thật qua bot Telegram @devbn_bot.");
     renderProducts(); renderStats();
+  }
+  /* ===== CACHE stock.json BẰNG IndexedDB (stale-while-revalidate) =====
+     stock.json ~15 MB — KHÔNG bỏ vào localStorage (chậm + giới hạn ~5 MB).
+     Lần đầu: mạng → lưu IDB. Lần sau: hiện bản cache ngay lập tức, rồi fetch
+     mạng nền để làm mới. Tuổi kho vẫn tính theo data.updated_at (quá 7 ngày
+     thì coi như cũ → catalog mẫu), không tính theo giờ lưu cache. */
+  var STOCK_DB = { db:null };
+  function idbOpen(){
+    return new Promise(function(res){
+      if (STOCK_DB.db) return res(true);
+      try {
+        var rq = indexedDB.open("anhdev-store", 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore("kv"); };
+        rq.onsuccess = function(){ STOCK_DB.db = rq.result; res(true); };
+        rq.onerror = function(){ res(false); };
+        rq.onblocked = function(){ res(false); };
+      } catch (e){ res(false); }
+    });
+  }
+  function idbGet(key){
+    return new Promise(function(res){
+      if (!STOCK_DB.db) return res(null);
+      try {
+        var rq = STOCK_DB.db.transaction("kv", "readonly").objectStore("kv").get(key);
+        rq.onsuccess = function(){ res(rq.result || null); };
+        rq.onerror = function(){ res(null); };
+      } catch (e){ res(null); }
+    });
+  }
+  function idbPut(key, val){
+    try {
+      if (STOCK_DB.db) STOCK_DB.db.transaction("kv", "readwrite").objectStore("kv").put(val, key);
+    } catch (e){ /* cache lỗi thì bỏ qua, kho vẫn chạy bằng mạng */ }
+  }
+  function stockAgeOk(data){
+    if (!data || !data.updated_at) return false;
+    var age = Date.now() - new Date(data.updated_at).getTime();
+    return !isNaN(age) && age <= 7*24*60*60*1000;
   }
   function syncStock(){
     document.dispatchEvent(new CustomEvent("anhdev:stock-syncing"));
@@ -474,15 +1057,27 @@
     // Pages). Admin API /api/stock trên host chưa chạy được (app Flask
     // không spawn) nên KHÔNG gọi API nữa — tránh chờ timeout rồi mới
     // fallback. stock.json quá 7 ngày thì dùng catalog mẫu.
-    fetch("stock.json", { cache:"no-store" })
-      .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(function(data){
-        if (!data || !data.ok || !Array.isArray(data.accounts) || !data.updated_at) throw new Error("stock.json không hợp lệ");
-        var age = Date.now() - new Date(data.updated_at).getTime();
-        if (isNaN(age) || age > 7*24*60*60*1000) throw new Error("stock.json quá cũ");
-        useLiveStock(data, "saved");
-      })
-      .catch(function(){ useDemoStock(); });
+    var fromNetwork = function(){
+      return fetch("stock.json", { cache:"no-store" })
+        .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function(data){
+          if (!data || !data.ok || !Array.isArray(data.accounts) || !data.updated_at) throw new Error("stock.json không hợp lệ");
+          if (!stockAgeOk(data)) throw new Error("stock.json quá cũ");
+          idbPut("stock", { data:data, savedAt: Date.now() });
+          useLiveStock(data, "saved");
+          return true;
+        });
+    };
+    idbOpen().then(function(){ return idbGet("stock"); }).then(function(cached){
+      var shownFromCache = false;
+      if (cached && cached.data && Array.isArray(cached.data.accounts) && stockAgeOk(cached.data)){
+        useLiveStock(cached.data, "saved"); // hiện kho cache ngay — lần sau vào lại là thấy liền
+        shownFromCache = true;
+      }
+      return fromNetwork().catch(function(){
+        if (!shownFromCache) useDemoStock();
+      });
+    });
   }
   /* ===== GỌI API CLOUDFLARE: số dư thật do bot giữ ===== */
   function apiReady(){ return !!API_BASE && API_BASE.indexOf("REPLACE-WITH") === -1; }
@@ -512,18 +1107,82 @@
       .then(function(data){ clearTimeout(timer); return data; },
             function(err){ clearTimeout(timer); throw err; });
   }
+  /* ===== GỌI BACKEND VPS (tài khoản web + nạp thẻ) =====
+     Backend trả JSON {ok, ...} hoặc {error}. Gửi kèm:
+     - Authorization: Bearer <jwt> nếu đã đăng nhập web (token lấy từ
+       /api/auth/login hoặc /api/auth/register; backend cũng set HttpOnly
+       cookie — fetch dùng credentials:"include" để cookie đi kèm).
+     - Content-Type: application/json. */
+  var WEB_TOKEN_KEY = "anhdev_web_token";
+  function backendFetch(path, options){
+    options = options || {};
+    if (!backendReady()) return Promise.reject(new Error(L("authNoBackend")));
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS);
+    var headers = { "Content-Type":"application/json" };
+    if (state.webToken) headers["Authorization"] = "Bearer " + state.webToken;
+    var init = { method: options.method || "GET", headers: headers, credentials:"include", signal: ctrl.signal };
+    if (options.body != null) init.body = JSON.stringify(options.body);
+    return fetch(BACKEND_API_BASE.replace(/\/$/, "") + path, init)
+      .then(function(r){
+        return r.text().then(function(text){
+          var data = null;
+          try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+          if (!r.ok){
+            var e = new Error((data && (data.message || data.error)) || ("HTTP " + r.status));
+            e.data = data; e.status = r.status;
+            throw e;
+          }
+          return data;
+        });
+      })
+      .then(function(data){ clearTimeout(timer); return data; },
+            function(err){ clearTimeout(timer); throw err; });
+  }
+  function saveWebToken(t){
+    state.webToken = t || null;
+    try {
+      if (t) localStorage.setItem(WEB_TOKEN_KEY, t);
+      else localStorage.removeItem(WEB_TOKEN_KEY);
+    } catch (e) { /* trình duyệt chặn localStorage */ }
+  }
+  function loadWebToken(){
+    try { return localStorage.getItem(WEB_TOKEN_KEY) || null; } catch (e) { return null; }
+  }
+  function clearWebToken(notifyBackend){
+    var had = !!state.webToken;
+    if (notifyBackend && had && backendReady()){
+      backendFetch("/api/auth/logout", { method:"POST" }).catch(function(){});
+    }
+    saveWebToken(null);
+  }
   function applyBalance(b){
     if (!b) return;
     if (typeof b.shop_balance === "number") state.balance = b.shop_balance;
     if (typeof b.coins === "number") state.coins = b.coins;
-    BALANCE.synced = true;
+    BALANCE.synced = true; BALANCE.web = false;
     BALANCE.updatedAt = b.updated_at ? new Date(b.updated_at).toLocaleString("vi-VN") : null;
     refreshUserUI(); renderAccount();
   }
   function markBalanceUnsynced(){
-    BALANCE.synced = false; BALANCE.updatedAt = null; refreshUserUI();
+    BALANCE.synced = false; BALANCE.web = false; BALANCE.updatedAt = null; refreshUserUI();
   }
   function refreshWebBalance(){
+    if (state.user && state.user.web){
+      // Tài khoản web: số dư thật lấy từ backend VPS (/api/auth/me).
+      if (!backendReady()){ markBalanceUnsynced(); return Promise.resolve(false); }
+      return backendFetch("/api/auth/me")
+        .then(function(me){
+          var u = me && me.user;
+          if (!u || typeof u.balance !== "number"){ markBalanceUnsynced(); return false; }
+          state.balance = u.balance;
+          state.discount = (typeof u.discount_percent === "number") ? u.discount_percent : 0;
+          BALANCE.synced = true; BALANCE.web = true; BALANCE.updatedAt = null;
+          refreshUserUI(); renderAccount();
+          return true;
+        })
+        .catch(function(){ markBalanceUnsynced(); return false; });
+    }
     var tid = state.user && state.user.telegram_id;
     if (!tid){ markBalanceUnsynced(); return Promise.resolve(false); }
     // apiFetch tự từ chối khi thiếu URL Worker hoặc thiếu xác thực Telegram.
@@ -537,7 +1196,9 @@
 
   /* ===== HOÁ ĐƠN NẠP: lưu localStorage + poll trạng thái từ Worker ===== */
   function invoiceStorageKey(){
-    return "anhdev_invoices_" + ((state.user && state.user.telegram_id) || "guest");
+    var u = state.user;
+    var who = (u && u.telegram_id) || (u && u.web && u.username ? "web_" + u.username : null) || "guest";
+    return "anhdev_invoices_" + who;
   }
   function saveInvoices(){
     try { localStorage.setItem(invoiceStorageKey(), JSON.stringify(state.invoices.slice(0, 20))); } catch (e) { /* bị chặn */ }
@@ -581,11 +1242,11 @@
           iv.status = "success";
           iv.credited = (typeof d.credited_amount === "number") ? d.credited_amount
             : (typeof d.amount === "number" ? d.amount : iv.amount);
-          iv.detail = "SePay đã đối soát · bot đã cộng " + fmtVND(iv.credited);
+          iv.detail = "SePay đã đối soát · bot đã cộng " + fmt(iv.credited);
           if (d.balance) applyBalance(d.balance);
           else refreshWebBalance();
           saveInvoices(); renderInvoices(); updatePayStatus();
-          toast("Nạp thành công! Bot đã cộng " + fmtVND(iv.credited) + " vào ví.");
+          toast("Nạp thành công! Bot đã cộng " + fmt(iv.credited) + " vào ví.");
           stopDepositPoll();
           return true;
         }
@@ -608,7 +1269,6 @@
     var pending = state.invoices.filter(function(iv){ return iv.remote && iv.status === "pending"; })[0];
     if (pending) startDepositPoll(pending);
   }
-  $("#searchInput").addEventListener("input", function(e){ state.filter.q = e.target.value.trim(); state.filter.page = 1; renderProducts(); });
   $("#sortSelect").addEventListener("change", function(e){ state.filter.sort = e.target.value; state.filter.page = 1; renderProducts(); });
   $("#stockToggle").addEventListener("click", function(){
     state.filter.onlyStock = !state.filter.onlyStock;
@@ -643,25 +1303,128 @@
     if (e.key === "Escape") $$(".modal-wrap.open").forEach(closeModal);
   });
 
-  /* ================= AUTH ================= */
+  /* ================= AUTH — TÀI KHOẢN WEB (TK/MK qua backend VPS) =================
+     Tab "Đăng nhập" / "Tạo tài khoản" gọi backend VPS (BACKEND_API_BASE).
+     Backend băm mật khẩu bằng bcrypt, cấp JWT + HttpOnly cookie (session);
+     frontend chỉ giữ token trong bộ nhớ + localStorage để gửi kèm header
+     Bearer. Chưa cấu hình BACKEND_API_BASE thì form báo rõ, không tạo
+     tài khoản ảo. Lỗi đăng nhập backend trả về luôn là thông báo chung
+     ("Sai tên đăng nhập hoặc mật khẩu") để tránh dò tài khoản. */
   var authMode = "login";
+  var authBusy = false;
   function setAuthMode(mode){
     authMode = mode;
     $("#tabLogin").classList.toggle("on", mode === "login");
     $("#tabRegister").classList.toggle("on", mode === "register");
-    $("#nameField").style.display = mode === "register" ? "block" : "none";
-    $("#authSubmit").textContent = L("soon"); // tài khoản web sắp có — nút luôn hiển thị "Sắp có"
+    $("#passField2").style.display = mode === "register" ? "block" : "none";
+    $("#authSubmit").textContent = mode === "register" ? L("submitRegister") : L("submitLogin");
     $("#authErr").classList.remove("show");
   }
   $("#tabLogin").addEventListener("click", function(){ setAuthMode("login"); });
   $("#tabRegister").addEventListener("click", function(){ setAuthMode("register"); });
   function authError(msg){ var e = $("#authErr"); e.textContent = msg; e.classList.add("show"); }
-  /* Đăng nhập bằng tài khoản web: SẮP CÓ — form đã bị vô hiệu hoá ở HTML.
-     Giữ lại submit handler chỉ để chặn và báo, không tạo tài khoản ảo nữa. */
+  function normalizeUsername(v){ return String(v || "").trim().toLowerCase(); }
+  function validateAuth(username, pass, pass2){
+    if (!/^[a-z0-9_]{4,24}$/.test(username)) return L("authErrUser");
+    if (!pass || pass.length < 6) return L("authErrPass");
+    if (pass2 != null && pass !== pass2) return L("authErrMatch");
+    return null;
+  }
+  function setAuthBusy(b){
+    authBusy = b;
+    var btn = $("#authSubmit");
+    btn.disabled = b;
+    btn.textContent = b ? L("sending") : (authMode === "register" ? L("submitRegister") : L("submitLogin"));
+  }
+  /* Nút con mắt hiện/ẩn mật khẩu (cả 2 ô, dùng chung 1 listener trên form). */
+  $("#authForm").addEventListener("click", function(e){
+    var b = e.target.closest(".pw-eye"); if (!b) return;
+    var inp = document.getElementById(b.getAttribute("data-eye"));
+    if (!inp) return;
+    var show = inp.type === "password";
+    inp.type = show ? "text" : "password";
+    b.classList.toggle("on", show);
+    b.setAttribute("aria-label", show ? L("eyeHide") : L("eyeShow"));
+    inp.focus();
+  });
+  /* Xoá lỗi inline ngay khi người dùng sửa lại ô nhập. */
+  ["authUser", "authPass", "authPass2"].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("input", function(){ $("#authErr").classList.remove("show"); });
+  });
   $("#authForm").addEventListener("submit", function(e){
     e.preventDefault();
-    authError("Đăng nhập bằng tài khoản web sắp có. Đăng nhập bằng Telegram bên dưới để dùng ngay nhé.");
+    if (authBusy) return;
+    if (!backendReady()){ authError(L("authNoBackend")); return; }
+    var username = normalizeUsername($("#authUser").value);
+    var pass = $("#authPass").value;
+    var pass2 = authMode === "register" ? $("#authPass2").value : null;
+    var err = validateAuth(username, pass, pass2);
+    if (err){ authError(err); return; }
+    setAuthBusy(true);
+    var path = authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+    var body = { username: username, password: pass };
+    if (authMode === "register") body.password_confirm = pass2; // backend nhận "password_confirm"
+    backendFetch(path, { method:"POST", body: body })
+      .then(function(d){ return afterWebAuth(d, username); })
+      .catch(function(err){
+        setAuthBusy(false);
+        authError(err && err.message ? err.message : L("authErrGeneric"));
+      });
   });
+  function afterWebAuth(d, username){
+    var token = d && (d.token || d.access_token || d.jwt);
+    if (token) saveWebToken(token);
+    // Lấy thông tin thật từ backend (/api/auth/me: {user:{username, balance,
+    // discount_percent, telegram_id}}) rồi mới đăng nhập vào giao diện.
+    return backendFetch("/api/auth/me")
+      .then(function(me){
+        setAuthBusy(false);
+        var u = me && me.user;
+        var name = (u && u.username) || username;
+        state.balance = (u && typeof u.balance === "number") ? u.balance : 0;
+        state.discount = (u && typeof u.discount_percent === "number") ? u.discount_percent : 0;
+        BALANCE.synced = true; BALANCE.web = true; BALANCE.updatedAt = null;
+        setUser({
+          name: name,
+          username: name,
+          telegram_id: (u && u.telegram_id) || null,
+          photo_url: null,
+          via: L("viaWeb"),
+          web: true,
+          discount_percent: state.discount
+        });
+        $("#authPass").value = ""; $("#authPass2").value = "";
+        closeModal($("#authModal"));
+        toast(L("authWelcome") + name + "!");
+      })
+      .catch(function(){
+        // Đăng ký/đăng nhập đã xong nhưng /me lỗi: vẫn giữ phiên, số dư để 0
+        // và thử đồng bộ lại ở lần refreshWebBalance sau.
+        setAuthBusy(false);
+        setUser({ name: username, username: username, telegram_id: null, photo_url: null, via: L("viaWeb"), web: true });
+        $("#authPass").value = ""; $("#authPass2").value = "";
+        closeModal($("#authModal"));
+        toast(L("authWelcome") + username + "!");
+      });
+  }
+  function restoreWebSession(){
+    if (!backendReady() || !state.webToken) return;
+    backendFetch("/api/auth/me")
+      .then(function(me){
+        var u = me && me.user;
+        if (!u || !u.username) throw new Error("bad /me");
+        state.balance = (typeof u.balance === "number") ? u.balance : 0;
+        state.discount = (typeof u.discount_percent === "number") ? u.discount_percent : 0;
+        BALANCE.synced = true; BALANCE.web = true;
+        setUser({
+          name: u.username, username: u.username,
+          telegram_id: u.telegram_id || null, photo_url: null,
+          via: L("viaWeb"), web: true, discount_percent: state.discount
+        });
+      })
+      .catch(function(){ saveWebToken(null); });
+  }
   /* Đăng nhập Telegram THẬT (Telegram Login Widget, bot @devbn_bot).
      Telegram gọi hàm này sau khi người dùng bấm nút và xác nhận trong popup.
      LƯU Ý: trang tĩnh không có server nên KHÔNG xác thực được hash mà Telegram trả về.
@@ -733,6 +1496,12 @@
       refreshWebBalance();
     }
   }
+  /* Khôi phục phiên tài khoản web (đã đăng nhập bằng TK/MK trước đó).
+     Token lưu ở localStorage; /api/auth/me xác thực lại và lấy số dư thật. */
+  if (!state.user){
+    var wt = loadWebToken();
+    if (wt){ state.webToken = wt; restoreWebSession(); }
+  }
 
   /* ================= BUY FLOW ================= */
   var buyTarget = null;
@@ -749,9 +1518,9 @@
     /* Acc thật: kho, ví và giao acc nằm trong bot — web chỉ dẫn sang bot,
        không tự trừ ví và không gọi /api/buy trên Worker. */
     $("#buyBody").innerHTML =
-      '<div class="sum-row"><span>Sản phẩm</span><b>' + esc(p.name) + '</b></div>' +
-      '<div class="sum-row"><span>Giá</span><b>' + fmt(p.price) + '</b></div>' +
-      '<div class="shortfall">Acc thật được giao và trừ ví ngay trong bot Telegram <b>@devbn_bot</b>. Bấm nút bên dưới rồi chọn đúng sản phẩm này trong bot.</div>';
+      '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
+      '<div class="shortfall">' + L("botNote") + '</div>';
     $("#buyActions").innerHTML =
       '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>' +
       '<a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener noreferrer">Mua trong bot @devbn_bot</a>';
@@ -762,16 +1531,16 @@
     if (p.api){ openBotBuyModal(p); return; }
     var body = $("#buyBody"), actions = $("#buyActions");
     var rows =
-      '<div class="sum-row"><span>Sản phẩm</span><b>' + esc(p.name) + '</b></div>' +
-      '<div class="sum-row"><span>Giá</span><b>' + fmt(p.price) + '</b></div>' +
-      '<div class="sum-row"><span>Số dư ví hiện tại</span><b>' + fmt(state.balance) + '</b></div>';
+      '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyBal") + '</span><b>' + fmt(state.balance) + '</b></div>';
     if (state.balance >= p.price){
-      body.innerHTML = rows + '<div class="sum-row total"><span>Sau khi mua còn</span><b>' + fmt(state.balance - p.price) + '</b></div>';
+      body.innerHTML = rows + '<div class="sum-row total"><span>' + L("buyAfter") + '</span><b>' + fmt(state.balance - p.price) + '</b></div>';
       actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine" data-buy-confirm>Xác nhận mua</button>';
     } else {
       var short = p.price - state.balance;
       body.innerHTML = rows +
-        '<div class="shortfall">Ví chưa đủ tiền: giá <b>' + fmt(p.price) + '</b> · số dư <b>' + fmt(state.balance) + '</b> · còn thiếu <b>' + fmt(short) + '</b>. Nạp thêm qua VietQR là mua được ngay.</div>';
+        '<div class="shortfall">' + L("shortA") + '<b>' + fmt(p.price) + '</b>' + L("shortB") + '<b>' + fmt(state.balance) + '</b>' + L("shortC") + '<b>' + fmt(short) + '</b>' + L("shortD") + '</div>';
       actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Để sau</button><button class="btn btn-wine" data-buy-topup>Nạp tiền ngay</button>';
     }
     openModal("#buyModal");
@@ -798,9 +1567,9 @@
     refreshUserUI(); renderProducts(); renderStats();
     $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
     $("#buyBody").innerHTML =
-      '<div class="cred"><div class="cred-row"><span class="k">Tài khoản</span><code>' + esc(order.user) + '</code><button class="copy-btn" data-copy="' + esc(order.user) + '">Copy</button></div>' +
-      '<div class="cred-row"><span class="k">Mật khẩu</span><code>' + esc(order.pass) + '</code><button class="copy-btn" data-copy="' + esc(order.pass) + '">Copy</button></div></div>' +
-      '<p style="font-size:13px;color:var(--muted);margin:12px 0 0">Thông tin này cũng nằm trong “Đơn hàng của tôi” và đồng bộ sang bot Telegram — mua ở đâu cũng xem lại được.</p>';
+      '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(order.user) + '</code><button class="copy-btn" data-copy="' + esc(order.user) + '">Copy</button></div>' +
+      '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code>' + esc(order.pass) + '</code><button class="copy-btn" data-copy="' + esc(order.pass) + '">Copy</button></div></div>' +
+      '<p style="font-size:13px;color:var(--muted);margin:12px 0 0">' + L("credNote") + '</p>';
     $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><button class="btn btn-wine" data-buy-orders>Xem đơn hàng</button>';
     toast("Mua thành công! Đã trừ " + fmt(p.price) + " khỏi ví.");
   }
@@ -819,21 +1588,21 @@
   function renderOrders(){
     var box = $("#ordersList");
     if (!state.user){
-      box.innerHTML = '<div class="empty-box"><b>Bạn chưa đăng nhập</b>Đăng nhập để xem đơn hàng của mình.<br /><br /><button class="btn btn-wine" id="ordersLogin">Đăng nhập ngay</button></div>';
+      box.innerHTML = '<div class="empty-box"><b>' + L("guest") + '</b>' + L("ordLoginS") + '<br /><br /><button class="btn btn-wine" id="ordersLogin">' + L("ordLoginB") + '</button></div>';
       var b = $("#ordersLogin"); if (b) b.addEventListener("click", function(){ setAuthMode("login"); openModal("#authModal"); });
       return;
     }
     if (!state.orders.length){
-      box.innerHTML = '<div class="empty-box"><b>Chưa có đơn hàng nào</b>Acc bạn mua ở web, Mini App hay bot Telegram sẽ hiện ở đây.</div>';
+      box.innerHTML = '<div class="empty-box"><b>' + L("ordEmptyT") + '</b>' + L("ordEmptyS") + '</div>';
       return;
     }
     box.innerHTML = state.orders.map(function(o){
       var cred;
       if (o.user && o.pass){
-        cred = '<div class="cred"><div class="cred-row"><span class="k">Tài khoản</span><code>' + esc(o.user) + '</code><button class="copy-btn" data-copy="' + esc(o.user) + '">Copy</button></div>' +
-          '<div class="cred-row"><span class="k">Mật khẩu</span><code>' + esc(o.pass) + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
+        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(o.user) + '</code><button class="copy-btn" data-copy="' + esc(o.user) + '">Copy</button></div>' +
+          '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code>' + esc(o.pass) + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
       } else {
-        cred = '<div class="cred"><div class="cred-row"><span class="k">Nhận acc</span><span style="font-size:13px">Mở bot <b>@devbn_bot</b> → Đơn hàng của tôi để xem tài khoản + mật khẩu.</span></div></div>';
+        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvBot") + '</span></div></div>';
       }
       return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span></div>' +
         '<div class="meta">Mã đơn ' + o.code + ' · ' + o.time + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
@@ -841,6 +1610,7 @@
   }
   function invoiceBadge(iv){
     if (iv.status === "pending") return '<span class="badge pend">Chờ xử lý</span>';
+    if (iv.status === "wrong_amount") return '<span class="badge pend">Sai mệnh giá</span>';
     if (iv.status === "failed") return '<span class="badge fail">Thất bại</span>';
     if (iv.status === "cancelled") return '<span class="badge fail">Đã huỷ</span>';
     return '<span class="badge">Thành công</span>';
@@ -848,13 +1618,13 @@
   function renderInvoices(){
     var box = $("#invoicesList");
     if (!state.invoices.length){
-      box.innerHTML = '<div class="empty-box"><b>Chưa có hoá đơn nạp nào</b>Nạp tiền qua VietQR / SePay hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.</div>';
+      box.innerHTML = '<div class="empty-box"><b>' + L("invEmptyT") + '</b>' + L("invEmptyS") + '</div>';
       return;
     }
     box.innerHTML = state.invoices.map(function(iv){
-      var amountHtml = iv.status === "success"
-        ? '<b>+' + fmtVND(iv.credited != null ? iv.credited : iv.amount) + '</b>'
-        : '<b>' + fmtVND(iv.amount) + '</b>';
+      var amountHtml = (iv.status === "success" || iv.status === "wrong_amount")
+        ? '<b>+' + fmt(iv.credited != null ? iv.credited : iv.amount) + '</b>'
+        : '<b>' + fmt(iv.amount) + '</b>';
       var detail = iv.detail ? '<div class="meta">' + esc(iv.detail) + '</div>' : '';
       var payBtn = iv.status === "pending" && iv.method.indexOf("Ngân Hàng") === 0
         ? '<div style="margin-top:11px"><button class="btn btn-wine" data-pay-invoice="' + esc(iv.code) + '" style="padding:7px 15px;min-height:38px;font-size:13px">' + L("payInvoiceBtn") + ' · ' + esc(iv.code) + '</button></div>'
@@ -866,24 +1636,63 @@
   function renderAccount(){
     var box = $("#accountBody");
     if (!state.user){
-      box.innerHTML = '<div class="empty-box"><b>Bạn chưa đăng nhập</b>Đăng nhập bằng Telegram để mua acc và nạp tiền.<br /><br /><button class="btn btn-wine" id="accLogin">Đăng nhập bằng Telegram</button></div>';
+      box.innerHTML = '<div class="empty-box"><b>' + L("guest") + '</b>' + L("accLoginS") + '<br /><br /><button class="btn btn-wine" id="accLogin">' + L("accLoginB") + '</button></div>';
       var b = $("#accLogin"); if (b) b.addEventListener("click", function(){ setAuthMode("login"); openModal("#authModal"); });
       return;
     }
     box.innerHTML =
-      '<div class="sum-row"><span>Tên hiển thị</span><b>' + esc(state.user.name) + '</b></div>' +
-      '<div class="sum-row"><span>Tên đăng nhập</span><b>' + esc(state.user.username) + '</b></div>' +
-      '<div class="sum-row"><span>Đăng nhập qua</span><b>' + esc(state.user.via) + '</b></div>' +
-      '<div class="sum-row"><span>Số dư ví</span><b>' + fmt(state.balance) +
+      '<div class="sum-row"><span>' + L("accName") + '</span><b>' + esc(state.user.name) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("accUser") + '</span><b>' + esc(state.user.username) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("accVia") + '</span><b>' + esc(state.user.via) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("accBal") + '</span><b>' + fmt(state.balance) +
         (BALANCE.synced
-          ? ' <span style="font-size:11px;color:var(--ok)">✓ đồng bộ bot' +
+          ? ' <span style="font-size:11px;color:var(--ok)">' + (BALANCE.web ? L("accSyncedWeb") : L("accSynced")) +
             (state.coins > 0 ? ' · ' + Number(state.coins).toLocaleString("vi-VN") + ' xu' : '') + '</span>'
-          : ' <span style="font-size:11px;color:var(--danger)">chưa đồng bộ</span>') + '</b></div>' +
-      '<div class="sum-row"><span>Tổng đơn đã mua</span><b>' + state.orders.length + ' đơn</b></div>' +
-      '<div class="modal-actions"><button class="btn btn-ghost" id="accTopup">Nạp tiền</button><button class="btn btn-wine" id="accLogout">Đăng xuất</button></div>' +
-      '<p style="font-size:12.5px;color:var(--muted);margin-top:14px">Liên kết Telegram: mở bot <b>@devbn_bot</b>, mọi acc mua trên bot cũng hiện trong ví và lịch sử này.</p>';
+          : ' <span style="font-size:11px;color:var(--danger)">' + L("accUnsync") + '</span>') + '</b></div>' +
+      '<div class="sum-row"><span>' + L("accOrders") + '</span><b>' + state.orders.length + L("ordUnit") + '</b></div>' +
+      '<div class="modal-actions"><button class="btn btn-ghost" id="accTopup">' + L("accTopup") + '</button><button class="btn btn-wine" id="accLogout">' + L("logout") + '</button></div>' +
+      '<p style="font-size:12.5px;color:var(--muted);margin-top:14px">' + ((state.user.web && !state.user.telegram_id) ? L("accNoteWeb") : L("accNote")) + '</p>';
     $("#accTopup").addEventListener("click", function(){ showView("topup"); });
     $("#accLogout").addEventListener("click", function(){ setUser(null); state.balance = 0; refreshUserUI(); toast("Đã đăng xuất."); showView("home"); });
+  }
+
+  /* Đồng bộ Hoá Đơn nạp thẻ từ backend (trạng thái thật sau callback cổng thẻ).
+     Chỉ chạy cho tài khoản web; hoá đơn backend thắng khi trùng request_id. */
+  function refreshBackendInvoices(){
+    if (!state.user || !state.user.web || !backendReady()) return;
+    backendFetch("/api/topup/invoices")
+      .then(function(d){
+        var list = d && d.invoices;
+        if (!Array.isArray(list)) return;
+        var changed = false;
+        list.forEach(function(bi){
+          if (!bi || !bi.request_id) return;
+          var status = bi.status === "wrong_amount" ? "wrong_amount"
+            : bi.status === "success" ? "success"
+            : bi.status === "failed" ? "failed" : "pending";
+          var detail = (bi.telco || "Thẻ cào") + " · mệnh giá " + fmt(bi.amount || 0);
+          if (status === "wrong_amount") detail += " · sai mệnh giá";
+          var item = {
+            code: bi.request_id, amount: bi.amount || 0,
+            credited: (typeof bi.credited_amount === "number") ? bi.credited_amount : null,
+            method: "Thẻ cào · TheSieuRe", status: status,
+            time: bi.created_at || "", detail: detail
+          };
+          var ex = null;
+          state.invoices.forEach(function(x){ if (x.code === item.code) ex = x; });
+          if (ex){
+            if (ex.status !== item.status || ex.credited !== item.credited){
+              ex.status = item.status; ex.credited = item.credited; ex.detail = item.detail;
+              changed = true;
+            }
+          } else {
+            state.invoices.unshift(item);
+            changed = true;
+          }
+        });
+        if (changed){ saveInvoices(); renderInvoices(); }
+      })
+      .catch(function(){ /* backend chưa sẵn / hết phiên — giữ hoá đơn local */ });
   }
 
   /* ================= TOPUP ================= */
@@ -914,7 +1723,7 @@
     $("#tabCard").classList.toggle("on", which === "card");
     $("#topupQr").style.display = which === "qr" ? "block" : "none";
     $("#topupCard").style.display = which === "card" ? "block" : "none";
-    $$(".nav-item[data-tab]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-tab") === which); });
+    setActiveNav("topup:" + which); // 1 nguồn sự thật — không tự toggle .active lẻ nữa
   }
   $("#tabQr").addEventListener("click", function(){ setTopupTab("qr"); });
   $("#tabCard").addEventListener("click", function(){ setTopupTab("card"); });
@@ -980,6 +1789,8 @@
     $("#payBank").textContent = bank.name || bank.code || BANK.name;
     $("#payAcc").textContent = bank.account || BANK.account;
     $("#payHolder").textContent = bank.holder || BANK.holder;
+    /* Số tiền CHUYỂN KHOẢN THẬT (VND) — cố tình giữ fmtVND, không đổi theo
+       tiền tệ hiển thị: khách phải chuyển đúng số VND này thì SePay mới khớp. */
     $("#payAmount").textContent = fmtVND(iv.amount);
     $("#payNote").textContent = iv.code;
     $("#payAccCopy").setAttribute("data-copy", bank.account || BANK.account);
@@ -1002,7 +1813,7 @@
     if (iv.status === "success"){
       // ĐÃ CHUYỂN: trạng thái xanh + hiện dòng Hỗ trợ (link acc admin)
       st.innerHTML = "✓ " + L("payDone") +
-        (iv.remote ? " · bot đã cộng " + fmtVND(iv.credited != null ? iv.credited : iv.amount) : " · demo, chưa đồng bộ bot");
+        (iv.remote ? " · bot đã cộng " + fmt(iv.credited != null ? iv.credited : iv.amount) : " · demo, chưa đồng bộ bot");
       st.classList.add("done");
       btn.style.display = "";
       btn.textContent = L("payViewInv");
@@ -1044,7 +1855,7 @@
     state.balance += iv.amount;
     markBalanceUnsynced();
     saveInvoices(); renderInvoices(); updatePayStatus();
-    toast("Đã cộng " + fmtVND(iv.amount) + " vào số dư demo (chưa đồng bộ bot).");
+    toast("Đã cộng " + fmt(iv.amount) + " vào số dư demo (chưa đồng bộ bot).");
   });
   $("#payBackBtn").addEventListener("click", function(){
     var iv = state.currentPay;
@@ -1063,51 +1874,49 @@
     var iv = state.invoices.filter(function(x){ return x.code === code; })[0];
     if (iv){ state.currentPay = iv; renderPayment(); showView("payment"); }
   });
-  /* ===== NẠP THẺ QUA THESIEURE =====
-     Luồng: tạo giao dịch "Chờ xử lý" → gửi thẻ lên API TheSieuRe → callback/truy vấn trả về
-     thành công thì cộng ví theo số thực nhận (đã trừ chiết khấu), thất bại thì ghi rõ lý do. */
-  function submitCardToThesieure(card, done){
-    // Payload đúng format API gạch thẻ của thesieure.com (chargingws/v2).
-    var payload = {
-      telco: card.telco,
-      code: card.pin,
-      serial: card.serial,
-      amount: card.amount,
-      request_id: card.requestId,
-      partner_id: THESIEURE.partnerId,
-      sign: "" // sign = md5(partnerKey + code + serial) — tính ở phía bot/server khi nối thật
-    };
-    if (THESIEURE.partnerId && THESIEURE.partnerKey){
-      // Đã có cấu hình: gửi thẻ lên TheSieuRe (giữ bí mật partnerKey).
-      fetch(THESIEURE.apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).then(function(r){ return r.json(); }).then(function(res){
-        if (res && (res.status === 1 || res.status === "1" || res.status === 99)){
-          // status 99 = thẻ đúng, đang chờ xử lý tiếp; status 1 = thành công
-          if (res.status === 99) return; // giữ "Chờ xử lý", callback sau sẽ chốt
-          var value = Number(res.value || res.amount || card.amount);
-          done({ ok:true, value:value });
-        } else {
-          done({ ok:false, message: (res && (res.message || res.msg)) || "TheSieuRe từ chối thẻ" });
-        }
-      }).catch(function(){
-        done({ ok:false, message:"Không gọi được API TheSieuRe — kiểm tra lại cấu hình partner" });
-      });
-      return;
-    }
-    // Chưa điền partnerId/partnerKey: mô phỏng vòng đời giao dịch để xem trạng thái chạy đúng.
-    setTimeout(function(){
-      var digits = /^\d+$/;
-      if (!digits.test(card.serial) || !digits.test(card.pin) || card.serial.length < 10 || card.pin.length < 10){
-        done({ ok:false, message:"Mã thẻ / seri không đúng định dạng số của " + card.telcoName });
-      } else {
-        var fee = (THESIEURE.fees[card.telco] || 0) / 100;
-        done({ ok:true, value: Math.round(card.amount * (1 - fee)) });
-      }
-    }, 3500);
+  /* ===== NẠP THẺ CÀO — QUA BACKEND VPS (TheSieuRe) =====
+     Luồng: web gửi thẻ lên backend (POST /api/topup/card) → backend ký sign
+     và gạch thẻ với TheSieuRe → callback của cổng thẻ cộng tiền vào ví.
+     Frontend KHÔNG bao giờ gọi thẳng thesieure.com (partnerKey chỉ nằm trong
+     .env trên VPS). Chưa cấu hình BACKEND_API_BASE thì chạy chế độ demo
+     (mô phỏng cục bộ, ghi rõ "Demo", số dư chỉ là demo). */
+  function cardExpectedCredit(amount, telco){
+    var fee = (CARD_DISCOUNT_RATES[telco] || 0) / 100;
+    return Math.round(amount * (1 - fee));
   }
+  function renderCardDiscount(){
+    var box = $("#cardDiscountTable");
+    if (!box) return;
+    var sel = $("#cardTelco");
+    var rows = CARD_TELCOS.map(function(code){
+      var name = code;
+      if (sel){
+        for (var i = 0; i < sel.options.length; i++){
+          if (sel.options[i].value === code){ name = sel.options[i].text; break; }
+        }
+      }
+      var rate = CARD_DISCOUNT_RATES[code] || 0;
+      return '<div class="card-disc-row"><b>' + esc(name) + '</b><span class="disc-rate">' +
+        esc(L("discRate").replace("{r}", String(rate)).replace("{v}", fmt(cardExpectedCredit(100000, code)))) + '</span></div>';
+    }).join("");
+    box.innerHTML = rows;
+  }
+  function updateCardExpected(){
+    var el = $("#cardExpected"); if (!el) return;
+    var amount = parseInt($("#cardAmount").value, 10) || 0;
+    var telco = $("#cardTelco").value;
+    var rate = CARD_DISCOUNT_RATES[telco] || 0;
+    el.textContent = L("cardExpectedA") + fmt(cardExpectedCredit(amount, telco)) +
+      L("cardExpectedB").replace("{r}", String(rate));
+  }
+  function refreshCardBackendNote(){
+    var n = $("#cardBackendNote"); if (!n) return;
+    if (backendReady()){ n.hidden = true; return; }
+    n.hidden = false;
+    n.textContent = L("cardNoBackend");
+  }
+  $("#cardTelco").addEventListener("change", function(){ updateCardExpected(); });
+  $("#cardAmount").addEventListener("change", function(){ updateCardExpected(); });
   $("#cardSubmit").addEventListener("click", function(){
     if (!requireLogin()) return;
     var telcoSel = $("#cardTelco");
@@ -1116,48 +1925,88 @@
     var amount = parseInt($("#cardAmount").value, 10);
     var serial = $("#cardSerial").value.replace(/\s+/g, "");
     var pin = $("#cardPin").value.replace(/\s+/g, "");
-    if (!serial || !pin){ toast("Nhập đủ số seri và mã thẻ."); return; }
-    // Thẻ cào VN: chỉ gồm chữ số — seri 10–16 số, mã thẻ 10–15 số.
+    if (!serial || !pin){ toast(L("cardNeedBoth")); return; }
+    // Thẻ cào VN: chỉ gồm chữ số — seri 10–16 số, mã thẻ 10–15 số (khớp backend).
     if (!/^\d{10,16}$/.test(serial) || !/^\d{10,15}$/.test(pin)){
-      toast("Seri (10–16 số) và mã thẻ (10–15 số) chỉ gồm chữ số — kiểm tra lại.");
+      toast(L("cardBadFormat"));
       return;
     }
-    var iv = {
-      code: randCode("THE"),
-      amount: amount,
-      credited: null,
-      method: "Thẻ cào · TheSieuRe",
-      status: "pending",
-      time: nowStr(),
-      detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
-    };
-    state.invoices.unshift(iv);
-    saveInvoices(); renderInvoices();
-    $("#cardSerial").value = ""; $("#cardPin").value = "";
     var cardBtn = this;
-    cardBtn.disabled = true; // khoá nút chống gửi trùng trong khi chờ TheSieuRe
-    toast("Đã gửi thẻ " + telcoName + " " + fmt(amount) + " lên TheSieuRe — trạng thái: Chờ xử lý.");
-    submitCardToThesieure(
-      { telco: telco, telcoName: telcoName, amount: amount, serial: serial, pin: pin, requestId: iv.code },
-      function(result){
-        cardBtn.disabled = false;
-        if (result.ok){
-          iv.status = "success";
-          iv.credited = result.value;
-          state.balance += result.value;
-          markBalanceUnsynced(); // thẻ cào trên web chưa đi qua bot
-          iv.detail += " · thực nhận " + fmt(result.value) + " (đã trừ chiết khấu TheSieuRe)";
-          refreshUserUI();
-          toast("Nạp thẻ thành công! Cộng " + fmt(result.value) + " vào ví.");
-        } else {
-          iv.status = "failed";
-          iv.detail += " · Lý do: " + result.message;
-          toast("Nạp thẻ thất bại: " + result.message);
+    cardBtn.disabled = true; // khoá nút chống gửi trùng trong khi chờ
+    var btnLabel = cardBtn.textContent;
+    cardBtn.textContent = L("sending");
+    var finish = function(){ cardBtn.disabled = false; cardBtn.textContent = btnLabel; };
+    if (!backendReady()){
+      // Chưa có backend: chế độ demo — tạo hoá đơn "Chờ xử lý" rồi mô phỏng
+      // kết quả cục bộ (không gọi cổng thẻ thật). Số dư cộng vào là demo.
+      var ivDemo = {
+        code: randCode("THE"),
+        amount: amount, credited: null,
+        method: "Thẻ cào · TheSieuRe · Demo",
+        status: "pending", time: nowStr(), demo: true,
+        detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
+      };
+      state.invoices.unshift(ivDemo);
+      saveInvoices(); renderInvoices();
+      $("#cardSerial").value = ""; $("#cardPin").value = "";
+      toast(L("cardDemoSent"));
+      setTimeout(function(){
+        finish();
+        ivDemo.status = "success";
+        ivDemo.credited = cardExpectedCredit(amount, telco);
+        ivDemo.detail += " · thực nhận " + fmt(ivDemo.credited) + " (" + L("cardDemoNote") + ")";
+        state.balance += ivDemo.credited;
+        markBalanceUnsynced();
+        refreshUserUI();
+        saveInvoices(); renderInvoices(); renderAccount();
+        toast(L("cardDemoOk") + fmt(ivDemo.credited) + ".");
+      }, 2500);
+      return;
+    }
+    // Có backend: gửi thẻ lên VPS, backend gạch thẻ với TheSieuRe.
+    backendFetch("/api/topup/card", { method:"POST", body:{ telco: telco, amount: amount, serial: serial, code: pin } })
+      .then(function(d){
+        finish();
+        var iv = {
+          code: (d && d.request_id) || randCode("THE"),
+          amount: amount,
+          credited: (d && typeof d.credited_amount === "number") ? d.credited_amount : null,
+          method: "Thẻ cào · TheSieuRe",
+          status: (d && d.status) || "pending",
+          time: nowStr(),
+          detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
+        };
+        state.invoices.unshift(iv);
+        saveInvoices(); renderInvoices();
+        $("#cardSerial").value = ""; $("#cardPin").value = "";
+        toast(L("cardSentOk"));
+        // Callback của cổng thẻ cộng tiền ở phía server; hỏi lại số dư +
+        // trạng thái hoá đơn sau ít giây.
+        if (state.user && state.user.web){
+          setTimeout(function(){ refreshWebBalance(); refreshBackendInvoices(); }, 15000);
         }
-        renderInvoices();
-        renderAccount();
-      }
-    );
+      })
+      .catch(function(err){
+        finish();
+        var d = err && err.data;
+        if (d && d.request_id){
+          // Backend đã tạo hoá đơn (cổng từ chối hoặc không gọi được) —
+          // vẫn hiện vào Hoá Đơn với trạng thái thật để khách thấy.
+          var iv = {
+            code: d.request_id,
+            amount: amount, credited: null,
+            method: "Thẻ cào · TheSieuRe",
+            status: d.status || "failed",
+            time: nowStr(),
+            detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4) +
+              " · " + (err.message || "")
+          };
+          state.invoices.unshift(iv);
+          saveInvoices(); renderInvoices();
+          $("#cardSerial").value = ""; $("#cardPin").value = "";
+        }
+        toast(L("cardSendFail") + (err && err.message ? ": " + err.message : ""));
+      });
   });
 
   /* ================= ĐIỂM DANH ================= */
@@ -1165,10 +2014,42 @@
     var body = $("#checkinBody");
     if (state.checkin != null){
       body.innerHTML = '<div class="checkin-done">' + L("ciDoneA") + fmt(state.checkin) + L("ciDoneB") + '</div>';
+    } else if (state.checkinDone){
+      body.innerHTML = '<div class="checkin-done">' + L("ciAlready") + '</div>';
     } else {
       body.innerHTML = '<button class="btn btn-wine" id="checkinBtn" style="width:100%">' + L("ciBtn") + '</button>';
       $("#checkinBtn").addEventListener("click", function(){
-        this.disabled = true; // khoá nút chống điểm danh 2 lần trong cùng 1 lần mở modal
+        var btn = this;
+        btn.disabled = true; // khoá nút chống điểm danh 2 lần trong cùng 1 lần mở modal
+        if (state.user && state.user.web && backendReady()){
+          // Tài khoản web: điểm danh thật qua backend (POST /api/checkin).
+          // Server cộng ngẫu nhiên 1–500đ, giới hạn 1 lần/user/ngày +
+          // 2 lần/IP/ngày (kèm cờ yêu cầu liên kết Telegram / đã nạp thẻ).
+          backendFetch("/api/checkin", { method:"POST" })
+            .then(function(d){
+              var amt = (d && typeof d.amount === "number") ? d.amount : 0;
+              state.checkin = amt;
+              if (d && typeof d.balance === "number") state.balance = d.balance;
+              BALANCE.synced = true; BALANCE.web = true;
+              refreshUserUI();
+              renderCheckin();
+              document.dispatchEvent(new CustomEvent("anhdev:checkin", { detail:{ amount: amt } }));
+              toast(L("ciOkA") + fmt(amt) + L("ciOkB") + fmt(state.balance) + ".");
+            })
+            .catch(function(err){
+              btn.disabled = false; // cho bấm lại (trừ khi server nói đã điểm danh)
+              var code = err && err.data && err.data.error;
+              if (code === "already_checked_in"){
+                state.checkinDone = true;
+                renderCheckin();
+              }
+              // Thông báo lỗi lấy từ server (409 đã điểm danh / 429 vượt IP /
+              // 403 chưa đủ điều kiện) — server luôn trả message tiếng Việt rõ ràng.
+              toast(err && err.message ? err.message : L("ciErrGeneric"));
+            });
+          return;
+        }
+        // Telegram / demo: giữ nguyên điểm danh demo cục bộ.
         var amt = 1 + Math.floor(Math.random() * 500);
         state.checkin = amt;
         state.balance += amt;
@@ -1233,9 +2114,10 @@
     state.filter.cat = cat;
     state.filter.page = 1;
     $$("#catChips .chip").forEach(function(c){ c.classList.toggle("on", c.getAttribute("data-cat") === cat); });
-    showView("home");
+    // Render trạng thái lọc TRƯỚC, rồi cuộn thẳng tới kho — cùng 1 task JS,
+    // không render/scroll qua hero Trang Chủ trước (đó là cái flash cũ).
     renderProducts();
-    setTimeout(function(){ var t = document.getElementById("products"); if (t) t.scrollIntoView({ behavior:"smooth" }); }, 60);
+    showView("home", { targetId: "products", navKey: "cat:" + cat });
   });
   $("#userChip").addEventListener("click", function(){ showView("account"); });
 
@@ -1266,21 +2148,25 @@
     makeQr:"Create invoice & VietQR code", bankLine:"Receiving bank: MBBank · Account 05817666778899 · BUI NGUYEN XUAN NHAT", "ph:amtPh":"Or enter another amount...",
     cardTelcoL:"Card type", cardAmountL:"Card denomination", cardAmountHint:"Pick the exact denomination printed on the card — if you declare it wrong, TheSieuRe settles at the real value and the card may be lost.",
     cardSerialL:"Serial number", "ph:cardSerialPh":"Enter the serial printed on the card", cardPinL:"Card code", "ph:cardPinPh":"Scratch the silver layer and enter the code",
-    cardSubmit:"Send card via TheSieuRe",
+    cardSubmit:"Send card",
+    cardDiscT:"Card discount rates",
     ordersTitle:"My orders", ordersSub:"All purchased accounts appear here.",
     invTitle:"Top-up invoices", invSub:"History of top-ups via SePay / VietQR and TheSieuRe prepaid cards — cards clearly show pending, success or failed status.",
     accTitle:"My account", accSub:"Link Telegram for quick sign-in everywhere.",
     lbTitle:"Leaderboard", lbSub:"Top buyers at the shop — ranked by total spending.",
     authTitle:"Welcome to AnhDev Store", authSub:"Log in to buy accounts and top up.",
-    authLoginTab:"Log In", authRegTab:"Register", authNameL:"Display name", "ph:authNamePh":"E.g.: Anh Dev",
+    authLoginTab:"Log In", authRegTab:"Register",
     authUserL:"Username", "ph:authUserPh":"Your username", authPassL:"Password", "ph:authPassPh":"Password (6+ characters)",
+    authPass2L:"Confirm password", "ph:authPass2Ph":"Repeat the password",
+    authUserHint:"4–24 characters: letters (no accents), numbers, _",
+    authWebHint:"Web accounts live on the AnhDev server — or log in with Telegram below.",
     tgBtn:"Log in with Telegram", tgHint:"Open the shop inside the Telegram Mini App and this step is automatic — the shop recognises the Telegram account you are using.",
     ciTitle:"Daily check-in", ciSub:"Check in once a day to receive a random 1–500đ straight into your wallet.",
     paySecure:"Secure transaction", payBack:"Cancel",
     bnHome:"Home", bnShop:"Accounts", bnTopup:"Top up", bnOrders:"Orders", bnAccount:"Account",
   };
   var I18N_EN_HTML = {
-    heroTitle:'Account warehouse<br />ANHDEV<span class="dot">.</span>',
+    heroTitle:'Account warehouse<br />ANHDEV',
     payQrSub:'Use your <b>Internet Banking app</b> or a QR-capable camera app to scan the code',
     paySupport:'Already transferred but the balance has not arrived? Contact <a id="paySupportLink" href="https://t.me/devbn_bot" target="_blank" rel="noopener noreferrer">Support</a> — the admin will check and credit you.'
   };
@@ -1308,10 +2194,16 @@
       var v = lang === "en" ? I18N_EN["ph:" + k] : I18N_VI_PH[k];
       if (v != null) el.setAttribute("placeholder", v);
     });
+    var as = $("#authSubmit");
+    if (as && !authBusy) as.textContent = authMode === "register" ? L("submitRegister") : L("submitLogin");
     refreshUserUI();
     renderProducts();
     renderStats();
     renderLeaderboard();
+    renderOrders();
+    renderInvoices();
+    renderAccount();
+    if ($("#checkinModal") && $("#checkinModal").classList.contains("open")) renderCheckin();
     if (state.currentPay) updatePayStatus();
   }
   $("#langSelect").addEventListener("change", function(){ applyLang(this.value); });
@@ -1322,20 +2214,69 @@
     renderProducts();
     renderStats();
     renderOrders();
+    renderInvoices();
     renderLeaderboard();
     renderAccount();
+    if (state.currentPay) updatePayStatus();
     toast(this.value === "USD" ? "Đã đổi tiền tệ hiển thị sang USD (giao dịch vẫn tính bằng VND)." : "Đã đổi tiền tệ hiển thị sang VND.");
   });
 
+  /* ===== HERO BANNER — TỰ ĐỔI SKIN MỖI LẦN TẢI LẠI TRANG =====
+     Mỗi lần tải trang, chọn ngẫu nhiên 1 ảnh trong assets/heroes/
+     (hero-01..hero-20), nhưng KHÔNG trùng ảnh của lần tải trước.
+     Chỉ số lần trước lưu trong localStorage (fallback sessionStorage).
+     Ảnh mặc định trong index.html là hero-01 — nếu ảnh chọn bị lỗi
+     thì quay về hero-01, không để banner vỡ. Ken Burns chạy lại
+     từ đầu cho ảnh mới. */
+  var HERO_COUNT = 20;
+  var HERO_KEY = "anhdev_hero_idx";
+  var HERO_DEFAULT = "assets/heroes/hero-01.webp";
+  function heroSrc(i){ return "assets/heroes/hero-" + String(i + 1).padStart(2, "0") + ".webp"; }
+  function heroStorage(){
+    try { if (window.localStorage) return window.localStorage; } catch (e) {}
+    try { if (window.sessionStorage) return window.sessionStorage; } catch (e) {}
+    return null;
+  }
+  function rotateHero(){
+    var img = document.querySelector(".hero img.bg");
+    if (!img) return;
+    var store = heroStorage();
+    var last = -1;
+    if (store) {
+      try { last = parseInt(store.getItem(HERO_KEY), 10); } catch (e) { last = -1; }
+      if (isNaN(last) || last < 0 || last >= HERO_COUNT) last = -1;
+    }
+    var idx = Math.floor(Math.random() * HERO_COUNT);
+    if (HERO_COUNT > 1) { while (idx === last) idx = Math.floor(Math.random() * HERO_COUNT); }
+    var src = heroSrc(idx);
+    /* Nếu ảnh chọn lỗi thì quay về ảnh mặc định (chỉ fallback 1 lần). */
+    img.onerror = function(){
+      img.onerror = null;
+      if (img.getAttribute("src") !== HERO_DEFAULT) img.src = HERO_DEFAULT;
+    };
+    if (store) { try { store.setItem(HERO_KEY, String(idx)); } catch (e) {} }
+    if (img.getAttribute("src") !== src) {
+      img.src = src;
+      /* Chạy lại hiệu ứng Ken Burns từ đầu cho ảnh mới. */
+      img.style.animation = "none";
+      void img.offsetWidth; /* reflow */
+      img.style.animation = "";
+    }
+  }
+
   /* ================= INIT ================= */
+  rotateHero();
   captureVi();
   setSyncStatus("syncing", "Đang đồng bộ kho thật...");
+  buildSearchIndex(); // index trên catalog mẫu trước, syncStock() build lại khi kho thật về
+  initSearch();
   renderProducts();
   renderStats();
   refreshUserUI();
   renderOrders();
   renderInvoices();
   renderAccount();
+  refreshCardBackendNote();
   syncStock();
   /* Số dư thật: làm mới mỗi 60 giây khi tab đang hiển thị, và ngay khi
      người dùng quay lại tab (mở lại shop). */

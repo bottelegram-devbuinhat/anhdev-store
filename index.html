@@ -5,18 +5,24 @@
     <!-- Content Security Policy: chi cho phep tai nguyen trang thuc su dung.
          style-src giu 'unsafe-inline' vi trang co <style> noi tuyen + nhieu style="..."
          (doi het sang file rieng la refactor lon, de vo giao dien). script-src KHONG co
-         'unsafe-inline' vi script chinh da doi sang assets/app.js. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://thesieure.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
+         'unsafe-inline' vi script chinh da doi sang assets/app.js.
+         Khi da dien BACKEND_API_BASE trong assets/app.js, them domain backend VPS
+         vao connect-src o duoi (vd https://api.anhdev.store) — neu khong trinh duyet
+         se chan fetch toi backend. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
     <title>AnhDev Store — Kho tài khoản Liên Quân</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://img.vietqr.io" />
+    <link rel="preconnect" href="https://anhdev-balance.nhatdz2k011.workers.dev" />
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/animations.css" />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- telegram-web-app.js: defer (van chay truoc app.js vi dung thu tu trong tai lieu);
+         qrcodejs da go (khong cho nao dung QRCode — QR VietQR la <img> tu img.vietqr.io). -->
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
       :root{
         --bg:#f7f5f0; --bg-soft:#ede8df; --surface:#fffdf8; --surface-2:#faf6ee;
@@ -28,6 +34,11 @@
         --shadow:0 10px 30px rgba(13,59,46,.08);
         --shadow-lg:0 24px 60px rgba(10,32,24,.22);
         --radius:18px;
+        /* Z-index thang chung: noi dung < topbar < goi y tim kiem < drawer/scrim < modal < toast < confetti */
+        --z-topbar:30; --z-suggest:32; --z-scrim:35; --z-sidebar:40; --z-bottomnav:45;
+        --z-modal:80; --z-toast:120; --z-confetti:200;
+        /* Nen nut wine + chu tren nen wine (dark mode: wine sang nen chu phai dam, tranh trang tren xanh nhat) */
+        --wine-btn:#0d3b2e; --on-wine:#fff;
       }
       @media (prefers-color-scheme: dark){
         :root{
@@ -39,6 +50,7 @@
           --danger:#ff8a80; --danger-soft:#3d201d;
           --shadow:0 10px 30px rgba(0,0,0,.35);
           --shadow-lg:0 24px 60px rgba(0,0,0,.55);
+          --wine-btn:#5ec49a; --on-wine:#082a20;
         }
       }
       html[data-theme="light"]{
@@ -49,6 +61,7 @@
         --head-tint:#e6edeb; --ok:#177245; --ok-soft:#e2f2e7;
         --danger:#b3261e; --danger-soft:#fbe9e7;
         --shadow:0 10px 30px rgba(13,59,46,.08); --shadow-lg:0 24px 60px rgba(10,32,24,.22);
+        --wine-btn:#0d3b2e; --on-wine:#fff;
       }
       html[data-theme="dark"]{
         --bg:#101613; --bg-soft:#161d19; --surface:#1a221d; --surface-2:#1f2924;
@@ -58,8 +71,10 @@
         --head-tint:#1d2b25; --ok:#4cc084; --ok-soft:#1d3325;
         --danger:#ff8a80; --danger-soft:#3d201d;
         --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 24px 60px rgba(0,0,0,.55);
+        --wine-btn:#5ec49a; --on-wine:#082a20;
       }
       *{box-sizing:border-box}
+      html,body{overflow-x:clip} /* chan tran ngang (360-430px); clip (khac hidden) khong pha position:sticky */
       html{scroll-behavior:smooth}
       body{margin:0;font-family:"Be Vietnam Pro",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
       button,[role="button"],select,summary,input:not([type="checkbox"],[type="radio"]){min-height:2.25rem}
@@ -72,9 +87,16 @@
 
       /* ---------- Layout ---------- */
       .layout{display:flex;min-height:100vh}
-      .sidebar{width:268px;flex:0 0 268px;background:var(--surface);border-right:1px solid var(--line);padding:20px 16px 24px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:18px;z-index:40}
-      .brand{display:flex;align-items:center;gap:10px;padding:2px 6px}
-      .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--wine);color:#fff;display:grid;place-items:center;font-weight:900;font-size:20px;letter-spacing:-.02em}
+      .sidebar{width:268px;flex:0 0 268px;background:var(--surface);border-right:1px solid var(--line);padding:20px 16px 24px;position:sticky;top:0;height:100vh;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px;z-index:var(--z-sidebar);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+      .sidebar::-webkit-scrollbar{width:6px}
+      .sidebar::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+      .sidebar::-webkit-scrollbar-track{background:transparent}
+      .modal::-webkit-scrollbar{width:6px}
+      .modal::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+      .modal{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+      /* Logo ghim dinh tren dinh sidebar (khong bi cat khi cuon): phu padding tren bang margin am */
+      .brand{display:flex;align-items:center;gap:10px;position:sticky;top:-20px;z-index:2;background:var(--surface);margin:-20px -16px 0;padding:20px 16px 10px}
+      .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--wine-btn);color:var(--on-wine);display:grid;place-items:center;font-weight:900;font-size:20px;letter-spacing:-.02em}
       .brand-name{font-weight:800;font-size:17px;letter-spacing:.01em}
       .brand-name em{font-style:normal;color:var(--wine)}
       .brand-sub{font-size:11px;color:var(--muted);margin-top:-2px}
@@ -97,16 +119,17 @@
       .scrim{display:none}
 
       .main{flex:1;min-width:0;display:flex;flex-direction:column}
-      .topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 22px}
+      .topbar{position:sticky;top:0;z-index:var(--z-topbar);background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 22px}
       .icon-btn{width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink-2)}
       .icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
       .icon-btn:hover{border-color:var(--wine);color:var(--wine)}
       .burger{display:none}
-      .wallet-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:8px 13px;font-weight:700;font-size:13.5px;min-height:42px}
+      .wallet-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:8px 13px;font-weight:700;font-size:13.5px;min-height:42px;min-width:0}
+      .wallet-pill [data-balance]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .wallet-pill svg{width:17px;height:17px;stroke:var(--wine);fill:none;stroke-width:1.8}
       .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-weight:700;font-size:14px;padding:9px 18px;min-height:42px;text-decoration:none;transition:background .15s,transform .1s}
       .btn:active{transform:scale(.98)}
-      .btn-wine{background:var(--wine);color:#fff}
+      .btn-wine{background:var(--wine-btn);color:var(--on-wine)}
       .btn-wine:hover{background:var(--wine-deep)}
       .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
       .btn-ghost:hover{border-color:var(--wine);color:var(--wine)}
@@ -116,7 +139,7 @@
       .user-chip .avatar{width:36px;height:36px;border-radius:50%;background:var(--wine-soft);color:var(--wine);display:grid;place-items:center;font-weight:800;font-size:14px;border:1px solid var(--line)}
       .theme-toggle{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden}
       .theme-toggle button{border:0;background:var(--surface);width:40px;height:42px;display:grid;place-items:center;color:var(--muted)}
-      .theme-toggle button.on{background:var(--wine);color:#fff}
+      .theme-toggle button.on{background:var(--wine-btn);color:var(--on-wine)}
       .theme-toggle svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
 
       .content{padding:24px 26px 90px;max-width:1240px;width:100%;margin:0 auto}
@@ -131,7 +154,6 @@
       .hero-inner{position:relative;z-index:2;padding:44px 46px;max-width:620px;display:flex;flex-direction:column;justify-content:center}
       .hero .kicker{color:#e6c87a;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
       .hero h1{font-size:clamp(34px,4.6vw,54px);line-height:1.06;font-weight:900;margin:12px 0 12px;letter-spacing:-.015em}
-      .hero h1 .dot{color:#d4af37}
       .hero p{color:#d8e6dc;font-size:15.5px;margin:0 0 24px;max-width:44ch}
       .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
       .btn-light{background:#fff;color:#33101f}
@@ -166,7 +188,7 @@
       .steps h2,.section-head h2{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em}
       .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:14px}
       .step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
-      .step .num{width:30px;height:30px;border-radius:50%;background:var(--wine);color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px;margin-bottom:10px}
+      .step .num{width:30px;height:30px;border-radius:50%;background:var(--wine-btn);color:var(--on-wine);display:grid;place-items:center;font-weight:800;font-size:14px;margin-bottom:10px}
       .step b{display:block;font-size:14.5px;margin-bottom:4px}
       .step p{margin:0;font-size:12.8px;color:var(--muted);overflow-wrap:break-word}
 
@@ -174,7 +196,8 @@
       .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:34px 0 6px}
       .section-head .count{font-size:13px;color:var(--muted);white-space:nowrap}
       .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
-      .search-box{flex:1 1 260px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 14px}
+      .search-wrap{flex:1 1 260px;min-width:0;position:relative}
+      .search-box{width:100%;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 14px}
       .search-box svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;flex:0 0 18px}
       .search-box input{border:0;background:none;flex:1;font-size:14px;color:var(--ink);min-height:44px;outline:none}
       .toolbar select{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--ink);min-height:44px}
@@ -186,19 +209,19 @@
       .chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
       .chip{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:99px;padding:8px 16px;font-size:13px;font-weight:700;min-height:38px}
       .chip:hover{border-color:var(--wine);color:var(--wine)}
-      .chip.on{background:var(--wine);border-color:var(--wine);color:#fff}
+      .chip.on{background:var(--wine-btn);border-color:var(--wine-btn);color:var(--on-wine)}
       .cat-title{display:flex;align-items:center;gap:10px;margin:26px 0 14px;font-size:18px;font-weight:800}
       .cat-title small{font-weight:500;color:var(--muted);font-size:12.5px}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
       .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
-      .pg-btn{background:var(--wine);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
+      .pg-btn{background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
       .pg-btn:disabled{opacity:.35;cursor:default}
       .pg-nums{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
       .pg-num{min-width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;cursor:pointer}
-      .pg-num.on{background:var(--wine);border-color:var(--wine);color:#fff}
+      .pg-num.on{background:var(--wine-btn);border-color:var(--wine-btn);color:var(--on-wine)}
       .pg-info{font-size:12.8px;color:var(--muted)}
       .pg-dots{color:var(--muted)}
-      .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+      .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);content-visibility:auto;contain-intrinsic-size:auto 340px}
       .card:hover{border-color:color-mix(in srgb,var(--wine) 45%,var(--line))}
       .card-head{background:var(--head-tint);padding:16px 18px 14px;min-height:96px}
       .card-head .game{font-size:10.5px;letter-spacing:.1em;color:var(--muted);font-weight:700;text-transform:uppercase}
@@ -217,12 +240,12 @@
       .price-box .off{background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;vertical-align:2px}
       .price-box .price{font-size:20px;font-weight:800;display:block;line-height:1.15}
       .price-box .per{font-size:11px;color:var(--muted)}
-      .buy-btn{margin-top:11px;width:100%;background:var(--wine);color:#fff;border:0;border-radius:11px;font-weight:700;font-size:14px;padding:12px;min-height:46px}
+      .buy-btn{margin-top:11px;width:100%;background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:11px;font-weight:700;font-size:14px;padding:12px;min-height:46px}
       .buy-btn:hover{background:var(--wine-deep)}
       .buy-btn.out{background:var(--head-tint);color:var(--muted);cursor:not-allowed}
       .empty-box{background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:38px 20px;text-align:center;color:var(--muted)}
       .empty-box b{color:var(--ink);display:block;font-size:16px;margin-bottom:5px}
-      .sync-status{margin:0 0 14px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--muted);color:var(--ink)}
+      .sync-status{margin:0 0 14px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--muted);color:var(--ink);overflow-wrap:break-word;word-break:break-word}
       .sync-status.live{border-left-color:#2e9e52}
       .sync-status.saved{border-left-color:#d9a521}
       .sync-status.demo{border-left-color:#d64545}
@@ -256,6 +279,21 @@
       .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
       .field input,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);padding:10px 13px;font-size:14.5px;min-height:46px}
       .field .hint{font-size:12px;color:var(--muted);margin-top:5px}
+      /* Nut con mat hien/an mat khau trong modal dang nhap */
+      .field.has-eye{position:relative}
+      .field .pw-input{padding-right:44px}
+      .pw-eye{position:absolute;right:8px;top:32px;width:30px;height:30px;border:0;background:transparent;color:var(--muted);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .pw-eye:hover{color:var(--ink)}
+      .pw-eye .slash{display:none}
+      .pw-eye.on .slash{display:block}
+      .pw-eye svg{pointer-events:none}
+      /* Bang chiet khau nap the */
+      .card-disc{margin:4px 0 13px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--bg-soft)}
+      .card-disc-title{font-size:13px;font-weight:800;margin-bottom:8px}
+      .card-disc-table{display:flex;flex-direction:column;gap:5px;font-size:13px}
+      .card-disc-row{display:flex;justify-content:space-between;gap:8px}
+      .card-disc-row b{font-weight:700}
+      .card-disc-row .disc-rate{color:var(--muted);text-align:right}
       .qr-box{text-align:center}
       .qr-frame{display:inline-grid;place-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;min-width:232px;min-height:232px}
       .qr-frame img{margin:0 auto}
@@ -291,7 +329,7 @@
       .lb-rank.silver{background:#e3e6ea;color:#4c565f}
       .lb-rank.bronze{background:#eec39a;color:#7a4a12}
       .lb-name{font-weight:700;word-break:break-all}
-      .lb-you{background:var(--wine);color:#fff;font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 7px;vertical-align:2px;white-space:nowrap}
+      .lb-you{background:var(--wine-btn);color:var(--on-wine);font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 7px;vertical-align:2px;white-space:nowrap}
       .lb-orders{color:var(--muted);font-size:12.5px;white-space:nowrap}
       .lb-spent{font-weight:800;color:var(--wine);white-space:nowrap}
       .lb-row.me{border-color:var(--wine);background:var(--wine-soft)}
@@ -351,7 +389,7 @@
       @media (prefers-reduced-motion: reduce){.spinner{animation-duration:2.4s}}
 
       /* ---------- Modals ---------- */
-      .modal-wrap{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(20,8,14,.55);padding:0}
+      .modal-wrap{position:fixed;inset:0;z-index:var(--z-modal);display:none;align-items:flex-end;justify-content:center;background:rgba(20,8,14,.55);padding:0}
       .modal-wrap.open{display:flex}
       .modal{background:var(--surface);width:100%;max-width:480px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:24px 24px 28px;animation:slideup .22s ease}
       @keyframes slideup{from{transform:translateY(26px);opacity:.6}to{transform:none;opacity:1}}
@@ -378,7 +416,7 @@
       .modal-actions{display:flex;gap:10px;margin-top:18px}
       .modal-actions .btn{flex:1}
 
-      .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:120;max-width:92vw;text-align:center;box-shadow:var(--shadow-lg)}
+      .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:var(--z-toast);max-width:92vw;text-align:center;box-shadow:var(--shadow-lg)}
       .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
       .bottom-nav{display:none}
@@ -388,7 +426,7 @@
       @media(max-width:1023px){
         .sidebar{position:fixed;left:0;top:0;display:none;box-shadow:var(--shadow-lg)}
         .sidebar.open{display:flex}
-        .scrim{display:block;position:fixed;inset:0;background:rgba(20,8,14,.5);z-index:35;opacity:0;pointer-events:none;transition:opacity .25s}
+        .scrim{display:block;position:fixed;inset:0;background:rgba(20,8,14,.5);z-index:var(--z-scrim);opacity:0;pointer-events:none;transition:opacity .25s}
         .scrim.show{opacity:1;pointer-events:auto}
         .burger{display:grid}
         .content{padding:18px 16px 110px}
@@ -410,13 +448,21 @@
         .hero{min-height:300px}
         .hero::after{background:linear-gradient(90deg,rgba(6,20,15,.94) 30%,rgba(6,20,15,.55) 75%,rgba(6,20,15,.25))}
         .wallet-pill .wp-lbl{display:none}
-        .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:45;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+        .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:var(--z-bottomnav);background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
         .bottom-nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:700;color:var(--muted);padding:7px 2px;border-radius:10px;min-height:52px}
         .bottom-nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
         .bottom-nav button.active{color:var(--wine)}
         .toast{bottom:86px}
       }
       @media(max-width:420px){.steps-grid{grid-template-columns:1fr}.stat-tiles{grid-template-columns:1fr 1fr 1fr;gap:8px}.stat-tile .n{font-size:21px}}
+      /* Man 360-400px: topbar chat — an icon vi, thu nut dang nhap, giu du cho avatar + theme */
+      @media(max-width:400px){
+        .topbar{gap:5px;padding:10px 10px}
+        .topbar .btn{padding:8px 9px;font-size:12.5px}
+        .wallet-pill{padding:7px 8px;font-size:12.5px}
+        .wallet-pill svg{display:none}
+        .theme-toggle button{width:32px;height:36px}
+      }
     </style>
   </head>
   <body>
@@ -434,7 +480,7 @@
         </div>
 
         <div class="balance-card">
-          <div class="lbl"><span data-i18n="balLabel">Số Dư</span><b data-i18n="balDisc">Giảm 0%</b></div>
+          <div class="lbl"><span data-i18n="balLabel">Số Dư</span><b data-i18n="balDisc" id="discountBadge">Giảm 0%</b></div>
           <div class="val" data-balance>0đ</div>
           <div class="sync-note warn" data-balance-note>Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ</div>
         </div>
@@ -444,7 +490,7 @@
             <button class="nav-item" id="checkinItem">
               <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9.2 15.6 2 2 3.8-4"/></svg>
               <span data-i18n="navCheckin">Điểm Danh</span>
-              <span class="nav-badge">1–500đ</span>
+              <span class="nav-badge" id="checkinBadge">1–500đ</span>
             </button>
             <button class="nav-item active" data-nav="home">
               <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
@@ -546,10 +592,10 @@
           <!-- ======== VIEW: HOME ======== -->
           <section class="view active" id="view-home">
             <div class="hero">
-              <img class="bg" src="assets/banner-hero.webp" alt="Chiến binh anime tóc bạc với hào quang đỏ trong banner kho tài khoản" loading="eager" decoding="async" width="2736" height="912" />
+              <img class="bg" src="assets/heroes/hero-01.webp" alt="Ảnh tướng Liên Quân Mobile trong banner kho tài khoản" loading="eager" decoding="async" fetchpriority="high" width="2736" height="912" />
               <div class="hero-inner">
                 <div class="kicker" data-i18n="heroKicker">Liên Quân Mobile · Kho Telegram &amp; Website</div>
-                <h1 data-i18n-html="heroTitle">Kho tài khoản<br />ANHDEV<span class="dot">.</span></h1>
+                <h1 data-i18n-html="heroTitle">Kho tài khoản<br />ANHDEV</h1>
                 <p data-i18n="heroText">Tìm tài khoản theo tên, giá và tình trạng còn hàng. Mua xong nhận acc ngay trong mục Đơn hàng.</p>
                 <div class="hero-actions">
                   <button class="btn btn-light" data-scroll="products" data-i18n="heroExplore">Khám phá kho ↓</button>
@@ -603,9 +649,12 @@
               </div>
               <div id="syncStatus" class="sync-status syncing">Đang đồng bộ kho thật...</div>
               <div class="toolbar">
-                <div class="search-box">
-                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
-                  <input type="search" id="searchInput" placeholder="Tìm tên sản phẩm..." aria-label="Tìm tên sản phẩm" data-i18n-ph="searchPh" />
+                <div class="search-wrap">
+                  <div class="search-box">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+                    <input type="search" id="searchInput" placeholder="Tìm tên sản phẩm..." aria-label="Tìm tên sản phẩm" data-i18n-ph="searchPh" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="searchSuggest" aria-autocomplete="list" />
+                  </div>
+                  <div class="search-suggest" id="searchSuggest" role="listbox" aria-label="Gợi ý tìm kiếm" hidden></div>
                 </div>
                 <select id="sortSelect" aria-label="Sắp xếp sản phẩm">
                   <option value="default" data-i18n="sortDefault">Mặc định</option>
@@ -671,27 +720,32 @@
                     <option value="VIETTEL">Viettel</option>
                     <option value="VINAPHONE">Vinaphone</option>
                     <option value="MOBIFONE">Mobifone</option>
-                    <option value="VIETNAMOBILE">Vietnamobile</option>
                     <option value="ZING">Zing</option>
+                    <option value="GARENA">Garena</option>
+                    <option value="VTC">VTC</option>
+                    <option value="GATE">Gate</option>
                   </select>
                 </div>
                 <div class="field"><label for="cardAmount" data-i18n="cardAmountL">Mệnh giá thẻ</label>
                   <select id="cardAmount">
                     <option value="10000">10.000đ</option>
                     <option value="20000">20.000đ</option>
-                    <option value="30000">30.000đ</option>
                     <option value="50000" selected>50.000đ</option>
                     <option value="100000">100.000đ</option>
                     <option value="200000">200.000đ</option>
-                    <option value="300000">300.000đ</option>
                     <option value="500000">500.000đ</option>
-                    <option value="1000000">1.000.000đ</option>
                   </select>
                   <div class="hint" data-i18n="cardAmountHint">Chọn đúng mệnh giá in trên thẻ — khai sai mệnh giá, TheSieuRe xử lý theo mệnh giá thực và có thể mất thẻ.</div>
                 </div>
                 <div class="field"><label for="cardSerial" data-i18n="cardSerialL">Số seri</label><input id="cardSerial" inputmode="numeric" placeholder="Nhập số seri in trên thẻ" data-i18n-ph="cardSerialPh" /></div>
                 <div class="field"><label for="cardPin" data-i18n="cardPinL">Mã thẻ</label><input id="cardPin" inputmode="numeric" placeholder="Cào lớp bạc và nhập mã thẻ" data-i18n-ph="cardPinPh" /></div>
-                <button class="btn btn-wine" id="cardSubmit" style="width:100%" data-i18n="cardSubmit">Gửi thẻ qua TheSieuRe</button>
+                <div class="card-disc" id="cardDiscountBox">
+                  <div class="card-disc-title" data-i18n="cardDiscT">Bảng chiết khấu nạp thẻ</div>
+                  <div id="cardDiscountTable" class="card-disc-table"></div>
+                  <div class="hint" id="cardExpected"></div>
+                </div>
+                <p class="hint" id="cardBackendNote" hidden></p>
+                <button class="btn btn-wine" id="cardSubmit" style="width:100%" data-i18n="cardSubmit">Gửi thẻ</button>
               </div>
             </div>
           </section>
@@ -812,25 +866,29 @@
           <button id="tabRegister" data-i18n="authRegTab">Đăng ký</button>
         </div>
         <div class="form-err" id="authErr"></div>
-        <!-- Đăng nhập bằng tài khoản web (tên đăng nhập/mật khẩu): SẮP CÓ.
-             Shop là trang tĩnh, chưa có server để tạo/xác thực tài khoản web,
-             nên form này bị vô hiệu hoá để không ai tạo tài khoản ảo rồi tưởng là thật. -->
-        <form id="authForm">
-          <div class="field" id="nameField" style="display:none">
-            <label for="authName" data-i18n="authNameL">Tên hiển thị</label>
-            <input id="authName" autocomplete="name" placeholder="Ví dụ: Anh Dev" data-i18n-ph="authNamePh" disabled />
-          </div>
+        <!-- Đăng nhập / Tạo tài khoản web (tên đăng nhập + mật khẩu) qua backend VPS.
+             Backend (Flask) băm mật khẩu bằng bcrypt và cấp JWT + HttpOnly cookie;
+             xem BACKEND_API_BASE trong assets/app.js. Chưa cấu hình backend thì form
+             báo rõ "chưa cấu hình", không tạo tài khoản ảo. -->
+        <form id="authForm" novalidate>
           <div class="field">
             <label for="authUser" data-i18n="authUserL">Tên đăng nhập</label>
-            <input id="authUser" autocomplete="username" placeholder="Tên đăng nhập của bạn" data-i18n-ph="authUserPh" disabled />
+            <input id="authUser" autocomplete="username" placeholder="Tên đăng nhập của bạn" data-i18n-ph="authUserPh" />
+            <div class="hint" data-i18n="authUserHint">4–24 ký tự: chữ không dấu, số, dấu _</div>
           </div>
-          <div class="field">
+          <div class="field has-eye">
             <label for="authPass" data-i18n="authPassL">Mật khẩu</label>
-            <input id="authPass" type="password" autocomplete="current-password" placeholder="Mật khẩu (từ 6 ký tự)" data-i18n-ph="authPassPh" disabled />
+            <input id="authPass" class="pw-input" type="password" autocomplete="current-password" placeholder="Mật khẩu (từ 6 ký tự)" data-i18n-ph="authPassPh" />
+            <button type="button" class="pw-eye" data-eye="authPass" aria-label="Hiện mật khẩu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><line class="slash" x1="4" y1="4" x2="20" y2="20"/></svg></button>
           </div>
-          <button class="btn btn-wine" type="submit" id="authSubmit" style="width:100%" disabled>Sắp có</button>
+          <div class="field has-eye" id="passField2" style="display:none">
+            <label for="authPass2" data-i18n="authPass2L">Nhập lại mật khẩu</label>
+            <input id="authPass2" class="pw-input" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" data-i18n-ph="authPass2Ph" />
+            <button type="button" class="pw-eye" data-eye="authPass2" aria-label="Hiện mật khẩu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><line class="slash" x1="4" y1="4" x2="20" y2="20"/></svg></button>
+          </div>
+          <button class="btn btn-wine" type="submit" id="authSubmit" style="width:100%">Đăng nhập</button>
         </form>
-        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center">Tài khoản web (tên đăng nhập/mật khẩu) sắp có. Hiện tại đăng nhập bằng Telegram bên dưới để dùng ngay.</p>
+        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center" data-i18n="authWebHint">Tài khoản web lưu trên máy chủ AnhDev — hoặc đăng nhập bằng Telegram bên dưới.</p>
         <div class="divider">hoặc</div>
         <!-- Đăng nhập Telegram THẬT bằng Telegram Login Widget (bot @devbn_bot).
              Cần vào @BotFather → /setdomain → đăng ký domain bottelegram-devbuinhat.github.io
@@ -858,7 +916,7 @@
       <div class="modal">
         <button class="modal-x" data-close aria-label="Đóng">✕</button>
         <h3 id="checkinTitle" data-i18n="ciTitle">Điểm danh hằng ngày</h3>
-        <p class="sub" data-i18n="ciSub">Mỗi ngày điểm danh 1 lần, nhận ngẫu nhiên 1–500đ cộng thẳng vào ví.</p>
+        <p class="sub" id="ciSub" data-i18n="ciSub">Mỗi ngày điểm danh 1 lần, nhận ngẫu nhiên 1–500đ cộng thẳng vào ví.</p>
         <div id="checkinBody"></div>
       </div>
     </div>
