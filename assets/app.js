@@ -26,7 +26,7 @@
      mới ký sign = md5(partnerKey + code + serial) và gọi cổng thẻ.
      API số dư / nạp tiền SePay qua Cloudflare Worker là API_BASE riêng
      (đừng nhầm với API_BASE_URL này). */
-  var API_BASE_URL = "";
+  var API_BASE_URL = "https://anhdev-store-backend.onrender.com";
   function backendReady(){ return !!API_BASE_URL && API_BASE_URL.indexOf("REPLACE-WITH") === -1; }
 
   /* ===== BẢNG CHIẾT KHẤU NẠP THẺ (CHỈ ĐỂ HIỂN THỊ) =====
