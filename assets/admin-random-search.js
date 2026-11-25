@@ -142,7 +142,12 @@ function restoreNormalGrid(){
   ctx.renderProducts();
 }
 
-function fetchAdminSearch(q, offset){
+function fetchAdminSearch(q, offset, attempt){
+  /* attempt: số lần đã thử lại sau lỗi mạng (0 = lần đầu). Render free hay
+     ngủ / chập chờn nên fetch có thể rớt mạng thoáng qua — thử lại tối đa
+     2 lần (tổng 3 lần) trước khi báo lỗi, để khỏi bắt user bấm tìm lại. */
+  attempt = attempt || 0;
+  var MAX_ATTEMPTS = 3;
   var seq = ++reqSeq;
   var url = String(ctx.apiBase || "").replace(/\/$/, "") +
     "/api/admin/random-search?q=" + encodeURIComponent(q) +
@@ -183,7 +188,19 @@ function fetchAdminSearch(q, offset){
     renderAdminResults();
   }).catch(function(err){
     if (seq !== reqSeq) return;
-    /* Lỗi mạng (VPS tắt / mất mạng): toast rõ ràng, giữ toggle để thử lại. */
+    if (attempt + 1 < MAX_ATTEMPTS){
+      /* Lỗi mạng thoáng qua (Render đang tỉnh dậy / chập chờn): thử lại
+         sau 1.5s, giữ nguyên màn hình đang tải để user không phải bấm lại.
+         Dùng attempt+1 và cùng seq để lần thử lại vẫn là "mới nhất". */
+      var nextAttempt = attempt + 1;
+      setTimeout(function(){
+        if (seq !== reqSeq) return;
+        /* Giữ loading, không toast lỗi ở lần thử lại. */
+        fetchAdminSearch(q, offset, nextAttempt);
+      }, 1500);
+      return;
+    }
+    /* Hết 3 lần thử vẫn rớt mạng: toast rõ ràng, giữ toggle để thử lại. */
     ctx.toast(ctx.L("netErr"), "error");
     restoreNormalGrid();
   });
