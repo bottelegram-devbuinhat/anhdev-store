@@ -1,0 +1,232 @@
+# AnhDev Store — Comprehensive Upgrade Report
+
+**Repo:** `bottelegram-devbuinhat/anhdev-store` (branch `main`)
+**Base commit:** `7d2f4ee` — "Fix multi-word search, rename logo ANHDEV.STORE to AnhDev Store"
+**Date:** 2026-11-25
+**Scope:** Parts 1–4 of the upgrade spec — performance, animations, security audit + patches, this report.
+**Status:** Implemented locally in `store-upgrade/`. **NOT pushed or deployed** — the parent agent handles deployment.
+
+---
+
+## 0. Deliverables & sizes
+
+| File | Before | After | Notes |
+|---|---|---|---|
+| `index.html` | 18,698,204 B | **65,638 B** | −99.6%. All base64 images extracted; main script moved out |
+| `assets/app.js` | — (was inline) | 75,267 B | Main app script, byte-exact extraction + security patches |
+| `assets/animations.js` | — | 8,620 B | Vanilla animation logic (no library) |
+| `assets/animations.css` | — | 11,635 B | All Part 2 animation styles |
+| `assets/banner-hero.webp` | — (inline base64) | 389,420 B | Hero banner, 2736×912 |
+| `assets/cover-1.webp` | — (inline base64) | 616,094 B | Demo product cover, 1280×1920 |
+| `assets/cover-2.webp` | — (inline base64) | 764,112 B | Demo product cover, 1920×1280 |
+| `assets/cover-3.webp` | — (inline base64) | 737,576 B | Demo product cover, 1280×1920 |
+| **Total (all 8 files)** | **18,698,204 B** | **2,668,362 B** | **−85.7% overall** (images are now cacheable files, not re-downloaded inline) |
+
+**Verification:** `node --check` passes on `assets/app.js` and `assets/animations.js`. No `data:image/webp;base64` remains in `index.html`. All local asset references resolve (HTTP 200 in a local serve test). HTML tags balanced; inline `<style>` braces/parens balanced. `API_BASE` is still the real Worker URL. Pagination (12/page), multi-word search, emerald + gold theme, and the "AnhDev Store" logo are all intact.
+
+**How the 18.7 MB was composed:** the file contained 22 inline `data:image/webp;base64` blobs but only **4 unique images** (the same 4 pictures reused across the hero + demo products). All 4 were extracted to `assets/` and every reference replaced with the asset path. The hero image is used 5× (1× hero + 4× demo products); each cover is used 5–6×.
+
+---
+
+## 1. Part 1 — Performance
+
+### 1.1 Image extraction (the big win)
+- All 4 unique WebP images extracted to `assets/` (see table above). `index.html` drops from 18.7 MB to ~64 KB.
+- Hero `<img>` (`index.html:549`) now uses `src="assets/banner-hero.webp"` with `loading="eager" decoding="async" width="2736" height="912"`.
+  - `width`/`height` reserve the aspect ratio → **no CLS** (the hero already has `min-height:340px` + `object-fit:cover` as a second guard).
+  - `decoding="async"` keeps image decode off the main thread.
+- Demo product `img` fields in the `PRODUCTS` array (`assets/app.js`) now point at `assets/cover-1/2/3.webp` and `assets/banner-hero.webp`.
+- Card images (`assets/app.js:308`) keep `loading="lazy"` and gained `decoding="async"`.
+
+### 1.2 Script extraction (enables a strict CSP)
+- The single large inline `<script>` (~1,325 lines) was extracted byte-exact to `assets/app.js` and is now loaded as `<script src="assets/app.js" defer></script>` (`index.html:868`).
+- `assets/animations.js` loads after it, also with `defer` (`index.html:869`), preserving execution order.
+- Verified safe to defer: the script is an IIFE that runs after DOM parse (defer preserves that timing); it uses no `document.currentScript`; `window.onTelegramAuth` is set as a global and the Telegram Login Widget only calls it after user interaction, so it is defined by then; `telegram-web-app.js` and `qrcodejs` still load blocking in `<head>`.
+
+### 1.3 Animation performance rules
+- All new animations use **only `transform` and `opacity`** — no layout-triggering properties.
+- `prefers-reduced-motion` is respected (base CSS already had it; `assets/animations.css` extends it to every new animation).
+- Hover animations are gated behind `@media (hover:hover) and (pointer:fine)`; touch devices get a `scale(0.97)` tap feedback instead (`:active`).
+
+---
+
+## 2. Part 2 — Animation changelog (UI)
+
+New files: `assets/animations.css` (styles) + `assets/animations.js` (logic). The app logic in `assets/app.js` was **not** changed for animation except for 3 tiny event hooks (see §2.12).
+
+| # | Component | What was added |
+|---|---|---|
+| 1 | **Logo** | Shimmer sweep across the "A" mark (`brandShine`, 5 s loop) + gold glow on hover. |
+| 2 | **Balance** | Count-up ticker (JS, `easeOutCubic`, ~650 ms) driven by the `anhdev:balance` event; a gold beam sweeps the balance card border when a **synced** balance updates. Number formatting reuses the app's exact `fmt()` rules (VND `vi-VN` + `đ`, USD `$` / 25,400). |
+| 3 | **Check-in** | Pulse ring on the balance card + **vanilla confetti** (42 divs, no library, no CDN) + a floating `+xxxđ` particle anchored to the check-in modal. Triggered by the `anhdev:checkin` event. |
+| 4 | **Sidebar** | Sliding full-width indicator pill that glides to the active nav item (JS positions it from `offsetTop`/`offsetHeight`; `MutationObserver` on nav class changes + resize). "Mua Tài Khoản" submenu is now a `grid-template-rows: 0fr → 1fr` accordion (HTML gained an inner `.nav-sub-inner` wrapper, `index.html:458-459`; the toggle in `app.js` now flips an `open` class instead of the `hidden` attribute). Mobile drawer slides in with `transform:translateX` instead of the abrupt `display:none → flex` swap. |
+| 5 | **Topbar** | Glass intensifies on scroll (`.scrolled` class via passive scroll listener + rAF throttle) + shine sweep on the primary `.btn-wine` on hover. |
+| 6 | **Hero** | Ken Burns (slow `scale(1 → 1.07)`, 16 s alternate) + staggered entrance for hero text (4 steps, 0.05–0.40 s delays). |
+| 7 | **Cards** | Skeleton cards (shimmer) shown while `syncStock` fetches (only on first load — no flicker on refresh); staggered fade-up on render (60 ms/card, capped at 12); hover lift `translateY(-4px)` + image zoom + **tier glow** via the new `data-cat` attribute on each card (`random-tele` gold, `detail` emerald, `random-lq` green, `products` gold). |
+| 8 | **Switcher** | Language/currency selects get focus ring + border transition; on currency change the prices in the product grid do a short crossfade flip (`.flip` class, 350 ms) on top of the card re-render stagger. |
+| 9 | **Leaderboard** | Rows stagger in (70 ms/row) + metallic shimmer sweep on the top-3 rank badges (gold/silver/bronze `::after`). |
+| 10 | **Modals** | Spring scale-in (`cubic-bezier(0.16,1,0.3,1)`, overriding the old `.22s slideup`) + backdrop blur fade. **Scroll lock:** `body.modal-lock` is now toggled by a `MutationObserver` on `.modal-wrap.open` (Esc + backdrop-click close already existed and are untouched). |
+| 11 | **Toasts** | Moved from bottom-center to **top-right** (below the sticky topbar; full-width on mobile) with a slide-in and a gold `✓` checkmark (`::before`). |
+| 12 | **Pager / chips** | Subtle hover lift + transition on pager buttons and category chips. |
+
+### 2.12 Hooks added to `app.js` (minimal, behaviour-preserving)
+- `anhdev:balance` dispatched at the end of `refreshUserUI()` (`app.js:237`) with `{value, synced}`.
+- `anhdev:checkin` dispatched in the check-in handler with `{amount}`.
+- `anhdev:stock-syncing` dispatched at the start of `syncStock()` (`app.js:471`) so skeletons can show.
+- `data-cat` attribute added to each card `<article>` in `cardHtml()` (tier-glow hook).
+
+### Left out / deliberately not done
+- **Native `<select>` dropdowns cannot be animated** (the open dropdown list is OS-rendered). Only the control itself (border/focus) and the label/price crossfade are animated — noted here rather than faked.
+- The inline `<style>` block was **not** moved to an external file (see §3.5 — inline `style="..."` attributes throughout the HTML would still force `style-src 'unsafe-inline'`).
+
+---
+
+## 3. Part 3 — Security audit
+
+Audit scope: the whole `index.html` (now split into `index.html` + `assets/app.js`). All findings were verified against the actual code; nothing was invented. Severity: **Critical / High / Medium / Low / Info**.
+
+### 3.1 Secrets — none found (Info, verified)
+- **No hardcoded bot token, admin password, or API key exists in the page.** `THESIEURE.partnerId` / `partnerKey` are empty strings (`app.js:23-24`) — the user fills them; the code comments (`app.js:15-19`) already warn that the real signing key must stay server-side. `API_BASE` (`app.js:74`) is the public Cloudflare Worker URL, not a secret. The bank account `05817666778899` / `BUI NGUYEN XUAN NHAT` is the public receiving account shown intentionally for VietQR.
+- **No credentials in stock data:** the live `stock.json` (12,126 accounts) carries only public fields (`code, price, rank, level, heroes, skins, rare_skins, category, kind, description, photos, warranty_days, status, skin_tiers`) — no `tk`/`mk`. The real credentials live only in the bot's `bot.db` on the host. Verified by inspecting the stock file.
+- Secret-pattern grep (`bot_token`, `api_key`, `password`, `secret`, `AKIA`, `ghp_`, `sk-`, `xox`) returned nothing. If a real secret is ever found in future, it must be revoked/rotated and scrubbed from Git history — none was found here.
+
+### 3.2 Client-side trust — real balance/purchase/check-in are server-side; demo state is now isolated
+- **Balance:** real balances come only from the Worker (`apiFetch` → `GET /api/balance`, `app.js` balance sync). `localStorage` holds **no balance**. Demo balance is in-memory only and is explicitly labelled "số dư demo — CHƯA đồng bộ với bot" with a `warn` style until the Worker confirms it. ✅ Already correct; no change needed.
+- **Check-in:** the web check-in generates a random 1–500đ **client-side** and adds it to the in-memory demo balance (`markBalanceUnsynced()`). This is demo-only — the real check-in/reward lives in the bot. The label makes that clear. **Patched:** the check-in button is now disabled on click (submit lock) so a double-click cannot credit twice in one modal open.
+- **Purchases:** real (`api`) products route to the bot via `openBotBuyModal` — no local deduction, no local order. Only **demo** products use the local `completePurchase()` path. **Patched (Medium):** demo orders are now flagged `demo: true` (`app.js:790`) and render with a visible **"Demo"** badge in the order list (`app.js:838`), so a demo purchase can never be mistaken for a real delivered order. The fake `user`/`pass` in demo orders are random strings, not real credentials.
+- **Discounts / prices:** no client-side discount logic exists; prices come from `stock.json` / the demo catalog. The bot is the authority for real pricing.
+
+### 3.3 Telegram auth — no bypass found (verified)
+- **No `?tg_id=` or URL-param auth:** grep for `URLSearchParams`, `location.search`, `location.href`, `tg_id` → 0 matches. Auth is only via (a) the official Telegram Login Widget signed payload (`data-telegram-login="devbn_bot"`, `data-onauth="onTelegramAuth(user)"`, `index.html:839`) and (b) Mini App signed `initData` (`Telegram.WebApp.initDataUnsafe.user` + signed `initData`). Both are sent to the Worker for server-side HMAC verification (`X-Telegram-Init-Data` / `X-Telegram-Login-Data` headers). ✅ Correct pattern.
+- **localStorage session (`anhdev_user`):** stores the Telegram user + signed `login_data` payload. A faked localStorage entry cannot obtain a real balance because `apiFetch` requires the signed payload and the Worker verifies it; `loadSavedUser` validates `telegram_id`. Acceptable for a static page (the Worker is the authority).
+- **Backend contract item (for the Worker):** the web sends `telegram_id` as a query param **and** the auth header on balance calls — the Worker must verify they match (see §4).
+
+### 3.4 XSS — audit of every `innerHTML` use; 3 real issues patched
+Grep for `eval`, `new Function`, `outerHTML`, `document.write`, `insertAdjacentHTML` → 0 matches. No `onclick` attributes → 0 matches (all handlers use `addEventListener`). The page has an `esc()` helper (escapes `&<>"'`) and it is used for names, descriptions, usernames, leaderboard names, order/invoice fields, and buy-modal content. `toast()` and `setSyncStatus()` use `textContent`. `data-i18n-html` innerHTML uses only static trusted HTML from the file itself.
+
+| # | Location | Severity | Issue & fix |
+|---|---|---|---|
+| 1 | `app.js:308` `cardHtml()` | **High** | `p.img` was inserted **raw** into `src="..."`. `apiProduct` only validated photos with `/^https?:\/\//`, which does not block a `"` break-out (`https://x" onerror="...`). **Fixed:** `src="' + esc(p.img) + '"`. |
+| 2 | `app.js:860,863` `renderInvoices()` | **Medium** | `iv.code` was **not escaped** — used in the meta line and in a `data-pay-invoice` attribute. `iv.code` comes from `randCode()` (safe) **or from the Worker response `d.code`** (server-controlled, but defence in depth). **Fixed:** both occurrences now use `esc(iv.code)`. |
+| 3 | `app.js:225` avatar | **Low** | `photo_url` was `esc()`-ed but had no scheme check. **Fixed:** only render the avatar `<img>` when `photo_url` starts with `https://` (Telegram CDN); otherwise fall back to the initial letter. |
+
+Remaining `innerHTML` uses were reviewed and are safe (static trusted HTML, or values already passed through `esc()`).
+
+### 3.5 Content Security Policy — added (`index.html:9`)
+The main script was moved to `assets/app.js` first, so `script-src` needs **no `'unsafe-inline'`**. Directives (whitelist-only, based on the resources the page actually loads):
+
+```
+default-src 'self';
+script-src 'self' https://telegram.org https://cdnjs.cloudflare.com;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org;
+connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://thesieure.com;
+frame-src https://oauth.telegram.org;
+object-src 'none'; base-uri 'self'; form-action 'self';
+frame-ancestors 'self' https://web.telegram.org https://telegram.org;
+upgrade-insecure-requests
+```
+
+Notes / limitations:
+- **`style-src 'unsafe-inline'` is kept** because the page has one inline `<style>` block **and** many inline `style="..."` attributes. Removing it would require moving all inline styles into a stylesheet — a large, risky refactor. The CSP still blocks inline *scripts*, which is the higher-risk vector.
+- **`img-src` includes `data:`** — required because `qrcodejs` renders the VietQR QR code as a `data:image/png` URL, and the favicon is `data:,`.
+- **`img-src` does NOT allow arbitrary hosts.** Today no stock account has a `photos` URL (verified: 0 of 12,126), so nothing is blocked. **If the bot later attaches product photos from a new host, that host must be added to `img-src`** or the images will be blocked by the CSP.
+- **`frame-ancestors`** allows only the page itself and Telegram (`web.telegram.org`, `telegram.org`) to frame it — this keeps the Mini App working (Telegram loads the Web App in a top-level WebView / Telegram Web frame) while blocking clickjacking from arbitrary sites. **Verify in the Mini App after deploy:** if any Telegram client loads the Web App inside an unexpected ancestor, this directive is the first thing to check.
+- `connect-src` covers the Worker + TheSieuRe; `stock.json` is same-origin (`'self'`). All external hosts found in the code were checked against this list — every host is allowed (see verification log §5).
+
+### 3.6 Random-account info leak — FIXED on the web (High)
+`apiProduct()` (`app.js:403-415`) now returns a **generic description for `kind="random"`** and does not expose `rank`, `level`, `heroes`, `skins`, `rare_skins`, or the raw `description` from `stock.json`. Example of what was leaking: a random account's public `description` field (e.g. `"[Skin thường (theo rank)] (sss:0, ss:0, ss+:0, ssm:0, anime:0) - acc full"`) was copied verbatim onto random cards. Random cards now show only: *"Acc Random — nhận 1 acc ngẫu nhiên, không xem trước thông tin"*. Full info is kept for ready-info/VIP accounts. Search still works by account code (e.g. `LQ12126`) but no longer matches hidden skin info on random accounts. This supersedes `files/prompt-fix-random-info-leak-en.md` for the web side. (The same leak in the **bot** was already fixed in BOTLQ commit `cb1df44`.)
+
+### 3.7 Submit locks & form validation — patched
+| Area | Before | After |
+|---|---|---|
+| Card top-up (`#cardSubmit`) | No lock; validation was only non-empty + length ≥ 6 | **Strict validation:** serial must be digits-only, 10–16 digits; PIN digits-only, 10–15 digits (Vietnamese scratch-card format); whitespace stripped first. **Submit lock:** button disabled during the TheSieuRe call, re-enabled in the callback. |
+| Buy confirm (`[data-buy-confirm]`) | No explicit lock (modal re-rendered synchronously, but a fast double-click could fire twice) | Button disabled on click + guard against re-entry. |
+| Check-in (`#checkinBtn`) | No lock | Button disabled on click. |
+| VietQR (`#makeQrBtn`) | Already had a lock (`btn.disabled = true`, re-enabled in `.then`) | No change needed. ✅ |
+
+### 3.8 `target="_blank"` — patched (Low)
+All 4 links now use `rel="noopener noreferrer"` (previously `noopener` only — missing `noreferrer`):
+- `index.html` — sidebar link to `https://t.me/devbn_bot`; payment-page "Hỗ trợ" link.
+- `app.js` — buy-modal "Mua trong bot @devbn_bot" link; English `paySupport` link.
+(`target="_blank"` + `rel="noopener noreferrer"` prevents the opened page from accessing `window.opener` and from leaking the referrer.)
+
+### 3.9 What was checked and found clean (no action)
+- No `eval` / `new Function` / `document.write` / `outerHTML` / `insertAdjacentHTML` / `onclick` anywhere.
+- No URL-param auth bypass (`URLSearchParams`, `location.search`, `tg_id` — 0 matches).
+- No secrets in the page (see §3.1).
+- No credentials in `stock.json` (see §3.1).
+- VietQR QR uses the direct `img.vietqr.io` URL (public, intentional). **Phone scannability of the real QR is still unverified** — unchanged from before; test on a real phone after deploy.
+- TheSieuRe `partnerId`/`partnerKey` are empty (user fills them); the signing comment already warns the key must stay server-side.
+
+---
+
+## 4. Backend API contract (for the Worker / bot — reference for future work)
+
+This section documents the contract the **web page already implements** against. It is a reference, not a change: the Worker at `https://anhdev-balance.nhatdz2k011.workers.dev` is already deployed and the bot's `.env` already has the `CLOUDFLARE_SYNC_*` lines.
+
+### 4.1 Telegram auth verification
+- Web sends **either** `X-Telegram-Init-Data` (Mini App signed `initData`) **or** `X-Telegram-Login-Data` (Login Widget signed payload, JSON) on every authenticated call (`apiFetch`, `app.js`).
+- **Worker MUST:** verify the HMAC signature with `BOT_TOKEN` (server-side, per Telegram's Login Widget / Web App validation algorithm), check `auth_date` freshness (max age `MAX_AUTH_AGE_SECONDS=86400`), and reject mismatched identities.
+- **Worker MUST verify that the `telegram_id` query param (sent on balance calls) matches the authenticated identity** — never trust the query param alone.
+- No `?tg_id=` fallback exists on the web and none must be added.
+
+### 4.2 Balance sync
+- `GET /api/balance` → `{ ok, balance, coins?, updatedAt? }`. Authenticated as above. Web polls/refreshes on view change and every 60 s while visible.
+- `GET /api/health` → `{ ok:true, service:"anhdev-balance", ... }`.
+- **Bot → Worker push:** the bot pushes balances to D1 (`balances` table) on a full sync every 300 s (`CLOUDFLARE_SYNC_INTERVAL=300`) and on balance change; the Worker reads from D1. The web never writes balances.
+- The web displays `✓ Đồng bộ bot` only when `BALANCE.synced` is true (a real Worker response arrived); otherwise it shows the demo-balance warning.
+
+### 4.3 Deposits (VietQR / SePay)
+- `POST /api/deposit` (body: amount, method, telegram identity) → creates a deposit, returns `{ deposit_id, code, ... }`. The `code` is the transfer content (e.g. `ADxxxxxx`) shown in the VietQR QR (`img.vietqr.io` with `addInfo=<code>`).
+- `GET /api/deposit/status?deposit_id=…&code=…` → `{ status: pending|paid|expired|cancelled, ... }`. The web polls this while the payment view is open.
+- **SePay webhook (bot side):** the bot polls SePay every 2 min (webhook port 8080 is usually closed on shared cPanel); on a matching transfer the bot credits the wallet and the Worker picks up the new balance on the next sync. Amounts: `MIN_DEPOSIT=20000`, `MAX_DEPOSIT=5000000` (Worker vars).
+- **Idempotency:** deposits are keyed by `code`/`deposit_id`; a duplicate confirm must not credit twice. The web's "Xác nhận đã chuyển" button is demo-only on the web path — the real credit happens bot-side on SePay confirmation.
+
+### 4.4 Card top-up (TheSieuRe)
+- `POST https://thesieure.com/chargingws/v2` with `partner_id`, `request_id` (= invoice code), `telco`, `amount`, `serial`, `pin`, `sign = md5(partnerKey + code + serial)`.
+- **The signing key must be computed server-side** (bot/Worker), never in the browser — the web currently sends `sign: ""` and simulates the lifecycle when `partnerId`/`partnerKey` are empty. The web now validates serial (digits, 10–16) and PIN (digits, 10–15) before sending, and locks the submit button during the call.
+- TheSieuRe credits 80% of face value (per the store's existing config); the credited amount is shown in the invoice detail.
+
+### 4.5 Check-in (daily reward)
+- **Real path is bot-side** (the bot owns the daily check-in and the 1–500đ reward). The web check-in is a demo that adds a random 1–500đ to the in-memory demo balance and marks it unsynced. It must never be treated as a real credit; the web re-syncs the real balance from the Worker on the next refresh.
+
+### 4.6 Purchases (atomicity)
+- **Real purchases happen in the bot** (Telegram). The bot must: reserve the account by code, hold it (5-min hold in the merged bot design), confirm payment, then deliver credentials exactly once and remove the code from sale. The web's buy flow for `api` products only opens the bot deep-link (`t.me/devbn_bot`) — it never deducts or delivers.
+- **Demo purchases on the web are local-only** (deduct demo balance, create a local order with random fake credentials, now flagged `demo: true` + "Demo" badge). They must never touch a synced real balance.
+
+### 4.7 Stock
+- Single source of truth for the web: **`stock.json`** in the repo root (same-origin fetch, `cache:"no-store"`), refreshed by running `export_stock.py` against the live `bot.db` and pushing the new file. Stale > 7 days → demo catalog fallback. The web never writes stock.
+- The web must never receive or display `tk`/`mk` — `export_stock.py` already excludes them.
+
+---
+
+## 5. Verification log
+
+- `node --check assets/app.js` — **PASS** (before and after patches).
+- `node --check assets/animations.js` — **PASS**.
+- `index.html`: 0 `data:image/webp;base64`, 0 inline `<script>`, 0 `onclick`, 0 `eval`/`new Function`/`document.write`/`outerHTML`/`insertAdjacentHTML`, 0 `REPLACE-WITH` placeholder, 0 "400 Quân Huy" (removed demo product stays removed).
+- `assets/app.js`: 0 `onclick`/`eval`/`new Function`/`document.write`/`outerHTML`/`insertAdjacentHTML`/`URLSearchParams`/`location.search`/`tg_id`.
+- All 15 security patches confirmed present in `app.js` (see §3.4, §3.6, §3.7).
+- `rel="noopener noreferrer"`: 2 in `index.html`, 2 in `app.js`; 0 bare `rel="noopener"` remain.
+- DOM IDs: 77 IDs referenced by `app.js`; all exist in `index.html` except 5 that `app.js` itself creates dynamically via `innerHTML` (`accLogin`, `accLogout`, `accTopup`, `checkinBtn`, `ordersLogin`) — all guarded or created just before use. No missing static IDs.
+- Local assets: `assets/animations.css`, `assets/animations.js`, `assets/app.js`, `assets/banner-hero.webp` all resolve; the 3 cover images are referenced 17× from the demo catalog and all exist. All 4 WebP files validated (correct dimensions: 2736×912, 1280×1920, 1920×1280, 1280×1920).
+- HTTP serve test: all 6 main files return 200 with expected sizes.
+- HTML tag balance: `div` 121/121, `section` 7/7, `nav` 2/2, `button` 51/51, `span` 65/65, `select` 5/5, `form` 1/1. Inline `<style>` braces 348/348, parens 287/287. `animations.css` braces 119/119.
+- External hosts in the code vs CSP: `telegram.org`, `cdnjs.cloudflare.com`, `fonts.googleapis.com`, `fonts.gstatic.com`, `img.vietqr.io`, `t.me`, `cdn.telegram.org`, `anhdev-balance.nhatdz2k011.workers.dev`, `thesieure.com`, `oauth.telegram.org`, `web.telegram.org` — **all allowed** by the CSP.
+- Features intact: `API_BASE` = real Worker URL; `PAGE_SIZE = 12` + `pagerHtml`; multi-word search (`split(/\s+/)`, AND match); emerald `#0d3b2e` + gold `#b08d2e`; logo "AnhDev Store" (no `ANHDEV.STORE` / `AnhDev.Store` text); Telegram Login Widget `devbn_bot`; Mini App `initData`; VietQR `img.vietqr.io`; TheSieuRe `partnerId` empty; `stock.json` fetch.
+
+### Not verified (needs a live check after deploy)
+- **No live browser test was run** (subagent has no live-browser access). After deploy, verify on a real phone + in the Telegram Mini App: page loads with no console errors, hero + covers render, balance shows `✓ Đồng bộ bot`, search/pagination work, the CSP does not block the Login Widget iframe or the QR image, and the sidebar/topbar/modal animations feel right. If the CSP blocks something, the browser console will name the directive — check `frame-ancestors` first for Mini App framing.
+- VietQR QR scannability on a real phone (pre-existing, still open).
+- The 4 WebP images are the original files byte-identical to the base64 blobs (decoded, not re-encoded), so visual quality is unchanged.
+
+---
+
+## 6. Deployment notes (for the parent agent)
+
+- **Upload these files to the `anhdev-store` repo root** (same layout as here): `index.html`, `assets/app.js`, `assets/animations.js`, `assets/animations.css`, `assets/banner-hero.webp`, `assets/cover-1.webp`, `assets/cover-2.webp`, `assets/cover-3.webp`. `index.html` is now ~64 KB (well under the connector's 16 MiB limit), but the 4 images total ~2.5 MB — use the device-Chrome upload route for the images as before, or push `index.html` + the 3 small files via the connector and the images via Chrome.
+- **Do NOT include `stock.json` in this deploy** (it is a separate file, updated only via `export_stock.py`).
+- GitHub Pages serves `assets/` relative to the repo root, so the relative paths work as-is. No build step.
+- After deploy, do the live checks listed in §5 (especially the Mini App + CSP + balance sync).
