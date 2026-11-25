@@ -899,3 +899,157 @@ remote hosts.
   matrix; zero console errors / zero CSP violations in a real browser
   (no new host is fetched that is not whitelisted, but only a real
   load proves it).
+
+## PART 8 — Admin: đăng nhập mật khẩu ngắn + tìm kiếm skin Acc Random độc quyền (2026-11-25)
+
+### Bối cảnh
+- Backend Flask đã có sẵn (kiểm chứng 153 test PASS): `POST /api/auth/login`
+  và `GET /api/auth/me` trả `user: {username, balance, role}` (`role` là
+  `"user"` hoặc `"admin"`, JWT ký kèm role); `GET /api/admin/random-search`
+  và `GET /api/admin/random-index` chỉ cho role=admin (không JWT / role=user
+  → 403). 5 acc test đã có trong backend, mỗi acc 250.000đ: `nhatdeptrai`,
+  `nhatdz`, `muaacc`, `colonmahup` (role=user, mật khẩu `123456`) và `admin2`
+  (role=admin, mật khẩu `1`).
+- Phần này CHỈ làm frontend trong `files/store-upgrade/`. Không push, không
+  sửa backend, không sửa file ngoài thư mục này.
+
+### 1. Đăng nhập: bỏ chặn mật khẩu tối thiểu 6 ký tự (chỉ tab Đăng nhập)
+- `assets/app.js` — `validateAuth(username, pass, pass2)`: tab Đăng nhập
+  (`pass2 == null`) chỉ yêu cầu mật khẩu không trống (thông báo mới
+  `authErrPassEmpty`); tab Đăng ký (`pass2 != null`) vẫn giữ tối thiểu 6 ký
+  tự + nhập lại khớp. Acc `admin2` (mật khẩu `1`) đăng nhập được.
+- Placeholder ô mật khẩu đổi theo tab (`syncAuthPassPlaceholder()` trong
+  `setAuthMode()` + cuối `applyLang()`): đăng nhập → "Mật khẩu", đăng ký →
+  "Mật khẩu (từ 6 ký tự)". Placeholder tĩnh trong `index.html` và dict EN
+  `ph:authPassPh` đổi thành "Mật khẩu" / "Password" (trung tính).
+
+### 2. Nhận diện role + lazy-load module admin
+- `state` thêm `userRole` (`"user"` | `"admin"` | null) và
+  `adminSearchActive` (true khi đang hiển thị kết quả admin — `renderProducts()`
+  tạm nghỉ để không ghi đè). Token cũ không có role → coi như `"user"`.
+- `afterWebAuth()` (cả nhánh `/me` thành công và nhánh lỗi) và
+  `restoreWebSession()` (tải lại trang với token đã lưu) đều đọc `u.role` và
+  gọi `applyAdminRole(role)`. Chỉ khi `role === "admin"` mới `import()` động
+  `assets/admin-random-search.js` (đường dẫn tương đối từ `assets/app.js`).
+  Import lỗi → toast nhẹ `adminLoadFail`, không crash app. Nếu
+  `API_BASE_URL` trống → toast `adminNoBackend`, không import.
+- `setUser(null)` (mọi đường đăng xuất: nút topbar + nút trong trang Tài khoản)
+  đặt `userRole = null` và gọi `teardownAdminModule()` TRƯỚC KHI xoá session.
+  `setUser()` với acc web có `role !== "admin"` cũng gỡ admin ngay (an toàn
+  khi đổi tài khoản).
+- `loadAdminModule()` có seam `window.__adminModuleLoader` CHỈ cho test jsdom
+  (không có trong code chạy thật — test gán loader giả trước khi eval app.js);
+  code thật dùng `import("./admin-random-search.js")` (classic script, trình
+  duyệt hiện đại hỗ trợ; CSP `script-src 'self'` đã cho phép, không đổi CSP).
+
+### 3. Module admin mới — `assets/admin-random-search.js` (ES module, tách riêng)
+- Export: `initAdminRandomSearch(ctx)`, `cleanupAdminRandomSearch()`
+  (+ `syncAdminPlaceholder()` và `getAdminDebugState()` phụ trợ).
+- `initAdminRandomSearch`: tạo huy hiệu `ADMIN` (span `.admin-badge` trong
+  `#userChip`, topbar) + nút toggle `.admin-toggle` "Soi skin Acc Random"
+  (ngay sau `.search-wrap` trong toolbar, mặc định TẮT); đăng ký query handler
+  qua `ctx.registerAdminQueryHandler`; gắn listener thoát chế độ admin khi đổi
+  danh mục / sắp xếp / lọc "Còn hàng". Gọi 2 lần thì giữ nguyên (idempotent).
+- Toggle BẬT: placeholder đổi thành "Tìm skin Acc Random: nakroth ki,
+  florentino, sss..."; gợi ý tìm kiếm thường bị ẩn (`updateSuggest()` kiểm tra
+  `adminSearchMode`); query đi qua `onAdminQuery` (đã debounce 120ms sẵn của
+  app.js) → `GET {API_BASE_URL}/api/admin/random-search?q=…&limit=20&offset=0`
+  kèm `Authorization: Bearer <JWT>`. Kết quả render vào `#productArea`: mỗi
+  thẻ `.admin-card` hiện rõ mã acc + danh sách skin thật (`rare_skins`) +
+  bậc skin (chips SSS/SS+/SS/S+/SSM/Anime trích từ khối thống kê trong
+  `description`) + giá + Rank/Lv/số tướng/số skin; KHÔNG có nút mua (không
+  `data-buy`) nên không mua nhầm từ chế độ soi. Có nút "Tải thêm" (phân trang
+  offset) và nút "← Quay lại tìm kiếm thường".
+- Toggle TẮT: về tìm kiếm thường với đúng chữ đang gõ (anti-leak như cũ),
+  placeholder thường trở lại.
+- Lỗi: 403 → toast "Không có quyền Admin" + tự tắt toggle; lỗi mạng → toast
+  mạng + về lưới thường (giữ toggle để gõ lại thử tiếp); query trống → không
+  gọi API; response cũ (user đã gõ query mới) bị bỏ qua bằng `reqSeq`.
+- `cleanupAdminRandomSearch()` (đăng xuất): `reqSeq++` vô hiệu hoá response
+  đang bay, `results = null` (xoá sạch dữ liệu skin Random khỏi RAM), gỡ
+  badge + toggle + mọi listener, khôi phục placeholder + query thường, gọi
+  `renderProducts()`. Không còn reference nào tới dữ liệu admin trong JS.
+- Module KHÔNG import file nào khác, KHÔNG hardcode skin thật / token / mật
+  khẩu, KHÔNG chạm localStorage/IndexedDB/cookie, mọi chuỗi từ API đều qua
+  `esc()` (chống XSS). Mọi thứ cần dùng đều nhận qua `ctx` (API base,
+  getToken, fetch, toast, L, esc, fmt, normText, các element, renderProducts,
+  closeSuggest, các setter trạng thái).
+
+### 4. Tích hợp vào `app.js` (không phá code cũ)
+- `initSearch`: khi `adminSearchMode` bật, sự kiện `input` (debounce) và `search`
+  (nút ×) đều chuyển query cho module, không chạy lọc thường. `updateSuggest`
+  ẩn gợi ý khi admin mode bật.
+- `renderProducts()`: guard `if (state.adminSearchActive) return;` ở đầu.
+- `applyLang()`: cuối hàm gọi `syncAuthPassPlaceholder()` +
+  `adminModule.syncAdminPlaceholder()` (placeholder admin theo đúng ngôn ngữ).
+- `API_BASE` (Cloudflare Worker) và `API_BASE_URL` (Flask backend) giữ nguyên
+  tên và hành vi; autocomplete, nạp thẻ POST, CORS/ProxyFix, animation, CSP/XSS,
+  chống lộ Random cho khách thường đều giữ nguyên 100%.
+
+### 5. CSS — `assets/animations.css` (cuối file)
+- `.admin-badge` (đỏ crimson, chữ trắng), `.admin-toggle` / `.on` (viền/đỏ
+  khi bật, khớp style `.toggle-btn` sẵn có), `.admin-card` + `.admin-head` /
+  `.admin-skins` / `.admin-tier` / `.admin-desc` / `.admin-more-wrap`. Dùng
+  biến theme (`--accent-crimson`, `--accent-gold`, `--wine`, `--surface`...)
+  nên sáng/tối đều đúng. Không có class admin nào trong HTML tĩnh — badge và
+  toggle chỉ được tạo bằng JS khi role=admin.
+
+### 6. Verification — `tests/test-admin-frontend.js` (jsdom, Node)
+Chạy: `NODE_PATH=/tmp/node_modules node tests/test-admin-frontend.js`
+Fake backend trong file test CHỈ dùng dữ liệu test tự bịa (mã LQ9001–LQ9004,
+skin "Nakroth/Violet/Florentino/Murad Kiểm Thử") — không chứa dữ liệu skin
+thật của kho. Module admin thật được nạp bằng cách strip từ khóa `export`
+(vì Node không coi `.js` là ESM).
+- **44 PASS, 0 FAIL** (2026-11-25), gồm:
+  - (a) acc thường `nhatdeptrai`: module KHÔNG import (loader=0), 0 request
+    `/api/admin`, không badge/toggle trong DOM, tìm "nakroth ki" ra đúng 9 acc
+    sẵn thông tin (0 random).
+  - (b) `admin2` (mật khẩu `1`): đăng nhập OK, số dư 250.000đ, module import
+    1 lần, badge + toggle hiện; bật toggle → placeholder đổi; gõ "nakroth" →
+    gọi đúng `/api/admin/random-search?q=nakroth` kèm `Bearer jwt-admin2`;
+    kết quả hiện mã LQ9001 + skin thật + bậc SSS + giá 24.000đ, là acc Random
+    thật, không có nút mua; tắt toggle → về tìm thường, placeholder trở lại.
+  - (c) đăng xuất sau khi dùng admin: badge/toggle biến mất, RAM admin
+    `resultsCount=0, on=false, initialized=false`; tìm thường không gọi
+    `/api/admin` nữa, không còn thẻ admin.
+  - (d) `API_BASE_URL` trống: form login báo "Chưa cấu hình backend", module
+    không nạp, 0 request `/api/admin`; gọi trực tiếp `init` module với
+    `backendReady=false` → không fetch, toast lỗi rõ.
+  - (e) JWT user gọi `/api/admin/random-search` và `/api/admin/random-index`
+    → 403; admin bị thu hồi quyền giữa chừng (stub trả 403) → toast "Không
+    có quyền Admin" + toggle tự tắt.
+  - (f) hồi quy tìm kiếm cũ: "murad" = 162, "nakroth ki" = 9, "sss" không ra
+    acc Random nào (anti-leak).
+  - (g) đăng ký với mật khẩu 5 ký tự vẫn bị chặn; placeholder mật khẩu đổi
+    đúng theo tab đăng nhập/đăng ký.
+  - (h) tải lại trang với token admin đã lưu → badge + toggle tự hiện, số dư
+    250.000đ (restore session).
+- Hồi quy batch-2 (harness cũ `/tmp/test_search.js`, `/tmp/test_search_demo.js`
+  trích code thật từ app.js): **31/31 + 7/7 PASS** (không đổi).
+- `node --check` PASS cho `assets/app.js` và `assets/admin-random-search.js`.
+- Bảo mật (grep): HTML tĩnh có 0 chuỗi admin; app.js + module admin có 0
+  hardcode skin thật / token / mật khẩu (chỉ còn ví dụ query công khai
+  "nakroth ki, florentino, sss" trong placeholder — đúng như spec); module
+  không dùng localStorage/IndexedDB (chỉ nhắc trong comment); 0 `onclick`,
+  0 base64; CSP không đổi.
+
+### 7. Files changed / added
+- Sửa: `index.html` (placeholder mật khẩu → "Mật khẩu"), `assets/app.js`
+  (validate login, role + lazy-load admin, tích hợp tìm kiếm/render/i18n),
+  `assets/animations.css` (CSS admin), `REPORT2.md` (mục này).
+- Thêm: `assets/admin-random-search.js` (module admin, ~14 KB),
+  `tests/test-admin-frontend.js` (harness jsdom, 44 test).
+- KHÔNG sửa backend, KHÔNG push GitHub (theo yêu cầu task frontend).
+
+### 8. Lưu ý / chưa kiểm chứng bằng trình duyệt thật
+- Chưa kiểm tra trên trình duyệt thật + điện thoại: toggle/badge hiển thị đúng
+  trên mobile 390px, dynamic `import()` chạy trên Chrome mobile, toast 403,
+  và `API_BASE_URL` phải được set thành domain VPS thật thì admin mới gọi
+  được API (hiện `""` trong file — đăng nhập web + admin đều báo "Chưa cấu
+  hình backend" cho tới khi cấu hình).
+- Khi đổi ngôn ngữ trong lúc toggle admin đang bật, nhãn toggle + placeholder
+  được vẽ lại qua `syncAdminPlaceholder()`; tiêu đề kết quả admin đã render
+  không tự dịch lại (giữ nguyên cho tới lần tìm tiếp theo).
+- Thẻ admin không có nút mua theo thiết kế (chỉ để kiểm tra kho). Nếu admin
+  muốn mua acc Random vừa soi thấy, dùng bot Telegram hoặc tắt toggle rồi mua
+  như khách thường.

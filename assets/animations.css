@@ -382,3 +382,35 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
   /* Sidebar: giu transform de an/hien (khong transition) — khong dat transform:none
      keo sidebar hien luon ca khi dong tren mobile. */
 }
+
+/* ================= ADMIN — SOI SKIN ACC RANDOM (chỉ role=admin) ================
+   Badge ADMIN + toggle "Soi skin Acc Random" chỉ được tạo bằng JS khi
+   /api/auth/me xác nhận role=admin (assets/admin-random-search.js). Khách
+   thường / chưa đăng nhập không bao giờ thấy các class này trong DOM. */
+.admin-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;line-height:1;color:#fff;background:var(--accent-crimson,#dc2626);border-radius:99px;padding:4px 8px;flex:0 0 auto;box-shadow:0 1px 6px rgba(220,38,38,.45)}
+.admin-toggle{border-color:var(--accent-crimson,#dc2626);color:var(--accent-crimson,#dc2626)}
+.admin-toggle.on{background:var(--accent-crimson,#dc2626);border-color:var(--accent-crimson,#dc2626);color:#fff}
+.admin-toggle.on .dotsw{border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.25)}
+.admin-toggle.on .dotsw::after{left:17px;background:#fff}
+/* Kết quả soi skin admin — thẻ riêng, KHÔNG có nút mua (chỉ để kiểm tra kho). */
+.admin-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+.admin-count{font-weight:700;font-size:14px;color:var(--ink)}
+.admin-count .admin-q{color:var(--accent-crimson,#dc2626)}
+.admin-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.admin-card{background:var(--surface);border:1px solid var(--accent-crimson,#dc2626);border-radius:14px;padding:14px 16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.admin-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px}
+.admin-card-head b{font-size:16px}
+.admin-kind{font-size:11px;font-weight:800;letter-spacing:.04em;color:var(--accent-crimson,#dc2626);background:color-mix(in srgb,var(--accent-crimson,#dc2626) 12%,transparent);border-radius:99px;padding:3px 8px}
+.admin-price{margin-left:auto;font-weight:800;color:var(--wine);font-size:15px}
+.admin-meta{margin-top:8px;font-size:13px;color:var(--muted)}
+.admin-tiers{margin-top:8px;font-size:12.5px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.admin-tiers-lbl{color:var(--muted);font-weight:700}
+.admin-tier{font-weight:800;color:var(--accent-gold,#c68b2c);background:color-mix(in srgb,var(--accent-gold,#c68b2c) 14%,transparent);border-radius:99px;padding:2px 8px;font-size:12px}
+.admin-skins{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.admin-skin{font-size:12.5px;font-weight:700;background:var(--bg-soft);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.admin-skin.none{color:var(--muted);font-weight:600}
+.admin-desc{margin-top:10px;font-size:12.5px;color:var(--muted);line-height:1.5;word-break:break-word}
+.admin-more-wrap{display:flex;justify-content:center;margin-top:18px}
+@media (max-width:480px){
+  .admin-toggle .admin-toggle-lbl{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}

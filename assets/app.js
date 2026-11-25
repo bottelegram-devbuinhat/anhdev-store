@@ -97,6 +97,8 @@
     coins: 0,              // xu trong bot (số dư thật do bot giữ)
     discount: 0,           // % giảm giá của tài khoản web (từ /api/auth/me)
     webToken: null,        // JWT tài khoản web (từ /api/auth/login|register)
+    userRole: null,        // "user" | "admin" | null — role từ /api/auth/me (JWT); null = chưa biết/chưa đăng nhập web
+    adminSearchActive: false, // true khi đang hiển thị kết quả soi skin Acc Random (module admin quản lý #productArea; renderProducts() tạm nghỉ)
     tgInitData: "",        // Telegram.WebApp.initData (Mini App) để Worker xác thực
     tgLoginData: "",       // query string Telegram Login Widget đã ký (web thường)
     depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
@@ -187,6 +189,21 @@
     eyeHide:{ vi:"Ẩn mật khẩu", en:"Hide password" },
     authErrUser:{ vi:"Tên đăng nhập 4–24 ký tự, chỉ gồm chữ không dấu, số và dấu _.", en:"Username must be 4–24 characters: letters (no accents), numbers and _ only." },
     authErrPass:{ vi:"Mật khẩu tối thiểu 6 ký tự.", en:"Password must be at least 6 characters." },
+    authErrPassEmpty:{ vi:"Mật khẩu không được để trống.", en:"Password must not be empty." },
+    authPassPhLogin:{ vi:"Mật khẩu", en:"Password" },
+    authPassPhReg:{ vi:"Mật khẩu (từ 6 ký tự)", en:"Password (6+ characters)" },
+    /* Admin — soi skin Acc Random (chỉ role=admin; xem mục ADMIN trong app.js) */
+    adminToggle:{ vi:"Soi skin Acc Random", en:"Inspect Random skins" },
+    adminSearchPh:{ vi:"Tìm skin Acc Random: nakroth ki, florentino, sss...", en:"Search Random skins: nakroth ki, florentino, sss..." },
+    adminNoBackend:{ vi:"Chưa cấu hình Backend API — tính năng soi skin Acc Random chưa dùng được.", en:"Backend API is not configured — the admin Random-skin search is unavailable." },
+    adminNoPerm:{ vi:"Không có quyền Admin.", en:"No admin permission." },
+    adminLoadFail:{ vi:"Không nạp được module quản trị, thử tải lại trang.", en:"Could not load the admin module, please reload the page." },
+    adminBack:{ vi:"← Quay lại tìm kiếm thường", en:"← Back to normal search" },
+    adminLoading:{ vi:"Đang soi kho Random…", en:"Searching the Random warehouse…" },
+    adminEmpty:{ vi:"Không tìm thấy Acc Random nào chứa từ khoá này.", en:"No Random account matches this keyword." },
+    adminFound:{ vi:"Tìm thấy {n} acc Random", en:"Found {n} Random accounts" },
+    adminMore:{ vi:"Tải thêm", en:"Load more" },
+    adminTier:{ vi:"Bậc skin", en:"Skin tiers" },
     authErrMatch:{ vi:"Mật khẩu nhập lại không khớp.", en:"Passwords do not match." },
     authErrGeneric:{ vi:"Sai tên đăng nhập hoặc mật khẩu.", en:"Wrong username or password." },
     authNoBackend:{ vi:"Chưa cấu hình backend — đăng nhập bằng tài khoản web chưa dùng được. Đăng nhập bằng Telegram bên dưới nhé.", en:"Backend is not configured yet — web-account login is unavailable. Log in with Telegram below." },
@@ -457,10 +474,14 @@
       state.balance = 0; state.coins = 0; state.discount = 0;
       state.checkin = null; state.checkinDone = false;
       BALANCE.synced = false; BALANCE.web = false; BALANCE.updatedAt = null;
+      state.userRole = null;
+      teardownAdminModule(); // đăng xuất: xoá sạch dữ liệu + DOM admin khỏi RAM
       clearWebToken(true); // đăng xuất tài khoản web ở backend (nếu đang có phiên web)
       saveUser(null);
     } else if (u.web){
       state.discount = (typeof u.discount_percent === "number") ? u.discount_percent : state.discount;
+      /* Đổi tài khoản sang acc thường khi module admin đang nạp: gỡ admin ngay. */
+      if (u.role && u.role !== "admin") teardownAdminModule();
       saveUser(null); // phiên web thắng: xoá phiên Telegram đã lưu để lần mở sau không nhảy lại
     } else {
       state.discount = 0; // tài khoản Telegram: mức giảm giá lấy từ bot, không dùng discount web
@@ -560,6 +581,9 @@
     area.appendChild(frag);
   }
   function renderProducts(){
+    /* Đang hiển thị kết quả soi skin Acc Random: module admin tự quản lý
+       #productArea, render thường tạm nghỉ để không ghi đè kết quả admin. */
+    if (state.adminSearchActive) return;
     var list = visibleProducts();
     var area = $("#productArea");
     $("#prodCount").textContent = list.length + " / " + PRODUCTS.length + (state.lang === "en" ? " products" : " sản phẩm");
@@ -893,6 +917,9 @@
     if (window.matchMedia && window.matchMedia("(pointer:coarse)").matches) sugInput.blur();
   }
   function updateSuggest(){
+    /* Chế độ soi skin admin: gợi ý thường (lấy từ dữ liệu công khai) phải
+       ẩn — module admin tự xử lý query, không gợi ý skin random cho khách. */
+    if (adminSearchMode){ closeSuggest(); return; }
     if (!SEARCH_INDEX.built || !sugInput) return;
     var q = sugInput.value;
     renderSuggest(searchSuggestions(q), q);
@@ -904,6 +931,12 @@
     sugInput.addEventListener("input", function(){
       if (sugTimer) clearTimeout(sugTimer);
       sugTimer = setTimeout(function(){
+        /* Chế độ soi skin admin đang BẬT: query đi qua module admin (API
+           /api/admin/random-search kèm JWT), không chạy lọc thường. */
+        if (adminSearchMode && adminQueryHandler){
+          adminQueryHandler(sugInput.value.trim());
+          return;
+        }
         state.filter.q = sugInput.value.trim();
         state.filter.page = 1;
         renderProducts();
@@ -913,6 +946,10 @@
     /* Nút × mặc định của input[type=search]: reset ngay, không chờ debounce. */
     sugInput.addEventListener("search", function(){
       if (sugTimer) clearTimeout(sugTimer);
+      if (adminSearchMode && adminQueryHandler){
+        adminQueryHandler("");
+        return;
+      }
       state.filter.q = "";
       state.filter.page = 1;
       renderProducts();
@@ -1353,6 +1390,7 @@
     $("#passField2").style.display = mode === "register" ? "block" : "none";
     $("#authSubmit").textContent = mode === "register" ? L("submitRegister") : L("submitLogin");
     $("#authErr").classList.remove("show");
+    syncAuthPassPlaceholder();
   }
   $("#tabLogin").addEventListener("click", function(){ setAuthMode("login"); });
   $("#tabRegister").addEventListener("click", function(){ setAuthMode("register"); });
@@ -1360,9 +1398,19 @@
   function normalizeUsername(v){ return String(v || "").trim().toLowerCase(); }
   function validateAuth(username, pass, pass2){
     if (!/^[a-z0-9_]{4,24}$/.test(username)) return L("authErrUser");
-    if (!pass || pass.length < 6) return L("authErrPass");
+    /* Đăng nhập: chỉ cần mật khẩu không trống (acc admin2 dùng mật khẩu "1").
+       Đăng ký (pass2 != null): vẫn giữ tối thiểu 6 ký tự. */
+    if (!pass) return L("authErrPassEmpty");
+    if (pass2 != null && pass.length < 6) return L("authErrPass");
     if (pass2 != null && pass !== pass2) return L("authErrMatch");
     return null;
+  }
+  /* Placeholder ô mật khẩu đổi theo tab: đăng nhập chỉ ghi "Mật khẩu",
+     đăng ký nhắc "(từ 6 ký tự)". applyLang() cũng gọi lại hàm này sau khi
+     vẽ lại placeholder theo ngôn ngữ. */
+  function syncAuthPassPlaceholder(){
+    var el = $("#authPass"); if (!el) return;
+    el.placeholder = authMode === "register" ? L("authPassPhReg") : L("authPassPhLogin");
   }
   function setAuthBusy(b){
     authBusy = b;
@@ -1429,17 +1477,21 @@
           photo_url: null,
           via: L("viaWeb"),
           web: true,
+          role: (u && u.role) || "user",
           discount_percent: state.discount
         });
+        applyAdminRole((u && u.role) || "user");
         $("#authPass").value = ""; $("#authPass2").value = "";
         closeModal($("#authModal"));
         toast(L("authWelcome") + name + "!");
       })
       .catch(function(){
         // Đăng ký/đăng nhập đã xong nhưng /me lỗi: vẫn giữ phiên, số dư để 0
-        // và thử đồng bộ lại ở lần refreshWebBalance sau.
+        // và thử đồng bộ lại ở lần refreshWebBalance sau. Role chưa biết ->
+        // coi như "user" (không nạp module admin) cho tới khi /me thành công.
         setAuthBusy(false);
-        setUser({ name: username, username: username, telegram_id: null, photo_url: null, via: L("viaWeb"), web: true });
+        setUser({ name: username, username: username, telegram_id: null, photo_url: null, via: L("viaWeb"), web: true, role: "user" });
+        applyAdminRole("user");
         $("#authPass").value = ""; $("#authPass2").value = "";
         closeModal($("#authModal"));
         toast(L("authWelcome") + username + "!");
@@ -1457,10 +1509,90 @@
         setUser({
           name: u.username, username: u.username,
           telegram_id: u.telegram_id || null, photo_url: null,
-          via: L("viaWeb"), web: true, discount_percent: state.discount
+          via: L("viaWeb"), web: true, role: u.role || "user", discount_percent: state.discount
         });
+        applyAdminRole(u.role || "user");
       })
-      .catch(function(){ saveWebToken(null); });
+      .catch(function(){ saveWebToken(null); state.userRole = null; teardownAdminModule(); });
+  }
+  /* ================= ADMIN — TÌM KIẾM SKIN ACC RANDOM (role=admin) =================
+     Chỉ tài khoản web có role === "admin" (theo /api/auth/me, JWT ký kèm role)
+     mới được nạp module assets/admin-random-search.js bằng dynamic import
+     (lazy-load). Tài khoản thường / chưa đăng nhập / token cũ không có role:
+     KHÔNG tải file module, KHÔNG gọi API /api/admin/*, KHÔNG thấy badge hay
+     toggle admin. Dữ liệu skin thật chỉ đi qua API admin kèm JWT Bearer,
+     KHÔNG lưu localStorage/IndexedDB — đăng xuất là cleanupAdminRandomSearch()
+     xoá sạch khỏi RAM + gỡ DOM. Module không import file nào khác ngoài ctx.
+     LƯU Ý: import() động chạy trong classic script ở trình duyệt hiện đại;
+     window.__adminModuleLoader chỉ là seam cho test jsdom (không có trong
+     code chạy thật — test gán loader giả trước khi eval app.js). */
+  var adminModule = null;         // module admin đã import (null = chưa nạp)
+  var adminModulePromise = null;  // promise đang nạp (tránh import 2 lần)
+  var adminSearchMode = false;    // toggle "Soi skin Acc Random" đang BẬT
+  var adminQueryHandler = null;   // hàm query do module đăng ký qua ctx
+  function loadAdminModule(){
+    if (adminModule) return Promise.resolve(adminModule);
+    if (adminModulePromise) return adminModulePromise;
+    var loader = (typeof window !== "undefined" && typeof window.__adminModuleLoader === "function")
+      ? window.__adminModuleLoader()
+      : import("./admin-random-search.js");
+    adminModulePromise = Promise.resolve(loader).then(function(m){
+      adminModule = m;
+      return m;
+    }).catch(function(err){
+      adminModulePromise = null;
+      throw err;
+    });
+    return adminModulePromise;
+  }
+  /* ctx đưa cho module admin: chỉ những gì module cần, không đưa state hay
+     hàm nội bộ khác. Module không được tự đọc localStorage hay stock. */
+  function adminCtx(){
+    return {
+      doc: document,
+      apiBase: API_BASE_URL,
+      backendReady: backendReady,
+      getToken: function(){ return state.webToken; },
+      fetchFn: fetch,
+      toast: toast,
+      L: L,
+      esc: esc,
+      fmt: fmt,
+      normText: normText,
+      searchInput: $("#searchInput"),
+      searchWrap: $(".search-wrap"),
+      catChips: $("#catChips"),
+      sortSelect: $("#sortSelect"),
+      stockToggle: $("#stockToggle"),
+      productArea: $("#productArea"),
+      prodCount: $("#prodCount"),
+      userChip: $("#userChip"),
+      renderProducts: renderProducts,
+      closeSuggest: closeSuggest,
+      setAdminSearchMode: function(on){ adminSearchMode = !!on; },
+      registerAdminQueryHandler: function(fn){ adminQueryHandler = (typeof fn === "function") ? fn : null; },
+      setAdminSearchActive: function(on){ state.adminSearchActive = !!on; },
+      applyNormalQuery: function(q){ state.filter.q = q || ""; state.filter.page = 1; },
+      resetSearch: function(){ state.filter.q = ""; state.filter.page = 1; }
+    };
+  }
+  /* Áp role sau khi /api/auth/me xác nhận. Token cũ không có role -> "user". */
+  function applyAdminRole(role){
+    state.userRole = (role === "admin") ? "admin" : "user";
+    if (state.userRole !== "admin"){ teardownAdminModule(); return; }
+    if (!backendReady()){ toast(L("adminNoBackend"), "error"); return; }
+    loadAdminModule().then(function(m){
+      if (state.userRole !== "admin") return; // đã đăng xuất trong lúc chờ import
+      if (m && typeof m.initAdminRandomSearch === "function") m.initAdminRandomSearch(adminCtx());
+    }).catch(function(){ toast(L("adminLoadFail"), "error"); });
+  }
+  function teardownAdminModule(){
+    adminSearchMode = false;
+    adminQueryHandler = null;
+    state.adminSearchActive = false;
+    if (adminModule && typeof adminModule.cleanupAdminRandomSearch === "function"){
+      try { adminModule.cleanupAdminRandomSearch(); } catch (e) { /* bỏ qua, không chặn logout */ }
+    }
   }
   /* Đăng nhập Telegram THẬT (Telegram Login Widget, bot @devbn_bot).
      Telegram gọi hàm này sau khi người dùng bấm nút và xác nhận trong popup.
@@ -2195,7 +2327,7 @@
     lbTitle:"Leaderboard", lbSub:"Top buyers at the shop — ranked by total spending.",
     authTitle:"Welcome to AnhDev Store", authSub:"Log in to buy accounts and top up.",
     authLoginTab:"Log In", authRegTab:"Register",
-    authUserL:"Username", "ph:authUserPh":"Your username", authPassL:"Password", "ph:authPassPh":"Password (6+ characters)",
+    authUserL:"Username", "ph:authUserPh":"Your username", authPassL:"Password", "ph:authPassPh":"Password",
     authPass2L:"Confirm password", "ph:authPass2Ph":"Repeat the password",
     authUserHint:"4–24 characters: letters (no accents), numbers, _",
     authWebHint:"Web accounts live on the AnhDev server — or log in with Telegram below.",
@@ -2233,6 +2365,10 @@
       var v = lang === "en" ? I18N_EN["ph:" + k] : I18N_VI_PH[k];
       if (v != null) el.setAttribute("placeholder", v);
     });
+    syncAuthPassPlaceholder(); // placeholder mật khẩu theo tab đăng nhập/đăng ký
+    /* Đổi ngôn ngữ vẽ lại placeholder ô tìm kiếm -> module admin vẽ lại
+       placeholder chế độ soi skin nếu toggle đang bật. */
+    if (adminModule && typeof adminModule.syncAdminPlaceholder === "function") adminModule.syncAdminPlaceholder();
     var as = $("#authSubmit");
     if (as && !authBusy) as.textContent = authMode === "register" ? L("submitRegister") : L("submitLogin");
     refreshUserUI();
