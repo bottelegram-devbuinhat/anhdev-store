@@ -564,7 +564,9 @@
     var area = $("#productArea");
     $("#prodCount").textContent = list.length + " / " + PRODUCTS.length + (state.lang === "en" ? " products" : " sản phẩm");
     if (!list.length){
-      if (SYNC.mode === "live" || SYNC.mode === "saved"){
+      /* Có từ khoá tìm kiếm mà không ra acc nào -> báo "không tìm thấy" (đừng báo
+         "kho hết hàng" gây hiểu nhầm là kho trống, trong khi kho vẫn có 12k acc). */
+      if ((SYNC.mode === "live" || SYNC.mode === "saved") && !state.filter.q){
         area.innerHTML = '<div class="empty-box"><b>Kho thật hiện đang hết hàng</b>Chưa có acc hay sản phẩm nào đang bán. Quay lại sau hoặc mua qua bot Telegram @devbn_bot.</div>';
       } else {
       area.innerHTML = '<div class="empty-box"><b>Không tìm thấy sản phẩm</b>Thử đổi từ khoá hoặc bỏ lọc “Còn hàng”.</div>';
