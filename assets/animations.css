@@ -29,16 +29,35 @@
 }
 
 /* ---------- 2. So du: tia sang vien (beam) + ticker ---------- */
-.balance-card{ position:relative; overflow:hidden; }
-.balance-card.beam::after{
+/* Houdini @property: goc xoay cua conic-gradient — beam chay vong quanh vien
+   ma khong cham layout / khong cat chu (lop rieng, pointer-events:none). */
+@property --beam-angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
+.balance-card{ position:relative; }
+.balance-card.beam::before{
   content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
-  background:linear-gradient(100deg, transparent 25%, rgba(211,171,74,.38) 50%, transparent 75%);
-  transform:translateX(-110%);
-  animation:beamSweep .9s ease forwards;
+  padding:1.5px;
+  background:conic-gradient(from var(--beam-angle),
+    transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
+    transparent 180deg, var(--accent-primary, var(--wine)) 225deg, transparent 270deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  animation:beamRotate 3.2s linear infinite;
 }
-@keyframes beamSweep{ to{ transform:translateX(110%); } }
+@keyframes beamRotate{ to{ --beam-angle:360deg; } }
 /* so du doi so: JS dem so (ticker), CSS chi giu so khong bi vo khi doi */
 .balance-card .bal-num{ display:inline-block; will-change:transform; }
+/* VIP card noi bat: cung beam vien (JS gan class .beam cho card VIP dau tien) */
+.card.beam{ position:relative; }
+.card.beam::before{
+  content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit; z-index:2;
+  padding:1.5px;
+  background:conic-gradient(from var(--beam-angle),
+    transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
+    transparent 180deg, var(--accent-primary, var(--wine)) 225deg, transparent 270deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  animation:beamRotate 3.2s linear infinite;
+}
 
 /* ---------- 3. Diem danh: pulse + hat confetti + so bay ---------- */
 @keyframes checkinPulse{
@@ -120,18 +139,16 @@
 }
 @keyframes btnShine{ to{ transform:translateX(130%); } }
 
-/* ---------- 6. Hero: Ken Burns + entrance lan luot ---------- */
+/* ---------- 6. Hero: Ken Burns + canvas hat + parallax ---------- */
 .hero img.bg{ animation:kenBurns 16s ease-in-out infinite alternate; will-change:transform; }
 @keyframes kenBurns{ from{ transform:scale(1); } to{ transform:scale(1.07); } }
-.hero-inner > *{ animation:heroIn .7s cubic-bezier(.16,1,.3,1) both; }
-.hero-inner > *:nth-child(1){ animation-delay:.05s; }
-.hero-inner > *:nth-child(2){ animation-delay:.16s; }
-.hero-inner > *:nth-child(3){ animation-delay:.28s; }
-.hero-inner > *:nth-child(4){ animation-delay:.40s; }
-@keyframes heroIn{
-  from{ opacity:0; transform:translateY(18px); }
-  to{ opacity:1; transform:translateY(0); }
-}
+/* Khi GSAP co mat (html.gsap-on, animations.js gan), GSAP dam nhan scale + x/y
+   tren .hero img.bg — tat CSS animation de tranh xung dot transform. */
+html.gsap-on .hero img.bg{ animation:none; }
+/* Canvas hat (than hong + vang) — GSAP/JS ve, pointer-events:none, nam tren bg duoi noi dung */
+#heroFx{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+/* Entrance lan luot cua hero-inner do GSAP dam nhan (animations.js) — khong dung CSS animation o day de tranh double-animate. */
+.hero-inner{ will-change:transform, opacity; }
 
 /* ---------- 7. Card: skeleton + fade-up lan luot + hover lift/tilt/glow ---------- */
 /* Skeleton hien trong luc syncStock dang tai kho */
@@ -148,21 +165,35 @@
   animation:skShimmer 1.3s linear infinite;
 }
 @keyframes skShimmer{ from{ background-position:200% 0; } to{ background-position:-200% 0; } }
-/* Fade-up lan luot khi render (JS gan --i cho moi card) */
-#productArea .card{
-  animation:cardIn .5s cubic-bezier(.16,1,.3,1) both;
-  animation-delay:calc(var(--i, 0) * 60ms);
-  will-change:transform, opacity;
-}
-@keyframes cardIn{
-  from{ opacity:0; transform:translateY(16px) scale(.985); }
-  to{ opacity:1; transform:translateY(0) scale(1); }
+/* Entrance lan luot cua card do GSAP dam nhan (animations.js §9) — khong dung CSS animation o day de tranh double-animate. */
+#productArea .card{ will-change:transform, opacity; }
+/* Card tilt 3D + spotlight + foil sheen (desktop, hover-capable) — GSAP set --rx/--ry/--mx/--my. */
+@media (hover:hover) and (pointer:fine){
+  #productArea .card{
+    transform-style:preserve-3d;
+    transform:perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  }
+  #productArea .card::after{
+    content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+    background:radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.14), transparent 65%);
+    opacity:0; transition:opacity .25s ease;
+  }
+  #productArea .card:hover::after{ opacity:1; }
+  /* Holographic foil sheen — diagonal, khong che gia/nhan */
+  #productArea .card .card-cover{ position:relative; overflow:hidden; }
+  #productArea .card .card-cover::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.18) 48%, rgba(212,175,55,.14) 52%, transparent 70%);
+    transform:translateX(-120%);
+    transition:transform .6s ease;
+  }
+  #productArea .card:hover .card-cover::after{ transform:translateX(120%); }
 }
 /* Hover lift + tilt nhe + glow theo loai (data-cat) */
 @media (hover:hover) and (pointer:fine){
   #productArea .card{ transition:transform .28s cubic-bezier(.16,1,.3,1), box-shadow .28s ease, border-color .28s ease; }
   #productArea .card:hover{
-    transform:translateY(-4px);
+    transform:perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-4px);
     box-shadow:0 14px 30px rgba(11,31,24,.16);
   }
   #productArea .card[data-cat="random-tele"]:hover{ border-color:rgba(176,141,46,.55); box-shadow:0 14px 30px rgba(176,141,46,.22); }
@@ -210,22 +241,68 @@
   from{ opacity:0; transform:scale(.92) translateY(14px); }
   to{ opacity:1; transform:scale(1) translateY(0); }
 }
-.modal-wrap.open{ backdrop-filter:blur(3px); }
+.modal-wrap.open{ backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+/* Staggered fade-up cho cac truong trong modal (JS gan --i; mac dinh 0 neu chua gan) */
+.modal-wrap.open .modal .field,
+.modal-wrap.open .modal .btn,
+.modal-wrap.open .modal .tab-bar{
+  animation:fieldIn .45s cubic-bezier(.16,1,.3,1) both;
+  animation-delay:calc(var(--i, 0) * 55ms + 90ms);
+}
+@keyframes fieldIn{
+  from{ opacity:0; transform:translateY(10px); }
+  to{ opacity:1; transform:translateY(0); }
+}
 body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
 
-/* ---------- 11. Toast: truot tu phai tren + checkmark ---------- */
-.toast{
-  left:auto; right:18px; top:76px; bottom:auto;
-  transform:translateX(24px);
-  transition:transform .32s cubic-bezier(.16,1,.3,1), opacity .25s ease;
+/* ---------- 11. Toast: Sonner-style — container phai tren + 4 bien the + thanh dem nguoc ---------- */
+.toast-container{
+  position:fixed; top:20px; right:20px; bottom:auto; left:auto;
+  width:auto; max-width:min(380px, calc(100vw - 32px));
+  height:auto; pointer-events:none; z-index:9999;
+  display:flex; flex-direction:column; gap:10px;
 }
-.toast.show{ transform:translateX(0); }
-.toast::before{
-  content:"✓"; display:inline-block; margin-right:8px;
-  font-weight:800; color:var(--gold);
+.toast-item{
+  height:auto; min-height:unset; width:fit-content; max-width:100%;
+  pointer-events:auto;
+  display:flex; align-items:flex-start; gap:10px;
+  background:var(--bg-glass, var(--surface));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  color:var(--ink); border:1px solid var(--line); border-radius:14px;
+  padding:12px 14px 14px; font-size:13.5px; font-weight:600; line-height:1.45;
+  box-shadow:var(--shadow-lg);
+  opacity:0; transform:translateX(24px) scale(.97);
+  transition:opacity .28s cubic-bezier(.16,1,.3,1), transform .32s cubic-bezier(.16,1,.3,1);
+  position:relative; overflow:hidden;
 }
+.toast-item.show{ opacity:1; transform:translateX(0) scale(1); }
+.toast-item.hide{ opacity:0; transform:translateX(24px) scale(.97); }
+.toast-ic{
+  flex:0 0 20px; width:20px; height:20px; border-radius:50%;
+  display:grid; place-items:center; font-size:12px; font-weight:800; line-height:1;
+  margin-top:1px;
+}
+.toast-tx{ flex:1; min-width:0; overflow-wrap:break-word; }
+.toast-bar{
+  position:absolute; left:0; bottom:0; height:3px; width:100%;
+  transform-origin:left; background:currentColor; opacity:.35;
+  animation:toastBar 2.6s linear forwards;
+}
+@keyframes toastBar{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
+.toast-success{ border-color:color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.toast-success .toast-ic{ background:var(--ok); color:#fff; }
+.toast-success .toast-bar{ color:var(--ok); }
+.toast-info{ border-color:color-mix(in srgb, #2563EB 35%, var(--line)); }
+.toast-info .toast-ic{ background:#2563EB; color:#fff; }
+.toast-info .toast-bar{ color:#2563EB; }
+.toast-warning{ border-color:color-mix(in srgb, #D97706 40%, var(--line)); }
+.toast-warning .toast-ic{ background:#D97706; color:#fff; }
+.toast-warning .toast-bar{ color:#D97706; }
+.toast-error{ border-color:color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.toast-error .toast-ic{ background:var(--danger); color:#fff; }
+.toast-error .toast-bar{ color:var(--danger); }
 @media (max-width:720px){
-  .toast{ top:66px; right:12px; left:12px; max-width:none; }
+  .toast-container{ top:14px; right:12px; max-width:calc(100vw - 24px); }
 }
 
 /* ---------- 12. Pager + chip: chuyen dong nhe ---------- */
@@ -269,22 +346,39 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
   background:var(--bg-soft); border-radius:99px; padding:2px 9px; white-space:nowrap;
 }
 
+/* ---------- 14. Magnetic CTA + shimmer (JS: animations.js §11) ---------- */
+.hero-actions .btn, #topLoginBtn{
+  position:relative; overflow:hidden;
+  will-change:transform;
+}
+.hero-actions .btn::after, #topLoginBtn::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(105deg, transparent 40%, rgba(255,255,255,.35) 50%, transparent 60%);
+  transform:translateX(-130%);
+  transition:transform .7s ease;
+}
+.hero-actions .btn:hover::after, #topLoginBtn:hover::after{ transform:translateX(130%); }
+
 /* ---------- Giam chuyen dong: ton trong nguoi dung ---------- */
 @media (prefers-reduced-motion: reduce){
   .brand-mark::after, .hero img.bg, .hero-inner > *,
   #productArea .card, #lbList .lb-row, .modal-wrap.open .modal,
   .card-skeleton .sk-cover, .card-skeleton .sk-line,
   .lb-rank.gold::after, .lb-rank.silver::after, .lb-rank.bronze::after,
-  .btn-wine::after, .balance-card.beam::after, .float-plus, .confetti-piece,
-  #productArea.flip .price{
+  .btn-wine::after, .balance-card.beam::before, .card.beam::before, .float-plus, .confetti-piece,
+  .toast-item, .toast-bar, .toast-container, .modal-wrap.open .modal .field,
+  .modal-wrap.open .modal .btn, .modal-wrap.open .modal .tab-bar,
+  .hero-actions .btn::after, #topLoginBtn::after,
+  #productArea .card .card-cover::after, #productArea.flip .price{
     animation:none !important;
   }
-  .toast, .sidebar, .nav-sub, .nav-indicator, .topbar,
-  .btn, .nav-item, .card, .chip, .pager button, .price, .bal-num{
+  .toast-item, .toast-container, .sidebar, .nav-sub, .nav-indicator, .topbar,
+  .btn, .nav-item, .card, .chip, .pager button, .price, .bal-num,
+  #productArea .card, .hero-actions .btn, #topLoginBtn{
     transition:none !important;
   }
   .hero-inner > *, #productArea .card, #lbList .lb-row{ opacity:1 !important; transform:none !important; }
-  .toast{ transform:none !important; }
+  .toast-item{ transform:none !important; }
   /* Sidebar: giu transform de an/hien (khong transition) — khong dat transform:none
      keo sidebar hien luon ca khi dong tren mobile. */
 }

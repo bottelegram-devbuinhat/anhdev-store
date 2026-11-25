@@ -217,15 +217,35 @@
   /* Cuộn về đầu NGAY LẬP TỨC (không smooth): html{scroll-behavior:smooth} làm
      cả window.scrollTo() thường cũng trượt mượt — tắt tạm rồi trả lại. */
   function instantScrollTop(){
+    if (window.__lenis){ window.__lenis.scrollTo(0, { immediate:true }); return; }
     var de = document.documentElement, prev = de.style.scrollBehavior;
     de.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
     de.style.scrollBehavior = prev;
   }
-  var toastTimer = null;
-  function toast(msg){
-    var t = $("#toast"); t.textContent = msg; t.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  /* Toast Sonner-style: container phai tren, toi da 3 item, tu dong dong sau 2.6s.
+     type: "success" | "info" | "warning" | "error". Mac dinh "success" de giu
+     tuong thich voi cac loi goi cu toast(msg). */
+  var TOAST_ICONS = { success:"✓", info:"ℹ", warning:"⚠", error:"✕" };
+  function toast(msg, type){
+    var c = $("#toastContainer"); if(!c) return;
+    var t = (type && TOAST_ICONS[type]) ? type : "success";
+    var item = document.createElement("div");
+    item.className = "toast-item toast-" + t;
+    var ic = document.createElement("span");
+    ic.className = "toast-ic"; ic.textContent = TOAST_ICONS[t]; ic.setAttribute("aria-hidden", "true");
+    var tx = document.createElement("span");
+    tx.className = "toast-tx"; tx.textContent = msg;
+    var bar = document.createElement("span");
+    bar.className = "toast-bar"; bar.setAttribute("aria-hidden", "true");
+    item.appendChild(ic); item.appendChild(tx); item.appendChild(bar);
+    c.appendChild(item);
+    while(c.children.length > 3) c.removeChild(c.firstChild);
+    requestAnimationFrame(function(){ item.classList.add("show"); });
+    setTimeout(function(){
+      item.classList.add("hide");
+      setTimeout(function(){ if(item.parentNode) item.parentNode.removeChild(item); }, 340);
+    }, 2600);
   }
   function nowStr(){
     var d = new Date();
@@ -354,7 +374,7 @@
         : ("✓ Đồng bộ bot" + coinsLine + (BALANCE.updatedAt ? " · " + BALANCE.updatedAt : ""));
     } else {
       note = state.user ? "Chưa đồng bộ với bot — số dư demo trên trình duyệt"
-        : "Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ";
+        : "Chưa đăng nhập — đăng nhập để đồng bộ ví";
     }
     $$("[data-balance-note]").forEach(function(el){
       el.className = "sync-note" + (BALANCE.synced ? "" : " warn");
@@ -1269,11 +1289,11 @@
           stopDepositPoll();
           return false;
         }
-        if (manual) toast("SePay chưa thấy giao dịch. Đợi 1–2 phút rồi thử lại.");
+        if (manual) toast("SePay chưa thấy giao dịch. Đợi 1–2 phút rồi thử lại.", "warning");
         return false;
       })
       .catch(function(){
-        if (manual) toast("Không kiểm tra được trạng thái, thử lại sau.");
+        if (manual) toast("Không kiểm tra được trạng thái, thử lại sau.", "error");
         return false;
       });
   }
@@ -1367,7 +1387,7 @@
   $("#authForm").addEventListener("submit", function(e){
     e.preventDefault();
     if (authBusy) return;
-    if (!backendReady()){ authError(L("authNoBackend")); toast(L("authNoBackend")); return; }
+    if (!backendReady()){ authError(L("authNoBackend")); toast(L("authNoBackend"), "error"); return; }
     var username = normalizeUsername($("#authUser").value);
     var pass = $("#authPass").value;
     var pass2 = authMode === "register" ? $("#authPass2").value : null;
@@ -1383,7 +1403,7 @@
         setAuthBusy(false);
         // Loi mang (VPS tat / mat mang): hien Toast ro rang, khong de nut
         // ket o "Đang gửi…" va khong hien message ky thuat ("Failed to fetch").
-        if (isNetworkError(err)){ toast(L("netErr")); authError(L("netErr")); return; }
+        if (isNetworkError(err)){ toast(L("netErr"), "error"); authError(L("netErr")); return; }
         authError(err && err.message ? err.message : L("authErrGeneric"));
       });
   });
@@ -1473,7 +1493,7 @@
   $("#topLoginBtn").addEventListener("click", function(){
     if (state.user){
       setUser(null); state.balance = 0; refreshUserUI();
-      toast("Đã đăng xuất. Hẹn gặp lại!");
+      toast("Đã đăng xuất. Hẹn gặp lại!", "info");
     } else {
       setAuthMode("login"); openModal("#authModal");
     }
@@ -1481,7 +1501,7 @@
   function requireLogin(){
     if (state.user) return true;
     setAuthMode("login"); openModal("#authModal");
-    toast("Đăng nhập trước để mua acc nhé.");
+    toast("Đăng nhập trước để mua acc nhé.", "info");
     return false;
   }
 
@@ -1668,7 +1688,7 @@
       '<div class="modal-actions"><button class="btn btn-ghost" id="accTopup">' + L("accTopup") + '</button><button class="btn btn-wine" id="accLogout">' + L("logout") + '</button></div>' +
       '<p style="font-size:12.5px;color:var(--muted);margin-top:14px">' + ((state.user.web && !state.user.telegram_id) ? L("accNoteWeb") : L("accNote")) + '</p>';
     $("#accTopup").addEventListener("click", function(){ showView("topup"); });
-    $("#accLogout").addEventListener("click", function(){ setUser(null); state.balance = 0; refreshUserUI(); toast("Đã đăng xuất."); showView("home"); });
+    $("#accLogout").addEventListener("click", function(){ setUser(null); state.balance = 0; refreshUserUI(); toast("Đã đăng xuất.", "info"); showView("home"); });
   }
 
   /* Đồng bộ Hoá Đơn nạp thẻ từ backend (trạng thái thật sau callback cổng thẻ).
@@ -1744,7 +1764,7 @@
   $("#tabCard").addEventListener("click", function(){ setTopupTab("card"); });
   $("#makeQrBtn").addEventListener("click", function(){
     if (!requireLogin()) return;
-    if (!selectedAmount || selectedAmount < 1000){ toast("Chọn hoặc nhập số tiền nạp từ 1.000đ."); return; }
+    if (!selectedAmount || selectedAmount < 1000){ toast("Chọn hoặc nhập số tiền nạp từ 1.000đ.", "warning"); return; }
     var btn = this;
     var amount = selectedAmount;
     var createLocal = function(message){
@@ -1758,7 +1778,7 @@
       state.invoices.unshift(iv);
       state.currentPay = iv;
       saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
-      toast(message);
+      toast(message, "warning");
     };
     if (!apiReady()){
       createLocal("Chưa cấu hình API Worker — hoá đơn demo, chưa đồng bộ bot.");
@@ -1788,7 +1808,7 @@
         state.invoices.unshift(iv);
         state.currentPay = iv;
         saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
-        toast("Đã tạo lệnh nạp " + code + " — quét VietQR để thanh toán.");
+        toast("Đã tạo lệnh nạp " + code + " — quét VietQR để thanh toán.", "info");
         startDepositPoll(iv);
       })
       .catch(function(err){
@@ -1860,7 +1880,7 @@
     if (this.hasAttribute("data-pay-done")){ showView("invoices"); return; }
     if (iv.remote){
       // Lệnh nạp thật: tiền do SePay/bot xác nhận, không tự cộng trên trình duyệt.
-      toast("Đang kiểm tra giao dịch với SePay...");
+      toast("Đang kiểm tra giao dịch với SePay...", "info");
       checkDeposit(iv, true);
       return;
     }
@@ -1878,7 +1898,7 @@
       iv.status = "cancelled";
       iv.detail = "MBBank · Nội dung CK: " + iv.code + " · Đã huỷ";
       saveInvoices(); renderInvoices();
-      toast("Đã huỷ hoá đơn " + iv.code + ".");
+      toast("Đã huỷ hoá đơn " + iv.code + ".", "info");
     }
     showView("topup");
   });
@@ -1940,10 +1960,10 @@
     var amount = parseInt($("#cardAmount").value, 10);
     var serial = $("#cardSerial").value.replace(/\s+/g, "");
     var pin = $("#cardPin").value.replace(/\s+/g, "");
-    if (!serial || !pin){ toast(L("cardNeedBoth")); return; }
+    if (!serial || !pin){ toast(L("cardNeedBoth"), "warning"); return; }
     // Thẻ cào VN: chỉ gồm chữ số — seri 10–16 số, mã thẻ 10–15 số (khớp backend).
     if (!/^\d{10,16}$/.test(serial) || !/^\d{10,15}$/.test(pin)){
-      toast(L("cardBadFormat"));
+      toast(L("cardBadFormat"), "warning");
       return;
     }
     var cardBtn = this;
@@ -1964,7 +1984,7 @@
       state.invoices.unshift(ivDemo);
       saveInvoices(); renderInvoices();
       $("#cardSerial").value = ""; $("#cardPin").value = "";
-      toast(L("cardDemoSent"));
+      toast(L("cardDemoSent"), "info");
       setTimeout(function(){
         finish();
         ivDemo.status = "success";
@@ -2020,7 +2040,7 @@
           saveInvoices(); renderInvoices();
           $("#cardSerial").value = ""; $("#cardPin").value = "";
         }
-        toast(isNetworkError(err) ? L("netErr") : (L("cardSendFail") + (err && err.message ? ": " + err.message : "")));
+        toast(isNetworkError(err) ? L("netErr") : (L("cardSendFail") + (err && err.message ? ": " + err.message : "")), "error");
       });
   });
 
@@ -2062,7 +2082,7 @@
               // 403 chưa đủ điều kiện) — server luôn trả message tiếng Việt rõ ràng.
               // Lỗi mạng (VPS tắt / mất mạng) thì hiện Toast rõ ràng thay vì
               // message kỹ thuật.
-              toast(isNetworkError(err) ? L("netErr") : (err && err.message ? err.message : L("ciErrGeneric")));
+              toast(isNetworkError(err) ? L("netErr") : (err && err.message ? err.message : L("ciErrGeneric")), "error");
             });
           return;
         }
@@ -2183,7 +2203,7 @@
     bnHome:"Home", bnShop:"Accounts", bnTopup:"Top up", bnOrders:"Orders", bnAccount:"Account",
   };
   var I18N_EN_HTML = {
-    heroTitle:'Account warehouse<br />ANHDEV',
+    heroTitle:'Account warehouse <br />ANHDEV',
     payQrSub:'Use your <b>Internet Banking app</b> or a QR-capable camera app to scan the code',
     paySupport:'Already transferred but the balance has not arrived? Contact <a id="paySupportLink" href="https://t.me/devbn_bot" target="_blank" rel="noopener noreferrer">Support</a> — the admin will check and credit you.'
   };
@@ -2235,7 +2255,7 @@
     renderLeaderboard();
     renderAccount();
     if (state.currentPay) updatePayStatus();
-    toast(this.value === "USD" ? "Đã đổi tiền tệ hiển thị sang USD (giao dịch vẫn tính bằng VND)." : "Đã đổi tiền tệ hiển thị sang VND.");
+    toast(this.value === "USD" ? "Đã đổi tiền tệ hiển thị sang USD (giao dịch vẫn tính bằng VND)." : "Đã đổi tiền tệ hiển thị sang VND.", "info");
   });
 
   /* ===== HERO BANNER — TỰ ĐỔI SKIN MỖI LẦN TẢI LẠI TRANG =====

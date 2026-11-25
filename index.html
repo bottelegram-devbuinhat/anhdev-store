@@ -12,7 +12,7 @@
          (vd domain Cloudflare Tunnel). Neu khong trinh duyet se chan fetch
          toi backend. API phai la https:// (khong dung http://) neu khong
          se bi Mixed Content / bi chan. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://api.anhdev.store; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://api.anhdev.store; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
@@ -28,53 +28,71 @@
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
       :root{
-        --bg:#f7f5f0; --bg-soft:#ede8df; --surface:#fffdf8; --surface-2:#faf6ee;
-        --ink:#1b2420; --ink-2:#43504a; --muted:#7c8a81; --line:#e2dcd2;
-        --wine:#0d3b2e; --wine-deep:#082a20; --wine-soft:#e4efe8;
-        --gold:#b08d2e; --gold-soft:#f6ecd4;
-        --head-tint:#e6edeb; --ok:#177245; --ok-soft:#e2f2e7;
-        --danger:#b3261e; --danger-soft:#fbe9e7;
-        --shadow:0 10px 30px rgba(13,59,46,.08);
+        --bg:#F7F5F0; --bg-soft:#EFECE4; --surface:#FFFFFF; --surface-2:#FAF8F3;
+        --ink:#111C18; --ink-2:#5B6B64; --muted:#5B6B64; --line:#E5E0D5;
+        --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E4EFE8;
+        --gold:#C68B2C; --gold-soft:#F6ECD4;
+        --head-tint:#E6EDEB; --ok:#177245; --ok-soft:#E2F2E7;
+        --danger:#DC2626; --danger-soft:#FBE9E7; --crimson:#DC2626;
+        --shadow:0 10px 30px rgba(12,74,59,.08);
         --shadow-lg:0 24px 60px rgba(10,32,24,.22);
         --radius:18px;
         /* Z-index thang chung: noi dung < topbar < goi y tim kiem < drawer/scrim < modal < toast < confetti */
         --z-topbar:30; --z-suggest:32; --z-scrim:35; --z-sidebar:40; --z-bottomnav:45;
         --z-modal:80; --z-toast:120; --z-confetti:200;
         /* Nen nut wine + chu tren nen wine (dark mode: wine sang nen chu phai dam, tranh trang tren xanh nhat) */
-        --wine-btn:#0d3b2e; --on-wine:#fff;
+        --wine-btn:#0C4A3B; --on-wine:#fff;
+        /* Semantic aliases — PART 2 luxury palette (Light: Warm Ivory & Deep Emerald) */
+        --bg-main:#F7F5F0; --bg-surface:#FFFFFF; --bg-subtle:#EFECE4; --border-subtle:#E5E0D5;
+        --bg-glass:rgba(247,245,240,.82);
+        --accent-primary:#0C4A3B; --accent-gold:#C68B2C; --accent-crimson:#DC2626;
+        --text-primary:#111C18; --text-secondary:#5B6B64;
       }
       @media (prefers-color-scheme: dark){
         :root{
-          --bg:#101613; --bg-soft:#161d19; --surface:#1a221d; --surface-2:#1f2924;
-          --ink:#edf4ee; --ink-2:#c3d2c9; --muted:#8ba093; --line:#2b3a31;
-          --wine:#5ec49a; --wine-deep:#3d9a72; --wine-soft:#1c332a;
-          --gold:#d3ab4a; --gold-soft:#3a3018;
-          --head-tint:#1d2b25; --ok:#4cc084; --ok-soft:#1d3325;
-          --danger:#ff8a80; --danger-soft:#3d201d;
+          --bg:#080C0B; --bg-soft:#0E1512; --surface:#101917; --surface-2:#17211D;
+          --ink:#F1F5F3; --ink-2:#94A8A0; --muted:#8BA093; --line:rgba(52,211,153,.14);
+          --wine:#10B981; --wine-deep:#34D399; --wine-soft:#12261F;
+          --gold:#F5B942; --gold-soft:#3A3018;
+          --head-tint:#14201B; --ok:#4CC084; --ok-soft:#1D3325;
+          --danger:#F43F5E; --danger-soft:#3D1A20; --crimson:#F43F5E;
           --shadow:0 10px 30px rgba(0,0,0,.35);
           --shadow-lg:0 24px 60px rgba(0,0,0,.55);
-          --wine-btn:#5ec49a; --on-wine:#082a20;
+          --wine-btn:#10B981; --on-wine:#082A20;
+          /* Semantic aliases — PART 2 luxury palette (Dark: Obsidian Emerald & Burnished Gold) */
+          --bg-main:#080C0B; --bg-surface:#101917; --bg-subtle:#0E1512; --border-subtle:rgba(52,211,153,.14);
+          --bg-glass:rgba(16,25,23,.78);
+          --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#F43F5E;
+          --text-primary:#F1F5F3; --text-secondary:#94A8A0;
         }
       }
       html[data-theme="light"]{
-        --bg:#f7f5f0; --bg-soft:#ede8df; --surface:#fffdf8; --surface-2:#faf6ee;
-        --ink:#1b2420; --ink-2:#43504a; --muted:#7c8a81; --line:#e2dcd2;
-        --wine:#0d3b2e; --wine-deep:#082a20; --wine-soft:#e4efe8;
-        --gold:#b08d2e; --gold-soft:#f6ecd4;
-        --head-tint:#e6edeb; --ok:#177245; --ok-soft:#e2f2e7;
-        --danger:#b3261e; --danger-soft:#fbe9e7;
-        --shadow:0 10px 30px rgba(13,59,46,.08); --shadow-lg:0 24px 60px rgba(10,32,24,.22);
-        --wine-btn:#0d3b2e; --on-wine:#fff;
+        --bg:#F7F5F0; --bg-soft:#EFECE4; --surface:#FFFFFF; --surface-2:#FAF8F3;
+        --ink:#111C18; --ink-2:#5B6B64; --muted:#5B6B64; --line:#E5E0D5;
+        --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E4EFE8;
+        --gold:#C68B2C; --gold-soft:#F6ECD4;
+        --head-tint:#E6EDEB; --ok:#177245; --ok-soft:#E2F2E7;
+        --danger:#DC2626; --danger-soft:#FBE9E7; --crimson:#DC2626;
+        --shadow:0 10px 30px rgba(12,74,59,.08); --shadow-lg:0 24px 60px rgba(10,32,24,.22);
+        --wine-btn:#0C4A3B; --on-wine:#fff;
+        --bg-main:#F7F5F0; --bg-surface:#FFFFFF; --bg-subtle:#EFECE4; --border-subtle:#E5E0D5;
+        --bg-glass:rgba(247,245,240,.82);
+        --accent-primary:#0C4A3B; --accent-gold:#C68B2C; --accent-crimson:#DC2626;
+        --text-primary:#111C18; --text-secondary:#5B6B64;
       }
       html[data-theme="dark"]{
-        --bg:#101613; --bg-soft:#161d19; --surface:#1a221d; --surface-2:#1f2924;
-        --ink:#edf4ee; --ink-2:#c3d2c9; --muted:#8ba093; --line:#2b3a31;
-        --wine:#5ec49a; --wine-deep:#3d9a72; --wine-soft:#1c332a;
-        --gold:#d3ab4a; --gold-soft:#3a3018;
-        --head-tint:#1d2b25; --ok:#4cc084; --ok-soft:#1d3325;
-        --danger:#ff8a80; --danger-soft:#3d201d;
+        --bg:#080C0B; --bg-soft:#0E1512; --surface:#101917; --surface-2:#17211D;
+        --ink:#F1F5F3; --ink-2:#94A8A0; --muted:#8BA093; --line:rgba(52,211,153,.14);
+        --wine:#10B981; --wine-deep:#34D399; --wine-soft:#12261F;
+        --gold:#F5B942; --gold-soft:#3A3018;
+        --head-tint:#14201B; --ok:#4CC084; --ok-soft:#1D3325;
+        --danger:#F43F5E; --danger-soft:#3D1A20; --crimson:#F43F5E;
         --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 24px 60px rgba(0,0,0,.55);
-        --wine-btn:#5ec49a; --on-wine:#082a20;
+        --wine-btn:#10B981; --on-wine:#082A20;
+        --bg-main:#080C0B; --bg-surface:#101917; --bg-subtle:#0E1512; --border-subtle:rgba(52,211,153,.14);
+        --bg-glass:rgba(16,25,23,.78);
+        --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#F43F5E;
+        --text-primary:#F1F5F3; --text-secondary:#94A8A0;
       }
       *{box-sizing:border-box}
       html,body{overflow-x:clip} /* chan tran ngang (360-430px); clip (khac hidden) khong pha position:sticky */
@@ -103,7 +121,7 @@
       .brand-name{font-weight:800;font-size:17px;letter-spacing:.01em}
       .brand-name em{font-style:normal;color:var(--wine)}
       .brand-sub{font-size:11px;color:var(--muted);margin-top:-2px}
-      .balance-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+      .balance-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;flex-shrink:0;height:auto;min-height:fit-content;position:relative}
       .balance-card .lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
       .balance-card .lbl b{color:var(--wine);font-weight:700}
       .balance-card .val{font-size:20px;font-weight:800;margin-top:2px}
@@ -399,7 +417,7 @@
       @media(min-width:640px){.modal-wrap{align-items:center;padding:20px}.modal{border-radius:22px}}
       .modal h3{margin:0 0 4px;font-size:19px}
       .modal .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
-      .modal-x{float:right;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:16px;color:var(--muted)}
+      .modal-x{float:right;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;line-height:1;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:16px;color:var(--muted)}
       .auth-tabs{display:flex;background:var(--bg-soft);border-radius:12px;padding:4px;margin-bottom:18px}
       .auth-tabs button{flex:1;border:0;background:transparent;border-radius:9px;font-weight:700;font-size:14px;padding:9px;color:var(--muted);min-height:40px}
       .auth-tabs button.on{background:var(--surface);color:var(--wine);box-shadow:var(--shadow)}
@@ -419,8 +437,7 @@
       .modal-actions{display:flex;gap:10px;margin-top:18px}
       .modal-actions .btn{flex:1}
 
-      .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:var(--z-toast);max-width:92vw;text-align:center;box-shadow:var(--shadow-lg)}
-      .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+      /* Toast (Sonner-style): xem assets/animations.css §11 — container + item + 4 bien the. */
 
       .bottom-nav{display:none}
       footer.foot{padding:26px;text-align:center;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);margin-top:10px}
@@ -455,7 +472,6 @@
         .bottom-nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:700;color:var(--muted);padding:7px 2px;border-radius:10px;min-height:52px}
         .bottom-nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
         .bottom-nav button.active{color:var(--wine)}
-        .toast{bottom:86px}
       }
       @media(max-width:420px){.steps-grid{grid-template-columns:1fr}.stat-tiles{grid-template-columns:1fr 1fr 1fr;gap:8px}.stat-tile .n{font-size:21px}}
       /* Man 360-400px: topbar chat — an icon vi, thu nut dang nhap, giu du cho avatar + theme */
@@ -473,7 +489,7 @@
       <div class="scrim" id="scrim"></div>
 
       <!-- ============ SIDEBAR ============ -->
-      <aside class="sidebar" id="sidebar" aria-label="Điều hướng chính">
+      <aside class="sidebar" id="sidebar" aria-label="Điều hướng chính" data-lenis-prevent>
         <div class="brand">
           <div class="brand-mark">A</div>
           <div>
@@ -485,7 +501,7 @@
         <div class="balance-card">
           <div class="lbl"><span data-i18n="balLabel">Số Dư</span><b data-i18n="balDisc" id="discountBadge">Giảm 0%</b></div>
           <div class="val" data-balance>0đ</div>
-          <div class="sync-note warn" data-balance-note>Chưa đăng nhập Telegram — số dư demo, chưa đồng bộ</div>
+          <div class="sync-note warn" data-balance-note>Chưa đăng nhập — đăng nhập để đồng bộ ví</div>
         </div>
 
         <nav>
@@ -596,9 +612,10 @@
           <section class="view active" id="view-home">
             <div class="hero">
               <img class="bg" src="assets/heroes/hero-01.webp" alt="Ảnh tướng Liên Quân Mobile trong banner kho tài khoản" loading="eager" decoding="async" fetchpriority="high" width="2736" height="912" />
+              <canvas id="heroFx" aria-hidden="true"></canvas>
               <div class="hero-inner">
                 <div class="kicker" data-i18n="heroKicker">Liên Quân Mobile · Kho Telegram &amp; Website</div>
-                <h1 data-i18n-html="heroTitle">Kho tài khoản<br />ANHDEV</h1>
+                <h1 data-i18n-html="heroTitle">Kho tài khoản <br />ANHDEV</h1>
                 <p data-i18n="heroText">Tìm tài khoản theo tên, giá và tình trạng còn hàng. Mua xong nhận acc ngay trong mục Đơn hàng.</p>
                 <div class="hero-actions">
                   <button class="btn btn-light" data-scroll="products" data-i18n="heroExplore">Khám phá kho ↓</button>
@@ -657,7 +674,7 @@
                     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
                     <input type="search" id="searchInput" placeholder="Tìm tên sản phẩm..." aria-label="Tìm tên sản phẩm" data-i18n-ph="searchPh" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="searchSuggest" aria-autocomplete="list" />
                   </div>
-                  <div class="search-suggest" id="searchSuggest" role="listbox" aria-label="Gợi ý tìm kiếm" hidden></div>
+                  <div class="search-suggest" id="searchSuggest" role="listbox" aria-label="Gợi ý tìm kiếm" data-lenis-prevent hidden></div>
                 </div>
                 <select id="sortSelect" aria-label="Sắp xếp sản phẩm">
                   <option value="default" data-i18n="sortDefault">Mặc định</option>
@@ -813,7 +830,7 @@
                   <p data-i18n-html="payQrSub">Sử dụng <b>App Internet Banking</b> hoặc ứng dụng camera hỗ trợ QR code để quét mã</p>
                   <div class="pay-qr-frame">
                     <div class="vietqr-logo"><span class="vq-v">V</span>IETQR</div>
-                    <img id="payQrImg" alt="Mã VietQR thanh toán hoá đơn" width="230" height="230" />
+                    <img id="payQrImg" alt="Mã VietQR thanh toán hoá đơn" width="230" height="230" hidden />
                     <div class="pay-qr-fallback" id="payQrFallback" hidden>Không tải được mã QR — chuyển khoản tay theo đúng thông tin bên trái.</div>
                     <div class="pay-qr-foot"><span class="napas">napas<b>247</b></span><span class="pay-qr-sep"></span><span class="mb-logo"><span class="mb-star">★</span> MB</span></div>
                   </div>
@@ -859,7 +876,7 @@
     </nav>
 
     <!-- ============ AUTH MODAL ============ -->
-    <div class="modal-wrap" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal-wrap" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" data-lenis-prevent>
       <div class="modal">
         <button class="modal-x" data-close aria-label="Đóng">✕</button>
         <h3 id="authTitle" data-i18n="authTitle">Chào mừng đến AnhDev Store</h3>
@@ -904,7 +921,7 @@
     </div>
 
     <!-- ============ BUY MODAL ============ -->
-    <div class="modal-wrap" id="buyModal" role="dialog" aria-modal="true" aria-labelledby="buyTitle">
+    <div class="modal-wrap" id="buyModal" role="dialog" aria-modal="true" aria-labelledby="buyTitle" data-lenis-prevent>
       <div class="modal">
         <button class="modal-x" data-close aria-label="Đóng">✕</button>
         <h3 id="buyTitle">Xác nhận mua</h3>
@@ -915,7 +932,7 @@
     </div>
 
     <!-- ============ CHECK-IN MODAL ============ -->
-    <div class="modal-wrap" id="checkinModal" role="dialog" aria-modal="true" aria-labelledby="checkinTitle">
+    <div class="modal-wrap" id="checkinModal" role="dialog" aria-modal="true" aria-labelledby="checkinTitle" data-lenis-prevent>
       <div class="modal">
         <button class="modal-x" data-close aria-label="Đóng">✕</button>
         <h3 id="checkinTitle" data-i18n="ciTitle">Điểm danh hằng ngày</h3>
@@ -924,8 +941,13 @@
       </div>
     </div>
 
-    <div class="toast" id="toast" role="status"></div>
+    <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
+    <!-- GSAP 3 + Lenis + canvas-confetti (CDN, pinned, crossorigin) — PART 3.
+         Da whitelist https://cdn.jsdelivr.net trong CSP (script-src) o tren. -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous" defer></script>
     <script src="assets/app.js" defer></script>
     <script src="assets/animations.js" defer></script>
   </body>

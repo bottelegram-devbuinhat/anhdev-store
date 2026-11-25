@@ -1,17 +1,36 @@
 /* ==========================================================================
    AnhDev Store — animations.js
-   Lop hieu ung (vanilla JS, khong thu vien ngoai). Nap SAU assets/app.js
-   (defer, dung thu tu) nen cac su kien anhdev:* tu app.js da co san.
-   Tat ca deu co guard: thieu element thi bo qua, khong bao gio lam vo app.
+   Lop hieu ung. Nap SAU assets/app.js (defer, dung thu tu) nen cac su kien
+   anhdev:* tu app.js da co san. Thu vien CDN (GSAP 3.12.5, Lenis 1.1.14,
+   canvas-confetti 1.9.3) nap TRUOC app.js — tat ca deu co guard: thieu
+   thu vien thi tu dong dung ban vanilla / bo qua, khong bao gio lam vo app.
    Ton trong prefers-reduced-motion: neu user tat chuyen dong thi chi chay
-   logic can thiet (cap nhat so), khong chay animation.
+   logic can thiet (cap nhat so), khong chay animation. Man hinh cam ung nho
+   tu dong giam hat / tilt / parallax.
    ========================================================================== */
 (function(){
   "use strict";
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var isTouch = window.matchMedia && window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  var hasGsap = typeof window.gsap === "object" && window.gsap !== null;
+  if (hasGsap) document.documentElement.classList.add("gsap-on");
   function $(s){ return document.querySelector(s); }
   function $all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
   function on(el, ev, fn){ if (el) el.addEventListener(ev, fn); }
+
+  /* ================= 0. Lenis smooth scroll (CDN, guarded) ================= */
+  var lenis = null;
+  function initLenis(){
+    if (reduceMotion || isTouch) return;
+    if (typeof window.Lenis !== "function") return;
+    try {
+      lenis = new window.Lenis({ duration: 1.15, smoothWheel: true });
+      window.__lenis = lenis; /* app.js instantScrollTop() dung cai nay */
+      var raf = function(t){ lenis.raf(t); requestAnimationFrame(raf); };
+      requestAnimationFrame(raf);
+    } catch (e) { lenis = null; }
+  }
+  initLenis();
 
   /* ---------- dinh dang tien (giong fmt() trong app.js) ---------- */
   var USD_RATE = 25400;
@@ -28,22 +47,21 @@
   function setBalanceText(v){
     $all("[data-balance]").forEach(function(el){ el.textContent = fmtNum(Math.round(v)); });
   }
-  function beam(){
+  /* Beam vien Houdini: chay lien tuc khi da dong bo (da dang nhap), tat khi chua.
+     Khong dung one-shot nua — beam xoay vong quanh vien, khong cat chu. */
+  function setBeam(on){
     var card = $(".balance-card");
-    if (!card || reduceMotion) return;
-    card.classList.remove("beam");
-    void card.offsetWidth; /* restart animation */
-    card.classList.add("beam");
-    setTimeout(function(){ card.classList.remove("beam"); }, 1000);
+    if (!card) return;
+    card.classList.toggle("beam", !!on && !reduceMotion);
   }
   document.addEventListener("anhdev:balance", function(e){
     var v = (e.detail && typeof e.detail.value === "number") ? e.detail.value : 0;
     var synced = !!(e.detail && e.detail.synced);
+    setBeam(synced);
     if (lastBalance === null){ lastBalance = v; return; } /* lan dau: khong dem */
     var from = lastBalance;
     lastBalance = v;
     if (from === v) return;
-    if (synced) beam();
     if (reduceMotion){ setBalanceText(v); return; }
     if (tickRaf) cancelAnimationFrame(tickRaf);
     var start = null, dur = 650;
@@ -94,9 +112,22 @@
     document.body.appendChild(el);
     setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 1500);
   }
+  /* canvas-confetti: no 2 goc duoi (vang + emerald), them 1 dot giua nhe.
+     Neu CDN loi thi dung ban vanilla (confetti) o duoi. */
+  function confettiBurst(){
+    if (reduceMotion) return;
+    if (typeof window.confetti === "function"){
+      var base = { spread: 70, ticks: 220, gravity: 0.9, decay: 0.93, scalar: 1.05, colors: CONFETTI_COLORS, disableForReducedMotion: true };
+      window.confetti(Object.assign({}, base, { particleCount: 70, angle: 60, origin: { x: 0, y: 0.7 } }));
+      window.confetti(Object.assign({}, base, { particleCount: 70, angle: 120, origin: { x: 1, y: 0.7 } }));
+      window.confetti(Object.assign({}, base, { particleCount: 40, spread: 100, origin: { x: 0.5, y: 0.5 }, scalar: 0.9 }));
+    } else {
+      confetti(42);
+    }
+  }
   document.addEventListener("anhdev:checkin", function(e){
     var amt = (e.detail && e.detail.amount) || 0;
-    confetti(42);
+    confettiBurst();
     var modal = $("#checkinModal .modal");
     floatPlus(amt, modal || $(".balance-card"));
     var card = $(".balance-card");
@@ -183,6 +214,10 @@
   }
   stagger("#productArea", ".card", 11);
   stagger("#lbList", ".lb-row", 11);
+  /* Modal: gan --i cho cac field de CSS fieldIn stagger (PART 3 §6) */
+  stagger("#authModal .modal", ".field", 8);
+  stagger("#buyModal .modal", ".field", 8);
+  stagger("#checkinModal .modal", ".field", 8);
 
   /* ================= 7. Gia crossfade khi doi tien te ================= */
   var area = $("#productArea");
@@ -203,6 +238,7 @@
   function lockScroll(on){
     if (on && !locked){
       locked = true;
+      if (lenis) lenis.stop(); /* Lenis dung cuon nen khi modal mo */
       lockY = window.scrollY || window.pageYOffset || 0;
       document.body.style.top = "-" + lockY + "px";
       document.body.classList.add("modal-lock");
@@ -210,6 +246,7 @@
       locked = false;
       document.body.classList.remove("modal-lock");
       document.body.style.top = "";
+      if (lenis) lenis.start();
       var de = document.documentElement, prev = de.style.scrollBehavior;
       de.style.scrollBehavior = "auto";
       window.scrollTo(0, lockY);
@@ -224,6 +261,166 @@
     });
     wraps.forEach(function(w){
       lockObs.observe(w, { attributes:true, attributeFilter:["class"] });
+    });
+  }
+
+  /* ================= 9. Hero: GSAP timeline + canvas particles + parallax =================
+     Ken Burns CSS bi tat khi co GSAP (html.gsap-on) — GSAP dam nhan scale + x/y
+     tren .hero img.bg. Neu GSAP loi, CSS Ken Burns chay lai nhu cu. */
+  var hero = $(".hero"), heroFx = $("#heroFx"), heroBg = hero ? hero.querySelector("img.bg") : null;
+  var heroParticles = [], heroMouse = { x: 0.5, y: 0.5 };
+  function heroFxResize(){
+    if (!hero || !heroFx) return;
+    var r = hero.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    heroFx.width = Math.max(1, Math.round(r.width * dpr));
+    heroFx.height = Math.max(1, Math.round(r.height * dpr));
+  }
+  function heroFxInit(){
+    if (!hero || !heroFx || reduceMotion || isTouch) return;
+    heroFxResize();
+    var ctx = heroFx.getContext("2d");
+    if (!ctx) return;
+    var N = 46, i;
+    heroParticles = [];
+    for (i = 0; i < N; i++){
+      var crimson = Math.random() < 0.55;
+      heroParticles.push({
+        x: Math.random(), y: Math.random(),
+        r: 0.8 + Math.random() * 2.2,
+        vx: (Math.random() - 0.5) * 0.00035,
+        vy: -(0.00012 + Math.random() * 0.00035),
+        a: 0.25 + Math.random() * 0.5,
+        hue: crimson ? "220,38,38" : "212,175,55",
+        tw: Math.random() * Math.PI * 2
+      });
+    }
+    var draw = function(){
+      var w = heroFx.width, h = heroFx.height;
+      ctx.clearRect(0, 0, w, h);
+      heroParticles.forEach(function(p){
+        p.x += p.vx + (heroMouse.x - 0.5) * 0.00012;
+        p.y += p.vy + (heroMouse.y - 0.5) * 0.00006;
+        p.tw += 0.02;
+        if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
+        if (p.x < -0.05) p.x = 1.05;
+        if (p.x > 1.05) p.x = -0.05;
+        var alpha = p.a * (0.7 + 0.3 * Math.sin(p.tw));
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, p.r * (w / 800 + 0.5), 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(" + p.hue + "," + alpha.toFixed(3) + ")";
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    };
+    draw();
+    window.addEventListener("resize", heroFxResize);
+  }
+  function heroIntro(){
+    if (!hero || reduceMotion) return;
+    var items = hero.querySelectorAll(".hero-inner > *");
+    if (items.length && hasGsap){
+      window.gsap.fromTo(items,
+        { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease: "power3.out", clearProps: "transform,opacity" });
+    }
+    /* Ken Burns bang GSAP (scale 1 -> 1.07, yoyo, lap vo han) + parallax x/y.
+       x/y va scale la property khac nhau nen overwrite:"auto" khong diet nhau. */
+    if (heroBg && hasGsap){
+      window.gsap.fromTo(heroBg, { scale: 1 }, { scale: 1.07, duration: 16, yoyo: true, repeat: -1, ease: "sine.inOut" });
+      if (window.matchMedia("(hover:hover) and (pointer:fine)").matches){
+        hero.addEventListener("pointermove", function(e){
+          var r = hero.getBoundingClientRect();
+          if (r.width < 2) return;
+          heroMouse.x = (e.clientX - r.left) / r.width;
+          heroMouse.y = (e.clientY - r.top) / r.height;
+          window.gsap.to(heroBg, { x: (heroMouse.x - 0.5) * -14, y: (heroMouse.y - 0.5) * -10, duration: 0.9, ease: "power2.out", overwrite: "auto" });
+        });
+        hero.addEventListener("pointerleave", function(){
+          heroMouse.x = 0.5; heroMouse.y = 0.5;
+          window.gsap.to(heroBg, { x: 0, y: 0, duration: 0.9, ease: "power2.out", overwrite: "auto" });
+        });
+      }
+    }
+  }
+  heroFxInit();
+  heroIntro();
+
+  /* ================= 10. Card: GSAP entrance + tilt 3D + spotlight + VIP beam ================= */
+  var gridArea = $("#productArea");
+  var canTilt = window.matchMedia("(hover:hover) and (pointer:fine)").matches && !reduceMotion && !isTouch;
+  function animateCards(cards){
+    if (!cards || !cards.length) return;
+    if (hasGsap && !reduceMotion){
+      window.gsap.fromTo(cards,
+        { opacity: 0, y: 16, scale: 0.985 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.06, ease: "power3.out", overwrite: "auto", clearProps: "transform,opacity" });
+    }
+  }
+  function applyVipBeam(){
+    if (!gridArea || reduceMotion) return;
+    var vip = gridArea.querySelector(".card[data-cat='detail']");
+    if (vip && !vip.classList.contains("beam")){
+      gridArea.querySelectorAll(".card.beam").forEach(function(c){ c.classList.remove("beam"); });
+      vip.classList.add("beam");
+    }
+  }
+  if (gridArea){
+    /* Entrance khi card render (app.js render lai grid moi lan loc/phan trang) */
+    var cardObs = new MutationObserver(function(muts){
+      var fresh = [];
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+          if (n.nodeType === 1 && n.classList && n.classList.contains("card")) fresh.push(n);
+          else if (n.nodeType === 1 && n.querySelectorAll) n.querySelectorAll(".card").forEach(function(c){ fresh.push(c); });
+        });
+      });
+      if (fresh.length){ animateCards(fresh); applyVipBeam(); }
+    });
+    cardObs.observe(gridArea, { childList:true, subtree:true });
+    /* Card san co luc load (app.js INIT render truoc khi animations.js chay) */
+    var initialCards = gridArea.querySelectorAll(".card");
+    if (initialCards.length){ animateCards(Array.prototype.slice.call(initialCards)); applyVipBeam(); }
+    /* Tilt + spotlight: pointermove tren grid, set --rx/--ry/--mx/--my cho card duoi chuot.
+       CSS transition (0.28s) lam muot — khong can GSAP o day. */
+    if (canTilt){
+      gridArea.addEventListener("pointermove", function(e){
+        var card = e.target.closest ? e.target.closest(".card") : null;
+        if (!card || !gridArea.contains(card)) return;
+        var r = card.getBoundingClientRect();
+        if (r.width < 2) return;
+        var px = (e.clientX - r.left) / r.width;
+        var py = (e.clientY - r.top) / r.height;
+        card.style.setProperty("--rx", ((0.5 - py) * 7).toFixed(2) + "deg");
+        card.style.setProperty("--ry", ((px - 0.5) * 7).toFixed(2) + "deg");
+        card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
+        card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
+      });
+      gridArea.addEventListener("pointerout", function(e){
+        var card = e.target.closest ? e.target.closest(".card") : null;
+        if (card && !card.contains(e.relatedTarget)){
+          card.style.setProperty("--rx", "0deg");
+          card.style.setProperty("--ry", "0deg");
+        }
+      });
+    }
+  }
+
+  /* ================= 11. Magnetic CTA (GSAP quickTo, desktop only) ================= */
+  var magneticBtns = $all(".hero-actions .btn, #topLoginBtn");
+  if (hasGsap && !reduceMotion && !isTouch && window.matchMedia("(hover:hover) and (pointer:fine)").matches){
+    magneticBtns.forEach(function(btn){
+      var xTo = window.gsap.quickTo(btn, "x", { duration: 0.4, ease: "power3.out" });
+      var yTo = window.gsap.quickTo(btn, "y", { duration: 0.4, ease: "power3.out" });
+      btn.addEventListener("pointermove", function(e){
+        var r = btn.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        xTo(Math.max(-6, Math.min(6, dx * 0.18)));
+        yTo(Math.max(-6, Math.min(6, dy * 0.18)));
+      });
+      btn.addEventListener("pointerleave", function(){ xTo(0); yTo(0); });
     });
   }
 })();

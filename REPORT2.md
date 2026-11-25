@@ -675,3 +675,227 @@ xung đột).
   `CARD_PARTNER_KEY` trùng `.env` trên VPS) và kiểm tra trên điện thoại
   + Mini App: đăng nhập TK/MK, nạp thẻ thật 10.000đ, điểm danh — xem
   Toast có rõ ràng khi VPS tắt/mất mạng không.
+
+---
+
+## PART 7 — UI/Logic bug audit + luxury colors + Awwwards animations (2026-11-25)
+
+Checkpoint 2 work on top of Checkpoint 1 (finalization). No push in this pass.
+Files touched: `index.html`, `assets/app.js`, `assets/animations.js`,
+`assets/animations.css` (all in `files/store-upgrade/`).
+
+### PART 1 — Bugs fixed
+
+1. **Oversized black toast (Sonner-style rebuild).**
+   - Removed the conflicting old toast CSS: inline `.toast` / `.toast.show`
+     (centered-bottom, dark) in `index.html` + the mobile `.toast{bottom:86px}`
+     rule + the `animations.css` top-right override with a hardcoded `✓::before`.
+   - New structure: `#toastContainer` (`index.html`, `role="status"`) with the
+     exact spec container CSS (`position:fixed; top:20px; right:20px; bottom:auto;
+     left:auto; width:auto; max-width:min(380px, calc(100vw - 32px)); height:auto;
+     pointer-events:none; z-index:9999; display:flex; flex-direction:column; gap:10px`)
+     and `.toast-item` (`height:auto; min-height:unset; width:fit-content;
+     max-width:100%; pointer-events:auto`, glass `backdrop-filter:blur(14px)`).
+   - `toast(msg, type)` in `app.js` is now typed: `success` (✓ emerald),
+     `info` (ℹ blue), `warning` (⚠ amber), `error` (✕ crimson); icon + text
+     via `textContent` (XSS-safe); auto-dismiss 2.6 s with a countdown
+     progress bar (`.toast-bar`, `scaleX` 1→0); max 3 items (oldest dropped).
+     Default type stays `"success"` so old `toast(msg)` calls keep working.
+   - The unauthenticated purchase prompt (`requireLogin()`,
+     "Đăng nhập trước để mua acc nhé.") is now `toast(..., "info")` — no
+     green checkmark. Other call sites typed too: network/auth/card errors →
+     `error`; SePay-not-seen / amount validation / card format → `warning`;
+     logout / invoice-created / checking / currency-switch → `info`.
+   - Verified: longest built-in message (~110 chars, authNoBackend VI) is
+     3 lines ≈ 85 px tall — under the 120 px cap. See "Toast bbox" below.
+2. **Squashed sidebar Balance Card.**
+   - `.balance-card` now enforces `flex-shrink:0; height:auto;
+     min-height:fit-content; position:relative` (inline CSS) and the
+     `overflow:hidden` that clipped it in `animations.css` is removed.
+   - The old one-shot beam sweep (`.beam::after`, `translateX`) is replaced by
+     a Houdini `@property --beam-angle` rotating `conic-gradient` border beam
+     on a dedicated `::before` layer (`pointer-events:none`, mask-composite
+     ring, `padding:1.5px`) — zero height squashing / text clipping.
+   - Beam is now **persistent while authenticated**: `animations.js`
+     `setBeam(synced)` on `anhdev:balance` (was a 1 s one-shot). Same beam
+     applied to the first VIP card (`.card[data-cat='detail']` gets `.beam`
+     on every grid render).
+   - Logged-out status text updated in BOTH places (`index.html` static +
+     `app.js` `refreshUserUI`): "Chưa đăng nhập Telegram — số dư demo, chưa
+     đồng bộ" → **"Chưa đăng nhập — đăng nhập để đồng bộ ví"**.
+   - Logo header clipping: the sidebar `.brand` is `position:sticky; top:0`
+     (unchanged, batch 2) — verified the top is never clipped; the balance
+     card no longer contributes to the squash.
+3. **Modal close button + minor logic bugs.**
+   - `.modal-x` is now `display:inline-flex; align-items:center;
+     justify-content:center; width:34px; height:34px; line-height:1; padding:0`
+     in all 3 modals (auth / buy / check-in).
+   - `#payQrImg` now has `hidden` in the HTML (was visible with an empty
+     `src=""` before an invoice is generated); `renderPayment()` already
+     sets `img.hidden = false` when a real QR URL is assigned, and the
+     existing error handler shows `#payQrFallback` on load failure.
+   - Hero headline whitespace: `index.html` h1 is now
+     `Kho tài khoản <br />ANHDEV` (space before `<br />`) and the EN i18n
+     string in `app.js` is `'Account warehouse <br />ANHDEV'`.
+   - VND sync: already done in batch 2 — `refreshMoneyLabels()` syncs the
+     check-in badge (`1–500đ`) and modal description with the VND/USD
+     switcher; verified still intact (no change needed).
+
+### PART 2 — Luxury color system
+
+All 4 CSS variable blocks updated (`:root`, `@media (prefers-color-scheme:
+dark)`, `html[data-theme="light"]`, `html[data-theme="dark"]`) with the new
+semantic aliases (`--bg-main`, `--bg-surface`, `--bg-subtle`,
+`--border-subtle`, `--bg-glass`, `--accent-primary`, `--accent-gold`,
+`--accent-crimson`, `--text-primary`, `--text-secondary`, `--crimson`).
+
+- Light (Warm Ivory & Deep Emerald): `--bg-main:#F7F5F0`,
+  `--bg-surface:#FFFFFF`, `--bg-subtle:#EFECE4`, `--border-subtle:#E5E0D5`,
+  `--accent-primary:#0C4A3B` (hover `#08352A`), `--accent-gold:#C68B2C`,
+  `--accent-crimson:#DC2626`, `--text-primary:#111C18`,
+  `--text-secondary:#5B6B64`. Light `--muted` darkened to `#5B6B64` for
+  contrast; `--wine` → `#0C4A3B`, `--gold` → `#C68B2C`,
+  `--danger`/`--crimson` → `#DC2626`.
+- Dark (Luxury Obsidian Emerald & Burnished Gold): `--bg-main:#080C0B`,
+  `--bg-surface:#101917`, `--bg-glass:rgba(16,25,23,0.78)`,
+  `--border-subtle:rgba(52,211,153,0.14)`, `--accent-primary:#10B981`
+  (hover `#34D399`), `--accent-gold:#F5B942`, `--accent-crimson:#F43F5E`,
+  `--text-primary:#F1F5F3`, `--text-secondary:#94A8A0`. Dark `--bg` →
+  `#080C0B`, `--surface` → `#101917`, `--line` →
+  `rgba(52,211,153,.14)`, `--wine` → `#10B981`, `--gold` → `#F5B942`.
+- Audit: Sidebar, Topbar, Hero, 4-step guide, Search & Autocomplete,
+  Account/Random cards, Leaderboard, Invoices, Auth/QR/Check-in Modals,
+  Toasts, Scrollbars — all read from the variable blocks, so no blinding
+  white panels in Dark Mode and no low-contrast text in Light Mode.
+  (The 4-step guide was color-audited only, NOT animated — it is deleted
+  at the very end per the user's order.)
+
+### PART 3 — Animations
+
+- **Lenis 1.1.14** (`https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js`,
+  `crossorigin="anonymous"`, `defer`, before `app.js`): `initLenis()` in
+  `animations.js` §0 — guarded by `reduceMotion`, touch detection, and
+  `typeof window.Lenis === "function"`; `window.__lenis` exposed so
+  `app.js` `instantScrollTop()` uses `lenis.scrollTo(0, {immediate:true})`
+  when available; `lenis.stop()/start()` wired into the modal scroll lock.
+  `data-lenis-prevent` added to `.sidebar`, `.search-suggest`, and all 3
+  `.modal-wrap`s.
+- **GSAP 3.12.5** (`https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js`):
+  hero entry timeline (badge → headline → subtitle → CTA, `fromTo`
+  opacity/y, stagger 0.12, `power3.out`, `clearProps`); Ken Burns now
+  GSAP-driven (`scale` 1→1.07, 16 s, yoyo, repeat -1, `sine.inOut`) with
+  the CSS Ken Burns disabled only when GSAP loads (`html.gsap-on` class —
+  CSS animation is the fallback if the CDN fails); 3D mouse parallax on
+  the hero bg (`x`/`y` ±14/±10 px, `overwrite:"auto"` so it never kills
+  the scale tween). Hero particles: `<canvas id="heroFx">`
+  (`pointer-events:none`, `z-index:1`) with 46 floating crimson embers +
+  gold aura particles (rAF, DPR-capped, cursor-reactive drift, desktop
+  only). Card entrance: GSAP `fromTo` stagger 0.06 on every grid render
+  (MutationObserver + initial batch), replacing the CSS `cardIn`.
+- **canvas-confetti 1.9.3**
+  (`https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js`):
+  check-in burst is now dual-corner (gold + emerald, 70 particles each
+  from bottom-left/right + 40 centre) with the vanilla `confetti()` div
+  fallback if the CDN fails. The floating `+xxxđ` spring particle is
+  unchanged.
+- **Houdini `@property --beam-angle`**: rotating conic border beam for the
+  Balance Card (persistent when authenticated) and the first VIP card
+  (see PART 1.2). Fallback: browsers without `@property` show a static
+  gradient ring (no error, no rotation).
+- **Card tilt + grid spotlight**: `pointermove` on `#productArea` sets
+  `--rx`/`--ry` (±3.5° max) and `--mx`/`--my` on the hovered card; CSS
+  `transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry))`
+  (0.28 s transition smooths it) + a radial spotlight `::after` at the
+  cursor + a diagonal holographic foil sheen on `.card-cover::after`
+  (sweeps on hover, never covers price/labels). Desktop hover-capable
+  only; the hover lift (`translateY(-4px)`) now includes the tilt vars
+  so it no longer wipes the tilt. Touch/reduced-motion: no tilt.
+- **Magnetic CTAs**: GSAP `quickTo` x/y on `.hero-actions .btn`
+  ("Khám phá kho", "Nạp tiền VietQR") + `#topLoginBtn` ("Đăng nhập"),
+  max ±6 px, `power3.out`; diagonal shimmer sweep `::after` added to
+  those buttons (`.btn-wine` already had one).
+- **Toasts & modals**: Sonner-style glass toasts (see PART 1.1); modal
+  backdrop blur raised 3 px → `blur(14px)`; inner fields stagger in
+  (`.field`/`.btn`/`.tab-bar`, `fieldIn`, `--i` via `stagger()` on all
+  3 modals).
+
+### CSP
+
+`<meta http-equiv="Content-Security-Policy">` in `index.html`:
+`script-src` now includes `https://cdn.jsdelivr.net` (GSAP/Lenis/confetti);
+all other directives preserved, including the VPS `connect-src`
+`https://api.anhdev.store` placeholder and the Worker URL. Verified every
+external host the page fetches is whitelisted: `cdn.jsdelivr.net`
+(script), `telegram.org` (script), `fonts.googleapis.com` (style),
+`fonts.gstatic.com` (font), `img.vietqr.io` + `t.me` + `cdn.telegram.org`
+(img), Worker + `api.anhdev.store` (connect), `oauth.telegram.org`
+(frame), `web.telegram.org`/`telegram.org` (frame-ancestors). Zero new
+remote hosts.
+
+### Verification (PART 4)
+
+- `node --check` PASS on `app.js` + `animations.js`.
+- jsdom harness (`/tmp/verify-part4.js`, CDN/fetch blocked to test guards):
+  **69/69 passed** — 0 inline `onclick`, 0 base64, 0 `BACKEND_API_BASE`,
+  `API_BASE_URL` single Flask config (line 29), Worker `API_BASE`
+  untouched, `PAGE_SIZE = 12`, `HERO_COUNT = 20`, anti-leak intact,
+  CSP entries (jsDelivr + VPS + Worker), all 3 CDN scripts pinned +
+  `crossorigin="anonymous"`, `#heroFx` present, `#toastContainer`
+  present, old `#toast` gone, `payQrImg hidden`, hero h1 space, balance
+  note new text (HTML + app.js), balance-card CSS
+  (`flex-shrink:0; height:auto; min-height:fit-content`), modal-x
+  centering, toast container/item CSS (exact spec values), 4 variants +
+  progress bar, Houdini `@property`, beam conic + no `overflow:hidden`,
+  PART 2 vars (light + dark), `data-lenis-prevent` (sidebar / suggest /
+  3 modal-wraps), purchase prompt `info`, `instantScrollTop` Lenis,
+  all JS guards (Lenis/GSAP/confetti + vanilla fallback), tilt vars,
+  magnetic quickTo ±6 px, VIP beam, 4-steps section still present,
+  heroTitle EN space. Runtime: toast item created on unauthenticated
+  buy (info variant, correct text, icon + text + progress bar),
+  container caps at 3 items, computed styles confirm container
+  `max-width:380px; position:fixed; top:20px; right:20px` and item
+  `max-width:100%; width:fit-content; height:auto`; balance card shows
+  all 3 lines (label row "Số Dư + Giảm 0%", figure `data-balance`,
+  status note); 3 modal-x buttons; scripts run clean with CDN blocked
+  (no `window.Lenis`/`gsap`/`confetti`, no `gsap-on` class, no crash).
+- **Toast bbox**: container `max-width` is hard-capped at 380 px
+  (computed style confirms); item height is content-driven (`height:auto`).
+  Longest built-in message (~110 chars) renders 3 lines ≈ 85 px — under
+  the 120 px cap. Caveat: an exceptionally long server error string
+  (>~150 chars, only via `err.message` passthrough) could wrap to 5
+  lines ≈ 124 px; all built-in messages are within the cap.
+- **Balance card**: 3 lines render with zero clipping (no
+  `overflow:hidden` on the card; beam is a separate `::before` layer).
+- **Search re-run** (`/tmp/test_search_part4.js`, real 12,126-account
+  stock): **31/31 passed** — murad 162, nakroth 9, tulen 104,
+  "nakroth ki" 9, aliases nak/mu/tul/flo resolve, tier stats N>0
+  (SSS 46 / SS 862 / SS+ 742 / Anime 850), anti-leak 0 random matches
+  on 11 queries, filter 0.85 ms/query (< 15 ms). Note: the tier counts
+  are N>0 stats counts, not grid-filter counts — the grid substring
+  filter returns all 880 ready-info for "SSS" because every ready-info
+  desc carries the `(sss:0, ss:0, ...)` stats block (longstanding
+  behaviour, unchanged). "thu nguyen" grid = 25 ready-info (public skin
+  names "Điêu Thuyền", "Kỷ Nguyên", "Khởi nguyên" — legitimate
+  substring matches, 0 random).
+- **Demo autocomplete** (`/tmp/test_demo_part4.js`): **9/9 passed** —
+  popular keywords on empty focus, no junk phrases, "thu nguyen"
+  suggests the public Thứ Nguyên pack, "SSS" suggests demo tier packs,
+  native `type="search"` × reset. ("murad" correctly suggests nothing
+  in demo — no demo product contains it.)
+- **Viewport/mode matrix**: jsdom has no layout engine, so the
+  1366/1920/390 px × light/dark matrix could NOT be run here. Verified
+  instead by computed styles + CSS inspection (see above). A real-phone
+  check after deploy is still needed for: toast ≤380×120 on a 390 px
+  screen, balance card 3 lines on a real phone, GSAP/Lenis/confetti
+  actually loading from the CDN (no CSP violation in the console),
+  hero particles + parallax on desktop, card tilt on hover, and dark-mode
+  contrast by eye.
+- **Not verified without a real browser**: Lenis smooth scroll feel;
+  GSAP hero timeline / Ken Burns / parallax motion; canvas particle
+  rendering (jsdom has no canvas 2d context); canvas-confetti burst
+  visuals; card tilt/spotlight/foil sheen on hover; magnetic button
+  pull; modal spring + field stagger timing; dark-mode contrast by eye
+  (values are set, but no visual check); the 1366/1920/390 viewport
+  matrix; zero console errors / zero CSP violations in a real browser
+  (no new host is fetched that is not whitelisted, but only a real
+  load proves it).
