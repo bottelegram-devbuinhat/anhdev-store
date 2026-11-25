@@ -169,6 +169,7 @@
     ordEmptyS:{ vi:"Acc bạn mua ở web, Mini App hay bot Telegram sẽ hiện ở đây.", en:"Accounts you buy on the web, Mini App or Telegram bot will appear here." },
     ordRecv:{ vi:"Nhận acc", en:"Delivery" },
     ordRecvBot:{ vi:"Mở bot @devbn_bot → Đơn hàng của tôi để xem tài khoản + mật khẩu.", en:"Open the bot @devbn_bot → My orders to view the username + password." },
+    ordRecvOnce:{ vi:"Tài khoản + mật khẩu đã hiển thị 1 lần ngay sau khi mua — hãy lưu lại khi mua để xem lại tại đây.", en:"Username + password were shown once right after purchase — save them when you buy to view them here." },
     invEmptyT:{ vi:"Chưa có hoá đơn nạp nào", en:"No top-up invoices yet" },
     invEmptyS:{ vi:"Nạp tiền qua VietQR / SePay hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR / SePay or TheSieuRe prepaid cards — invoices and their status will be saved here." },
     accLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
@@ -357,7 +358,7 @@
     }
     // Quay lại shop / ví → lấy lại số dư thật từ bot.
     if ((name === "home" || name === "topup" || name === "account") && state.user) refreshWebBalance();
-    if (name === "orders") renderOrders();
+    if (name === "orders"){ renderOrders(); refreshBackendOrders(); }
     if (name === "invoices"){ renderInvoices(); refreshBackendInvoices(); }
     if (name === "account") renderAccount();
     if (name === "leaderboard") renderLeaderboard();
@@ -480,6 +481,7 @@
       state.checkin = null; state.checkinDone = false;
       BALANCE.synced = false; BALANCE.web = false; BALANCE.updatedAt = null;
       state.userRole = null;
+      state.orders = []; // đăng xuất: xoá đơn khỏi bộ nhớ
       teardownAdminModule(); // đăng xuất: xoá sạch dữ liệu + DOM admin khỏi RAM
       clearWebToken(true); // đăng xuất tài khoản web ở backend (nếu đang có phiên web)
       saveUser(null);
@@ -488,6 +490,7 @@
       /* Đổi tài khoản sang acc thường khi module admin đang nạp: gỡ admin ngay. */
       if (u.role && u.role !== "admin") teardownAdminModule();
       saveUser(null); // phiên web thắng: xoá phiên Telegram đã lưu để lần mở sau không nhảy lại
+      loadWebOrders(); refreshBackendOrders(); // đơn web: khôi phục từ localStorage + đồng bộ từ backend
     } else {
       state.discount = 0; // tài khoản Telegram: mức giảm giá lấy từ bot, không dùng discount web
       clearWebToken(false); // phiên Telegram thắng: xoá token web đã lưu (không gọi logout backend)
@@ -502,6 +505,7 @@
   function visibleProducts(){
     var f = state.filter;
     var list = PRODUCTS.filter(function(p){
+      if (isSoldCode(p.code)) return false; // acc da ban tren web — an khoi luoi
       if (f.cat !== "all" && p.cat !== f.cat) return false;
       if (f.onlyStock && p.stock <= 0) return false;
       if (f.q){
@@ -1058,7 +1062,9 @@
     var sameData = !!(SYNC.updatedAt && data.updated_at && SYNC.updatedAt === data.updated_at);
     var accs = (data.accounts || []).map(apiProduct);
     var prods = (data.products || []).map(apiProductForProduct);
-    PRODUCTS = accs.concat(prods);
+    // Kho ve lai tu stock.json tinh: loc het acc da ban tren web (biet
+    // qua SOLD_CODES) de chung khong hien lai sau moi lan sync.
+    PRODUCTS = accs.concat(prods).filter(function(p){ return !isSoldCode(p.code); });
     state.filter.page = 1;
     SYNC.updatedAt = data.updated_at || null;
     /* Kho về lại đúng bản đã index (cache + mạng trùng nhau) thì chỉ chuẩn hoá
@@ -1214,6 +1220,46 @@
       })
       .then(function(data){ clearTimeout(timer); return data; },
             function(err){ clearTimeout(timer); throw err; });
+  }
+  /* ===== AN ACC DA BAN KHOI LUOI HIEN THI (sold-codes) =====
+     Store doc kho tu stock.json TINH (GitHub Pages) nen khong biet acc
+     nao da ban tren web — acc vua mua van hien lai sau khi tai lai trang.
+     Backend co GET /api/shop/sold-codes (CONG KHAI, chi tra ma acc,
+     khong co tk|mk) — lay danh sach do ve va LOC het khoi luoi.
+     Neu backend khong tra loi duoc (Render ngu / mat mang / chua cau
+     hinh) thi GIU NGUYEN luoi nhu cu — kho khong bao gio vo vi loi nay. */
+  var SOLD_CODES = {}; // { "LQ12126": true, ... } — ma acc da ban tren web
+  function isSoldCode(code){ return !!code && !!SOLD_CODES[code]; }
+  function applySoldCodes(codes){
+    /* Ghi nho danh sach ma da ban + loc het khoi PRODUCTS hien tai.
+       Tra ve so acc vua bi loc. Goi lai sau moi lan sync kho (kho ve
+       lai tu stock.json se mang ca acc da ban tro lai neu khong loc). */
+    var set = {};
+    (codes || []).forEach(function(c){ if (c) set[String(c)] = true; });
+    SOLD_CODES = set;
+    var before = PRODUCTS.length;
+    PRODUCTS = PRODUCTS.filter(function(p){ return !isSoldCode(p.code); });
+    return before - PRODUCTS.length;
+  }
+  function fetchSoldCodes(){
+    /* Lay ma acc da ban tu backend roi an khoi luoi. Loi nao cung fallback
+       im lang: giu nguyen luoi, khong toast, khong bao loi. */
+    if (!backendReady()) return Promise.resolve(0);
+    return backendFetch("/api/shop/sold-codes")
+      .then(function(d){
+        applySoldCodes((d && d.codes) || []);
+        renderProducts(); renderStats();
+        return 0;
+      })
+      .catch(function(){ return 0; });
+  }
+  function markSoldCode(code){
+    /* Sau khi mua thanh cong (hoac 409: nguoi khac vua mua truoc): an acc
+       nay khoi luoi ngay lap tuc, khong doi lan sync kho sau. */
+    if (!code) return;
+    SOLD_CODES[String(code)] = true;
+    PRODUCTS = PRODUCTS.filter(function(p){ return p.code !== code; });
+    renderProducts(); renderStats();
   }
   function saveWebToken(t){
     state.webToken = t || null;
@@ -1758,12 +1804,13 @@
       .then(function(d){
         var order = d.order || {}, acc = d.account || {};
         state.balance = order.balance;
-        p.stock = 0; // acc da ban — khong mua lai duoc tu luoi hien tai
+        markSoldCode(p.code); // acc da ban — an khoi luoi ngay, khong cho mua lai
         state.orders.unshift({
           code: order.code, demo: false, productName: p.name,
           price: order.price, time: nowStr(),
           user: acc.username, pass: acc.password
         });
+        saveWebOrders(); // lưu đơn + tk|mk xuống localStorage để Lịch sử còn sau khi tải lại trang
         refreshUserUI(); renderProducts(); renderStats();
         $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
         $("#buyBody").innerHTML =
@@ -1778,8 +1825,8 @@
       })
       .catch(function(err){
         if (err && err.status === 409){
-          /* Acc vua bi nguoi khac mua: danh dau het hang, giu modal mo. */
-          p.stock = 0; renderProducts();
+          /* Acc vua bi nguoi khac mua: an khoi luoi ngay, giu modal mo. */
+          markSoldCode(p.code);
           toast(L("buyWebSoldOut"), "error");
           $("#buyBody").innerHTML = '<div class="shortfall">' + L("buyWebSoldOut") + '</div>';
           $("#buyActions").innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Đóng</button><a class="btn btn-wine" href="' + BOT_LINK + '" target="_blank" rel="noopener noreferrer">Mua trong bot @devbn_bot</a>';
@@ -1865,7 +1912,7 @@
         cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(o.user) + '</code><button class="copy-btn" data-copy="' + esc(o.user) + '">Copy</button></div>' +
           '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code>' + esc(o.pass) + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
       } else {
-        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvBot") + '</span></div></div>';
+        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvOnce") + '</span></div></div>';
       }
       return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span></div>' +
         '<div class="meta">Mã đơn ' + o.code + ' · ' + o.time + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
@@ -1917,6 +1964,98 @@
       '<p style="font-size:12.5px;color:var(--muted);margin-top:14px">' + ((state.user.web && !state.user.telegram_id) ? L("accNoteWeb") : L("accNote")) + '</p>';
     $("#accTopup").addEventListener("click", function(){ showView("topup"); });
     $("#accLogout").addEventListener("click", function(){ setUser(null); state.balance = 0; refreshUserUI(); toast("Đã đăng xuất.", "info"); showView("home"); });
+  }
+
+  /* ĐƠN MUA ACC — lưu localStorage + đồng bộ từ backend.
+     NGUYÊN NHÂN GỐC CỦA BUG "lịch sử không lưu được gì": state.orders trước
+     đây chỉ được thêm trong bộ nhớ khi mua ngay trong phiên (completeWebBuy /
+     completePurchase) — app KHÔNG BAO GIỜ gọi GET /api/shop/orders và KHÔNG
+     lưu đơn xuống localStorage. Tải lại trang là state.orders = [] nên
+     renderOrders() hiện "Chưa có đơn hàng nào" dù backend đã lưu đơn trong
+     shop_orders. Sửa: (a) loadWebOrders() khôi phục đơn web đã mua (kèm
+     tk|mk) từ localStorage theo từng tài khoản web; (b)
+     refreshBackendOrders() lấy đơn thật từ GET /api/shop/orders rồi gộp
+     (đơn local có tk|mk thắng khi trùng mã); (c) completeWebBuy() lưu đơn
+     mới xuống localStorage ngay sau khi mua. tk|mk chỉ nằm trong trình
+     duyệt của chính người mua (để xem lại trong Lịch sử) — không gửi lên
+     server, không lưu trong shop_orders; đăng xuất thì xoá khỏi bộ nhớ. */
+  var WEB_ORDERS_KEY_PREFIX = "anhdev_web_orders_";
+  function webOrdersKey(){
+    var u = state.user;
+    return (u && u.web && u.username) ? WEB_ORDERS_KEY_PREFIX + u.username : null;
+  }
+  function loadWebOrders(){
+    var key = webOrdersKey();
+    if (!key) return;
+    try {
+      var raw = localStorage.getItem(key);
+      var list = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(list)) state.orders = list.filter(function(x){ return x && x.code && !x.demo; }).slice(0, 50);
+    } catch (e) { /* bỏ qua */ }
+  }
+  function saveWebOrders(){
+    var key = webOrdersKey();
+    if (!key) return;
+    try {
+      var creds = state.orders.filter(function(x){ return x && x.code && !x.demo && x.user && x.pass; }).slice(0, 50);
+      localStorage.setItem(key, JSON.stringify(creds));
+    } catch (e) { /* trình duyệt chặn localStorage */ }
+  }
+  function productNameForCode(code){
+    var found = null;
+    (PRODUCTS || []).forEach(function(p){ if (p && p.code === code) found = p; });
+    return found ? found.name : ("Acc " + code);
+  }
+  function fmtOrderTime(ts){
+    /* created_at backend là "YYYY-MM-DD HH:MM:SS" (giờ UTC của SQLite) —
+       đổi sang giờ máy người dùng, cùng dạng với nowStr(). */
+    if (!ts) return "";
+    var m = String(ts).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return String(ts);
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)));
+    if (isNaN(d.getTime())) return String(ts);
+    return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) + " · " + d.toLocaleDateString("vi-VN");
+  }
+  /* Đồng bộ ĐƠN MUA ACC từ backend (GET /api/shop/orders — đơn thật đã lưu
+     trong shop_orders). Chỉ chạy cho tài khoản web; đơn backend thắng khi
+     trùng mã, trừ đơn local đã có tk|mk (giữ lại để hiện trong Lịch sử). */
+  function refreshBackendOrders(){
+    if (!state.user || !state.user.web || !backendReady()) return;
+    backendFetch("/api/shop/orders")
+      .then(function(d){
+        var list = d && d.orders;
+        if (!Array.isArray(list)) return;
+        var byCode = {};
+        state.orders.forEach(function(o){ if (o && o.code) byCode[o.code] = o; });
+        var merged = [];
+        var changed = false;
+        list.forEach(function(bo){
+          if (!bo || !bo.code) return;
+          var local = byCode[bo.code];
+          if (local && local.user && local.pass){
+            merged.push(local); // giữ tk|mk đã mua trong phiên này
+          } else {
+            merged.push({
+              code: bo.code, demo: false,
+              productName: productNameForCode(bo.code),
+              price: (typeof bo.price === "number") ? bo.price : 0,
+              time: fmtOrderTime(bo.created_at),
+              status: bo.status || "delivered"
+            });
+            changed = true;
+          }
+          delete byCode[bo.code];
+        });
+        /* Đơn chỉ có trong bộ nhớ (demo, hoặc vừa mua chưa kịp đồng bộ):
+           giữ nguyên thứ tự, đặt trước đơn backend. */
+        var leftovers = state.orders.filter(function(o){ return o && o.code && byCode[o.code]; });
+        if (leftovers.length){ merged = leftovers.concat(merged); changed = true; }
+        if (changed){
+          state.orders = merged.slice(0, 50);
+          renderOrders();
+        }
+      })
+      .catch(function(){ /* backend chưa sẵn / hết phiên — giữ đơn local */ });
   }
 
   /* Đồng bộ Hoá Đơn nạp thẻ từ backend (trạng thái thật sau callback cổng thẻ).
@@ -2547,6 +2686,7 @@
   renderAccount();
   refreshCardBackendNote();
   syncStock();
+  fetchSoldCodes(); // an acc da ban tren web khoi luoi (loi thi giu nguyen luoi)
   /* Số dư thật: làm mới mỗi 60 giây khi tab đang hiển thị, và ngay khi
      người dùng quay lại tab (mở lại shop). */
   setInterval(function(){
