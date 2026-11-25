@@ -544,7 +544,8 @@
               <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21V10m4 11V10m4 11V10m4 11V10m4 11V10"/><path d="m2 10 10-6 10 6z"/></svg>
               <span data-i18n="navBank">Ngân Hàng</span>
             </button>
-            <button class="nav-item" data-nav="topup" data-tab="card">
+            <!-- TAM TAT: nap the cao tam dung (chua xac minh) — an nut nav, mo lai thi xoa style display:none -->
+            <button class="nav-item" data-nav="topup" data-tab="card" style="display:none">
               <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
               <span data-i18n="navCard">Nạp Thẻ</span>
             </button>
@@ -702,7 +703,8 @@
               <p class="sub" data-i18n="topupSub">Chuyển khoản ngân hàng qua VietQR — SePay đối soát tự động theo nội dung chuyển khoản, tiền vào ví ngay khi ngân hàng báo có.</p>
               <div class="method-tabs" role="tablist">
                 <button class="on" id="tabQr" data-i18n="tabQr">VietQR · Quét mã</button>
-                <button id="tabCard" data-i18n="tabCard">Nạp thẻ cào</button>
+                <!-- TAM TAT: nap the cao tam dung (chua xac minh) — an tab, mo lai thi xoa style display:none -->
+                <button id="tabCard" data-i18n="tabCard" style="display:none">Nạp thẻ cào</button>
               </div>
 
               <div id="topupQr">
