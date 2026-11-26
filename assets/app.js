@@ -24,7 +24,7 @@
      — chúng chỉ nằm trong file .env trên VPS. Frontend không bao giờ gọi
      thẳng cổng gạch thẻ (TheSieuRe): mọi thẻ cào đi qua backend, backend
      mới ký sign = md5(partnerKey + code + serial) và gọi cổng thẻ.
-     API số dư / nạp tiền SePay qua Cloudflare Worker là API_BASE riêng
+     API số dư / nạp tiền qua Cloudflare Worker là API_BASE riêng
      (đừng nhầm với API_BASE_URL này). */
   var API_BASE_URL = "https://anhdev-store-backend.onrender.com";
   function backendReady(){ return !!API_BASE_URL && API_BASE_URL.indexOf("REPLACE-WITH") === -1; }
@@ -172,7 +172,7 @@
     ordRecvBot:{ vi:"Mở bot @devbn_bot → Đơn hàng của tôi để xem tài khoản + mật khẩu.", en:"Open the bot @devbn_bot → My orders to view the username + password." },
     ordRecvOnce:{ vi:"Tài khoản + mật khẩu đã hiển thị 1 lần ngay sau khi mua — hãy lưu lại khi mua để xem lại tại đây.", en:"Username + password were shown once right after purchase — save them when you buy to view them here." },
     invEmptyT:{ vi:"Chưa có hoá đơn nạp nào", en:"No top-up invoices yet" },
-    invEmptyS:{ vi:"Nạp tiền qua VietQR / SePay hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR / SePay or TheSieuRe prepaid cards — invoices and their status will be saved here." },
+    invEmptyS:{ vi:"Nạp tiền qua VietQR hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR or TheSieuRe prepaid cards — invoices and their status will be saved here." },
     accLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
     accLoginS:{ vi:"Đăng nhập để xem thông tin tài khoản, số dư và lịch sử của bạn.", en:"Log in to view your account info, balance and history." },
     accName:{ vi:"Tên hiển thị", en:"Display name" },
@@ -456,8 +456,8 @@
     if (amtL) amtL.textContent = (state.lang === "en" ? "Top-up amount (" : "Số tiền nạp (") + unit + ")";
     var amtH = $("[data-i18n=\"amtHint\"]");
     if (amtH) amtH.textContent = state.lang === "en"
-      ? "Minimum " + fmt(1000) + ". After creating the invoice, transfer the exact amount with the invoice code as the note — SePay credits the right wallet automatically."
-      : "Tối thiểu " + fmt(1000) + ". Tạo hoá đơn xong, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — SePay tự cộng tiền vào đúng ví của bạn.";
+      ? "Minimum " + fmt(1000) + ". After creating the invoice, transfer the exact amount with the invoice code as the note — the system will credit your wallet after confirmation."
+      : "Tối thiểu " + fmt(1000) + ". Tạo hoá đơn xong, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — hệ thống sẽ cộng tiền vào ví của bạn sau khi xác nhận.";
     $$("#amountGrid .amount-btn").forEach(function(x){
       var v = parseInt(x.getAttribute("data-amt"), 10);
       if (!isNaN(v)) x.textContent = fmt(v);
@@ -515,6 +515,7 @@
     }
     refreshUserUI(); renderAccount();
     loadInvoices();
+    syncBankLine();
     if (u) resumePendingDeposit();
   }
 
@@ -1469,7 +1470,7 @@
           iv.status = "success";
           iv.credited = (typeof d.credited_amount === "number") ? d.credited_amount
             : (typeof d.amount === "number" ? d.amount : iv.amount);
-          iv.detail = "SePay đã đối soát · bot đã cộng " + fmt(iv.credited);
+          iv.detail = "Đã đối soát · bot đã cộng " + fmt(iv.credited);
           if (d.balance) applyBalance(d.balance);
           else refreshWebBalance();
           saveInvoices(); renderInvoices(); updatePayStatus();
@@ -1484,7 +1485,7 @@
           stopDepositPoll();
           return false;
         }
-        if (manual) toast("SePay chưa thấy giao dịch. Đợi 1–2 phút rồi thử lại.", "warning");
+        if (manual) toast("Chưa thấy giao dịch. Đợi 1–2 phút rồi thử lại.", "warning");
         return false;
       })
       .catch(function(){
@@ -2233,7 +2234,7 @@
   });
   /* ===== HOÁ ĐƠN NGÂN HÀNG + TRANG THANH TOÁN (kiểu accaov.store/client/payment/MÃ) =====
      Mỗi lần nạp tạo 1 hoá đơn có mã riêng (vd WKZO13). Nội dung chuyển khoản = mã hoá đơn,
-     SePay đối soát theo mã này. Mã QR là VietQR thật trỏ về MBBank 05817666778899. */
+     hệ thống đối soát theo mã này. Mã QR là VietQR thật trỏ về ngân hàng nhận. */
   function invoiceCode(){
     var letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     var s = "";
@@ -2266,6 +2267,7 @@
       state.invoices.unshift(iv);
       state.currentPay = iv;
       saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
+      syncBankLine();
       toast(message, "warning");
     };
     if (!apiReady()){
@@ -2284,7 +2286,7 @@
           code: code,
           amount: (typeof d.amount === "number" ? d.amount : amount),
           credited: null,
-          method: "Ngân Hàng · SePay / VietQR",
+          method: "Ngân Hàng · VietQR",
           status: "pending",
           time: nowStr(),
           remote: true,
@@ -2296,6 +2298,7 @@
         state.invoices.unshift(iv);
         state.currentPay = iv;
         saveInvoices(); renderInvoices(); renderPayment(); showView("payment");
+        syncBankLine();
         toast("Đã tạo lệnh nạp " + code + " — quét VietQR để thanh toán.", "info");
         startDepositPoll(iv);
       })
@@ -2312,6 +2315,20 @@
     var img = $("#payQrImg"); if (!img) return;
     if (!img.getAttribute("src")) img.hidden = true;
   }
+  /* Dong thong tin chuyen khoan (STK + ten chu TK): chi hien khi da dang
+     nhap VA da tao hoa don — khach chua login khong thay STK trong DOM. */
+  function syncBankLine(){
+    var el = $("#bankLine"); if (!el) return;
+    var show = !!(state.user && state.invoices && state.invoices.length > 0);
+    if (show){
+      el.textContent = state.lang === "en"
+        ? "Receiving bank: " + BANK.name + " · Account " + BANK.account + " · " + BANK.holder
+        : "Ngân hàng nhận: " + BANK.name + " · STK " + BANK.account + " · " + BANK.holder;
+    } else {
+      el.textContent = "";
+    }
+    el.hidden = !show;
+  }
   function renderPayment(){
     var iv = state.currentPay; if (!iv) return;
     var bank = iv.bank || BANK;
@@ -2320,7 +2337,7 @@
     $("#payAcc").textContent = bank.account || BANK.account;
     $("#payHolder").textContent = bank.holder || BANK.holder;
     /* Số tiền CHUYỂN KHOẢN THẬT (VND) — cố tình giữ fmtVND, không đổi theo
-       tiền tệ hiển thị: khách phải chuyển đúng số VND này thì SePay mới khớp. */
+       tiền tệ hiển thị: khách phải chuyển đúng số VND này thì hệ thống mới khớp. */
     $("#payAmount").textContent = fmtVND(iv.amount);
     $("#payNote").textContent = iv.code;
     $("#payAccCopy").setAttribute("data-copy", bank.account || BANK.account);
@@ -2375,8 +2392,8 @@
     var iv = state.currentPay; if (!iv) return;
     if (this.hasAttribute("data-pay-done")){ showView("invoices"); return; }
     if (iv.remote){
-      // Lệnh nạp thật: tiền do SePay/bot xác nhận, không tự cộng trên trình duyệt.
-      toast("Đang kiểm tra giao dịch với SePay...", "info");
+      // Lệnh nạp thật: tiền do hệ thống/bot xác nhận, không tự cộng trên trình duyệt.
+      toast("Đang kiểm tra giao dịch...", "info");
       checkDeposit(iv, true);
       return;
     }
@@ -2669,22 +2686,22 @@
     statsTitle:"Warehouse overview", statStock:"In stock", statModels:"Products", statFrom:"From", distTitle:"In-stock products by price",
     stepsTitle:"Buy an account in 4 steps",
     step1T:"Create an account", step1P:"Register with a username + password, or log in with Telegram. Opened inside the Mini App, you are recognised automatically.",
-    step2T:"Top up your wallet", step2P:"Scan the VietQR code and transfer with the exact note — SePay credits your wallet automatically, no receipt needed.",
+    step2T:"Top up your wallet", step2P:"Scan the VietQR code and transfer with the exact note — your wallet is credited after the system confirms the transfer, no receipt needed.",
     step3T:"Pick an account & Buy now", step3P:"Filter by account type and price, then hit Buy now. If your wallet covers it, stock is deducted instantly.",
     step4T:"Receive your account", step4P:"Username + password appear right in My Orders.",
     prodTitle:"Products in warehouse", sortDefault:"Default", sortShuffle:"Shuffle", sortAsc:"Price low → high", sortDesc:"Price high → low", sortStock:"Most in stock", stockOnly:"In stock",
     chipAll:"All", chipRandom:"Random Accounts", chipDetail:"Ready-info Accounts", chipWhite:"White Accounts", chipRandomLq:"Random AoV",
     "ph:searchPh":"Search product names...",
-    topupTitle:"Top up wallet", topupSub:"Bank transfer via VietQR — SePay matches your transfer note automatically and credits your wallet as soon as the bank confirms.",
+    topupTitle:"Top up wallet", topupSub:"Bank transfer via VietQR — transfer the exact amount with the invoice code as the note; your wallet is credited after the system confirms the transfer.",
     tabQr:"VietQR · Scan code", tabCard:"Prepaid card",
-    amtLabel:"Top-up amount (đ)", amtHint:"Minimum 1,000đ. After creating the invoice, transfer the exact amount with the invoice code as the note — SePay credits the right wallet automatically.",
-    makeQr:"Create invoice & VietQR code", bankLine:"Receiving bank: MBBank · Account 05817666778899 · BUI NGUYEN XUAN NHAT", "ph:amtPh":"Or enter another amount...",
+    amtLabel:"Top-up amount (đ)", amtHint:"Minimum 1,000đ. After creating the invoice, transfer the exact amount with the invoice code as the note — the system will credit your wallet after confirmation.",
+    makeQr:"Create invoice & VietQR code", "ph:amtPh":"Or enter another amount...",
     cardTelcoL:"Card type", cardAmountL:"Card denomination", cardAmountHint:"Pick the exact denomination printed on the card — if you declare it wrong, TheSieuRe settles at the real value and the card may be lost.",
     cardSerialL:"Serial number", "ph:cardSerialPh":"Enter the serial printed on the card", cardPinL:"Card code", "ph:cardPinPh":"Scratch the silver layer and enter the code",
     cardSubmit:"Send card",
     cardDiscT:"Card discount rates",
     ordersTitle:"My orders", ordersSub:"All purchased accounts appear here.",
-    invTitle:"Top-up invoices", invSub:"History of top-ups via SePay / VietQR and TheSieuRe prepaid cards — cards clearly show pending, success or failed status.",
+    invTitle:"Top-up invoices", invSub:"History of top-ups via VietQR and TheSieuRe prepaid cards — cards clearly show pending, success or failed status.",
     accTitle:"My account", accSub:"Link Telegram for quick sign-in everywhere.",
     lbTitle:"Leaderboard", lbSub:"Top buyers at the shop — ranked by total spending.",
     authTitle:"Welcome to AnhDev Store", authSub:"Log in to buy accounts and top up.",
@@ -2749,6 +2766,7 @@
     renderAccount();
     if ($("#checkinModal") && $("#checkinModal").classList.contains("open")) renderCheckin();
     if (state.currentPay) updatePayStatus();
+    syncBankLine();
   }
   $("#langSelect").addEventListener("change", function(){ applyLang(this.value); });
   $("#curSelect").addEventListener("change", function(){
@@ -2821,6 +2839,7 @@
   refreshUserUI();
   renderOrders();
   renderInvoices();
+  syncBankLine();
   renderAccount();
   refreshCardBackendNote();
   syncStock();

@@ -732,7 +732,7 @@
           <section class="view" id="view-topup">
             <div class="panel">
               <h2 data-i18n="topupTitle">Nạp tiền vào ví</h2>
-              <p class="sub" data-i18n="topupSub">Chuyển khoản ngân hàng qua VietQR — SePay đối soát tự động theo nội dung chuyển khoản, tiền vào ví ngay khi ngân hàng báo có.</p>
+              <p class="sub" data-i18n="topupSub">Chuyển khoản ngân hàng qua VietQR — chuyển đúng số tiền và ghi đúng nội dung là mã hoá đơn, tiền vào ví sau khi hệ thống xác nhận giao dịch.</p>
               <div class="method-tabs" role="tablist">
                 <button class="on" id="tabQr" data-i18n="tabQr">VietQR · Quét mã</button>
                 <!-- TAM TAT: nap the cao tam dung (chua xac minh) — an tab, mo lai thi xoa style display:none -->
@@ -752,10 +752,10 @@
                       <button class="amount-btn uiv-ripple-btn" data-amt="500000">500.000đ</button>
                     </div>
                     <input type="number" id="amountInput" min="1000" step="1000" placeholder="Hoặc nhập số tiền khác..." data-i18n-ph="amtPh" />
-                    <div class="hint" data-i18n="amtHint">Tối thiểu 1.000đ. Tạo hoá đơn xong, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — SePay tự cộng tiền vào đúng ví của bạn.</div>
+                    <div class="hint" data-i18n="amtHint">Tối thiểu 1.000đ. Tạo hoá đơn xong, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — hệ thống sẽ cộng tiền vào ví của bạn sau khi xác nhận.</div>
                   </div>
                   <button class="btn btn-wine uiv-shine-btn" id="makeQrBtn" style="width:100%" data-i18n="makeQr">Tạo hoá đơn &amp; mã VietQR</button>
-                  <p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:10px" data-i18n="bankLine">Ngân hàng nhận: MBBank · STK 05817666778899 · BUI NGUYEN XUAN NHAT</p>
+                  <p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:10px" id="bankLine" hidden></p>
                 </div>
               </div>
 
@@ -799,7 +799,7 @@
           <section class="view" id="view-invoices">
             <div class="panel">
               <h2 data-i18n="invTitle">Hoá đơn nạp tiền</h2>
-              <p class="sub" data-i18n="invSub">Lịch sử các lần nạp qua SePay / VietQR và thẻ cào TheSieuRe — thẻ cào hiện rõ trạng thái chờ xử lý, thành công hay thất bại.</p>
+              <p class="sub" data-i18n="invSub">Lịch sử các lần nạp qua VietQR và thẻ cào TheSieuRe — thẻ cào hiện rõ trạng thái chờ xử lý, thành công hay thất bại.</p>
               <div id="invoicesList"></div>
             </div>
           </section>

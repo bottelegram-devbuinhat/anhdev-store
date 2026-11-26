@@ -230,3 +230,43 @@ This section documents the contract the **web page already implements** against.
 - **Do NOT include `stock.json` in this deploy** (it is a separate file, updated only via `export_stock.py`).
 - GitHub Pages serves `assets/` relative to the repo root, so the relative paths work as-is. No build step.
 - After deploy, do the live checks listed in §5 (especially the Mini App + CSP + balance sync).
+
+
+---
+
+## 7. Re-check 2026-11-26 — Vá 4 điểm sót + xác nhận lại 10 kịch bản pentest
+
+**Ngày:** 2026-11-26 ~21:15–21:45 +07. **Phạm vi:** chỉ frontend store (`index.html`, `assets/app.js`, `tests/test-topup-privacy.js` mới). Không động backend, bot, HostVN, Render, `stock.json`, dữ liệu thật. 5 acc test giữ nguyên.
+
+### 7.1. Bốn điểm đã vá
+
+1. **Ảnh VietQR `src=""` — ĐÃ ĐÚNG SẴN, không cần sửa code.** Kiểm tra lại HTML tĩnh live + working copy: `<img id="payQrImg" alt="Mã VietQR thanh toán hoá đơn" width="230" height="230" hidden />` — đã có `hidden`, KHÔNG có thuộc tính `src`. JS đã đúng: `syncPayQrVisibility()` ẩn khi không có src; `renderPayment()` chỉ gán src thật (URL `qr_url` hoặc VietQR `img.vietqr.io` dựng từ hoá đơn) rồi mới bỏ hidden; handler `error` ẩn ảnh + hiện fallback. Test `b18` (test-uiverse) + test mới `b1/d6` (test-topup-privacy) đều PASS: ảnh chỉ hiện sau khi tạo hoá đơn thật.
+2. **Gỡ chữ "SePay đối soát tự động" — XONG.** Gỡ khỏi UI Nạp tiền + Hoá đơn (VI trong `index.html`, EN trong `I18N_EN` của `app.js`, text động `iv.detail`/toast, nhãn method hoá đơn, comment trong code): `topupSub`, `amtHint` (cả static lẫn `syncCurrency`), `invSub`, `invEmptyS`, `step2P`, `method` hoá đơn ("Ngân Hàng · VietQR"). Thay bằng mô tả đúng thực tế: chuyển đúng số tiền + ghi đúng mã hoá đơn, tiền vào ví sau khi hệ thống xác nhận. Chỉ giữ lại duy nhất giá trị API `method: "sepay"` trong body POST `/api/deposit` (app.js:2280) — đây là giá trị API Worker nhận, không phải text hiển thị; đổi nó có thể làm hỏng xử lý deposit phía Worker nên giữ nguyên.
+3. **Ẩn STK + tên chủ TK khi CHƯA đăng nhập — XONG.** `index.html` dòng bankLine nay là `<p id="bankLine" hidden></p>` — rỗng, không còn STK/tên trong HTML tĩnh (đã gỡ cả khỏi `I18N_EN.bankLine`). Hàm mới `syncBankLine()` (app.js) điền text từ `BANK` và chỉ bỏ `hidden` khi **đã đăng nhập VÀ đã tạo hoá đơn** (`state.user` + `state.invoices.length > 0`); gọi ở `setUser()`, `applyLang()` (đổi ngôn ngữ vẽ lại đúng VI/EN), 2 đường tạo hoá đơn (`createLocal` + Worker `.then`), và INIT. Đăng xuất → ẩn + xoá text lại. Trang thanh toán (`view-payment`) vẫn hiện đủ thông tin sau khi tạo hoá đơn (đã yêu cầu login để tạo). Test mới `tests/test-topup-privacy.js` khoá hành vi này: 16 PASS.
+4. **Console + pentest — xem 7.2 và 7.3.**
+
+### 7.2. Kiểm tra Console (0 lỗi)
+
+- jsdom + `VirtualConsole` bắt `jsdomError`/`console.error` lúc load trang: **0 lỗi** (test mới `a1`, test-topup-privacy).
+- Kiểm tra tĩnh CSP: meta CSP có mặt (1); 7 thẻ `<script>` đều có `src=` (telegram.org, cdn.jsdelivr.net, `assets/*`) — 0 script nội tuyến; 0 thuộc tính event-handler nội tuyến trong HTML (`onclick`/`onload`/`onerror`...); 0 tài nguyên ngoài ngoài allowlist (chỉ `img.vietqr.io`, `telegram.org`, `cdn.jsdelivr.net`, `fonts.googleapis.com`, `fonts.gstatic.com`, Worker, Render, `t.me`, `cdn.telegram.org`).
+- `node --check` sạch: `app.js`, `admin-random-search.js`, `animations.js`.
+- Lưu ý: jsdom không thực thi CSP thật — vẫn cần kiểm tra console trên trình duyệt thật sau deploy (xem §5).
+
+### 7.3. Xác nhận lại 10 kịch bản pentest (S1–S10)
+
+Phương pháp đợt này: KHÔNG re-fire lại toàn bộ script tấn công (backend không đổi code kể từ lần re-fire gốc, trừ commit S6C `f0c9e41` đã có test riêng 209 PASS). Thay vào đó: chạy lại toàn bộ test backend + frontend, quét lại S1, kiểm tra lại CSP tĩnh (S9), xác minh lại S6C trên file live, và đối chiếu các patch còn nguyên trong code. Kết quả:
+
+| Kịch bản | Trạng thái sau re-check 2026-11-26 |
+|---|---|
+| **S1 — Git forensics** | **CHẶN (sạch).** Quét lại working copy repo công khai: mật khẩu thật không còn — fixture test dùng `"test123456"` (user) / `"x"` (admin2), không phải mật khẩu thật; 0 file `.env`/`.db`/`.sqlite`; `.gitignore` có mặt. Mật khẩu test thật vẫn chỉ nằm trong `seed.py` của repo backend RIÊNG TƯ (phải đổi/xoá trước khi công khai production — như đã ghi từ trước). |
+| **S2 — Auth / JWT** | **CHẶN.** Patch `config.py:72` (JWT_SECRET ≥ 32 ký tự, từ chối khởi động nếu ngắn) còn nguyên; backend test 209 PASS (gồm auth). `LINK_SECRET` vẫn dùng chung `JWT_SECRET` theo mặc định — chưa tách (cần Anh quyết + đồng bộ env bot). |
+| **S3 — Race (mua / điểm danh / callback)** | **AN TOÀN.** Không đổi code ở đường mua/điểm danh; backend test 209 PASS (gồm kiểm tra callback trùng không cộng 2 lần). |
+| **S4 — Fake top-up** | **CHẶN.** Patch `cards.py:234-290` (value đối chiếu mệnh giá, code/serial khớp hoá đơn, credited ≤ 0 → 400, status ngoài {1,2,3} → 400, rollback không tiêu thụ hoá đơn) còn nguyên; backend test 209 PASS. |
+| **S5 — IDOR** | **AN TOÀN.** `require_admin_jwt` kiểm tra lại role từ DB (`admin.py:44`) + `shop.py:80` còn nguyên; backend test 209 PASS (admin2 200, user/khách 403). |
+| **S6 — Rò rỉ tìm kiếm random** | **A + B CHẶN; C VẪN MỞ (như đã biết).** A (leo thang admin) + B (glow search) an toàn, không đổi code. **C: file `stock.json` công khai trên GitHub Pages VẪN LÀ bản cũ 2026-11-22** (`updated_at: 2026-11-22T13:22:23`, total 12.126) — kiểm chứng live: `rare_skins` không rỗng còn đó ("Airi Kiemono", "Valhein Vũ khí tối thượng, Maloch Đại tướng Robot", "Ngộ Không Siêu việt") + description/rank đầy đủ cho acc random. Backend admin search đã đọc `shop_stock` (commit `f0c9e41`, xác minh `stock.py` không còn `fetch_stock_json`), nên lần re-export tới sẽ an toàn. **Cần re-export + push `stock.json` bằng `export_stock.py` đã lược trước ~29/11 (cần Chrome của Anh).** |
+| **S7 — SQLi / XSS / logic** | **CHẶN (9/9).** Patch `config.py` (MAX_MONEY_AMOUNT 100M, MAX_CONTENT_LENGTH 5 MB, MAX_BODY_BYTES 1 MB), `admin.py` (int64 range + cap), `shop.py` (`_strip_html`), `app.py` (413 handler) còn nguyên; backend test 209 PASS. |
+| **S8 — Rate-limit spoof** | **CHẶN (4/4).** Patch `security.py:211` (bỏ CF-Connecting-IP, XFF lấy mục cuối) + `config.py` HOST 127.0.0.1 còn nguyên; backend test 209 PASS. |
+| **S9 — CORS / CSP / headers** | **CHẶN.** Header 4/4 (`app.py:101` after_request) còn nguyên; CORS/CSP/cookie không đổi code, vẫn an toàn; CSP tĩnh kiểm tra lại ở 7.2 (meta có, 0 script nội tuyến, 0 handler nội tuyến, 0 tài nguyên ngoài allowlist). Login CSRF đã xác minh đóng (endpoint chỉ đọc JSON). Chưa kiểm tra console CSP trên trình duyệt thật. |
+| **S10 — Hồi quy giao diện** | **PASS.** Frontend **193/193 PASS** (177 cũ + 16 mới test-topup-privacy: a1, b1, c1–c6, d1–d8); backend **209/209 PASS** (test_self 86, test_admin 70, test_shop 53). Không regression. |
+
+**Kết luận đợt re-check:** 9/10 kịch bản chặn được (như trước); **chỉ còn S6C mở** — dữ liệu `stock.json` công khai vẫn lộ cho tới khi re-export ~29/11 (đã có sẵn script lược + admin search đã chuyển sang `shop_stock`, chỉ chờ Anh đồng ý + Chrome để chạy). Không có kịch bản nào thủng thêm sau các thay đổi gần đây (S6C backend `f0c9e41`, rework Neon Aurora `acbb34df`, 3 mục vá trên).
