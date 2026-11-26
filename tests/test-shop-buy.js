@@ -169,8 +169,14 @@ async function login(w, user, pass){
   await sleep(900);
 }
 function firstRealBuyBtn(w){
+  // Chi lay acc random/info (khong lay acc trang: user thuong bi khoa nut
+  // Mua trang, khach thi thay nut trang — test nay khong mua acc trang).
   const btns = Array.from(w.document.querySelectorAll("[data-buy]"));
-  return btns.find(function(b){ return (b.getAttribute("data-buy") || "").indexOf("api-") === 0; }) || null;
+  return btns.find(function(b){
+    if ((b.getAttribute("data-buy") || "").indexOf("api-") !== 0) return false;
+    const card = b.closest("article");
+    return !card || card.getAttribute("data-cat") !== "white";
+  }) || null;
 }
 function buyModalText(w){
   const b = w.document.querySelector("#buyBody");

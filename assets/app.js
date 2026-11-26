@@ -161,6 +161,7 @@
     shortC:{ vi:" · còn thiếu ", en:" · short " },
     shortD:{ vi:". Nạp thêm qua VietQR là mua được ngay.", en:". Top up via VietQR and you can buy right away." },
     botNote:{ vi:"Acc thật được giao và trừ ví ngay trong bot Telegram @devbn_bot. Bấm nút bên dưới rồi chọn đúng sản phẩm này trong bot.", en:"Real accounts are delivered and paid for inside the Telegram bot @devbn_bot. Tap the button below and pick this exact product in the bot." },
+    whiteOnlyAdmin:{ vi:"Chỉ admin mới mua được acc trắng thông tin.", en:"Only admins can buy white-info accounts." },
     credUser:{ vi:"Tài khoản", en:"Username" },
     credPass:{ vi:"Mật khẩu", en:"Password" },
     credNote:{ vi:"Thông tin này cũng nằm trong “Đơn hàng của tôi” và đồng bộ sang bot Telegram — mua ở đâu cũng xem lại được.", en:"This also appears under “My orders” and syncs to the Telegram bot — buy anywhere, view it here." },
@@ -530,6 +531,11 @@
       saveUser(u);
     }
     refreshUserUI(); renderAccount();
+    /* Ve lai luoi ngay khi doi phien: nut Mua cua acc trang (khoa chi-admin)
+       va cac trang thai theo role phai doi theo user vua dang nhap, khong
+       doi toi khi tai lai trang. renderProducts() tu ngat khi module admin
+       dang chiem #productArea (adminSearchActive). */
+    renderProducts();
     loadInvoices();
     syncBankLine();
     if (u) resumePendingDeposit();
@@ -596,6 +602,16 @@
     }
     return '<div class="price-box">' + old + '<span class="price">' + fmt(p.price) + '</span><span class="per">Ví website</span></div>';
   }
+  /* ===== KHOA FRONTEND ACC TRANG (chi admin mua duoc) =====
+     Acc trang = cat "white" (ca acc that tu stock.json lan catalog mau).
+     Chi tai khoan web co role === "admin" moi mua duoc; user thuong /
+     Telegram / khach deu bi khoa o nut Mua + o modal (xem openBuyModal).
+     Backend cung chan rieng — day chi la lop khoa hien thi, khong thay
+     the backend. */
+  function isWhiteProduct(p){ return !!p && p.cat === "white"; }
+  function isWhiteLockedForUser(p){
+    return isWhiteProduct(p) && !!state.user && state.user.role !== "admin";
+  }
   function cardHtml(p){
     var head = "";
     if (p.kind === "pack" && p.cat === "random-tele"){
@@ -605,12 +621,22 @@
     } else {
       head = '<div class="card-head"><div class="game">AnhDev Store · Liên Quân</div><div class="ttl">LIÊN QUÂN</div></div>';
     }
+    /* Acc trang + da dang nhap ma khong phai admin: nut Mua bi disable
+       (khong co data-buy nen khong mo modal mua) + ghi chu ly do ngay
+       duoi nut. Khach chua dang nhap giu nut thuong (bam se hien modal
+       dang nhap); admin thay nut Mua binh thuong. */
+    var whiteLocked = isWhiteLockedForUser(p);
     var btn = p.stock > 0
-      ? '<button class="buy-btn uiv-shine-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>'
+      ? (whiteLocked
+        ? '<button class="buy-btn out" disabled>' + L("buyNow") + '</button>'
+        : '<button class="buy-btn uiv-shine-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>')
       : '<button class="buy-btn out" disabled>' + L("soldOut") + '</button>';
+    var whiteNote = whiteLocked
+      ? '<div class="white-lock-note" style="margin-top:8px;font-size:12px;line-height:1.5;color:var(--muted)">' + esc(L("whiteOnlyAdmin")) + '</div>'
+      : "";
     return '<article class="card" data-cat="' + esc(p.cat) + '">' + head +
       '<div class="card-body"><div class="name">' + esc(p.name) + '</div><div class="desc">' + esc(p.desc) + '</div>' +
-      '<div class="card-meta">' + stockHtml(p) + priceHtml(p) + '</div>' + btn + '</div></article>';
+      '<div class="card-meta">' + stockHtml(p) + priceHtml(p) + '</div>' + btn + whiteNote + '</div></article>';
   }
   var CATS_EN = {
     "random-tele": { title:"Acc Random", sub:"Telegram Warehouse" },
@@ -1737,7 +1763,13 @@
         });
         applyAdminRole(u.role || "user");
       })
-      .catch(function(){ saveWebToken(null); state.userRole = null; teardownAdminModule(); });
+      .catch(function(err){
+        /* Chi xoa token khi backend tra 401/403 (token het han/sai). Loi
+           mang/timeout (vd Render cold start bi abort sau 8s) thi GIU token
+           de lan mo sau thu khoi phuc lai, thay vi bat dang nhap lai. */
+        if (err && (err.status === 401 || err.status === 403)) saveWebToken(null);
+        state.userRole = null; teardownAdminModule();
+      });
   }
   /* ================= ADMIN — TÌM KIẾM SKIN ACC RANDOM (role=admin) =================
      Chỉ tài khoản web có role === "admin" (theo /api/auth/me, JWT ký kèm role)
@@ -1863,6 +1895,10 @@
     return false;
   }
 
+  /* Doc token web TRUOC khi khoi phuc phien Telegram: setUser(user Telegram)
+     xoa token web da luu (phien Telegram thang — xem setUser), nen doc sau
+     thi khong con token de khoi phuc phien web nua. */
+  var bootWebToken = loadWebToken();
   /* Telegram Mini App: tự nhận diện tài khoản Telegram */
   try {
     if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user){
@@ -1890,11 +1926,15 @@
     }
   }
   /* Khôi phục phiên tài khoản web (đã đăng nhập bằng TK/MK trước đó).
-     Token lưu ở localStorage; /api/auth/me xác thực lại và lấy số dư thật. */
-  if (!state.user){
-    var wt = loadWebToken();
-    if (wt){ state.webToken = wt; restoreWebSession(); }
-  }
+     Token lưu ở localStorage; /api/auth/me xác thực lại và lấy số dư thật.
+     CHAY BAT KE da co user Telegram hay chua: truoc day khoi nay bi chan
+     boi `if (!state.user)` nen cu co phien Telegram (Mini App tu dang
+     nhap / user Telegram da luu) la token web bi bo qua — user tuong minh
+     da dang nhap web nhung state.user.web van false, canWebBuy() false
+     nen moi acc that deu roi ve modal bot. /me thanh cong thi phien web
+     thang (setUser web xoa phien Telegram da luu, nhu thiet ke cu);
+     /me that bai thi giu nguyen phien Telegram dang co. */
+  if (bootWebToken){ state.webToken = bootWebToken; restoreWebSession(); }
 
   /* ================= BUY FLOW ================= */
   var buyTarget = null;
@@ -1908,8 +1948,8 @@
     openBuyModal(p);
   });
   function openBotBuyModal(p){
-    /* Acc thật: kho, ví và giao acc nằm trong bot — web chỉ dẫn sang bot,
-       không tự trừ ví và không gọi /api/buy trên Worker. */
+    /* Fallback: khong mua truc tiep tren web duoc (chua dang nhap web /
+       backend chua san sang / san pham demo) — dan sang bot mua. */
     $("#buyBody").innerHTML =
       '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
       '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
@@ -1920,15 +1960,29 @@
     openModal("#buyModal");
   }
   function canWebBuy(p){
-    /* Chi mua truc tiep tren web khi: acc that co ma (kind=acc, co code),
+    /* Chi mua truc tiep tren web khi: acc that co ma (api + co code),
        user dang dang nhap bang tai khoan web (co vi tren backend) va
-       backend san sang. San pham so (kind=product, khong co tk|mk) van
-       qua bot nhu cu. */
-    return !!p && p.api && p.kind === "acc" && !!p.code
+       backend san sang. KHONG phu thuoc kind: random/info/white deu mua
+       web duoc (acc trang bi khoa rieng o isWhiteLockedForUser, chay
+       truoc ham nay trong openBuyModal). San pham so (kind=product,
+       khong co code) va catalog mau van qua bot/demo nhu cu. */
+    return !!p && p.api && !!p.code
       && state.user && state.user.web && backendReady();
+  }
+  function openWhiteLockedModal(p){
+    /* Acc trang + user khong phai admin: chan o modal, chi co nut Dong —
+       KHONG goi API, KHONG mo modal bot (mo bot la lo hong vuot khoa). */
+    $("#buyBody").innerHTML =
+      '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
+      '<div class="sum-row"><span>' + L("buyPrice") + '</span><b>' + fmt(p.price) + '</b></div>' +
+      '<div class="shortfall">' + L("whiteOnlyAdmin") + '</div>';
+    $("#buyActions").innerHTML =
+      '<button class="btn btn-ghost" data-buy-cancel>Đóng</button>';
+    openModal("#buyModal");
   }
   function openBuyModal(p){
     $("#buySub").textContent = p.name + " · " + CATS[p.cat].title;
+    if (isWhiteLockedForUser(p)){ openWhiteLockedModal(p); return; }
     if (p.api){
       if (canWebBuy(p)){ openWebBuyModal(p); return; }
       openBotBuyModal(p); return;
@@ -2029,6 +2083,13 @@
     var cb = e.target.closest("[data-buy-confirm]");
     if (cb && buyTarget){
       if (cb.disabled) return;
+      /* Phong khi nut Mua trang con sot lai sau khi doi phien (vd luoi
+         chua ve lai kip): chan o day luon, khong goi API mua. */
+      if (isWhiteLockedForUser(buyTarget)){
+        toast(L("whiteOnlyAdmin"), "error");
+        openWhiteLockedModal(buyTarget);
+        return;
+      }
       cb.disabled = true;
       if (canWebBuy(buyTarget)) completeWebBuy(buyTarget);
       else completePurchase(buyTarget);

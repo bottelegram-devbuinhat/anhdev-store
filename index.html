@@ -207,6 +207,15 @@
       .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
       .btn-light{background:#FFFFFF;color:#0C4A3B}
       .btn-light:hover{background:#fff}
+      /* [B3 2026-11-26] Hero CTA phai LUON la nut trang + chu xanh dam.
+         Nut nay mang ca .btn-light (nen #FFFFFF, chu #0C4A3B) va
+         .uiv-shine-btn (uiverse.css nap SAU <style> noi tuyen, cung do dac
+         hieu 1 class nen thang ca background lan color -> tuy theme/cache
+         co the ra nut emerald, hoac nut trang chu trang khi tron file cu/moi).
+         Rule 3 class nay (0,3,0) thang moi truong hop, giu dung thiet ke nut
+         trang tren hero toi. Chu #0C4A3B tren #FFFFFF = ~9.5:1. Chi nut hero,
+         khong anh huong cac nut shine khac (Mua ngay / tao VietQR / gui the). */
+      .hero-actions .btn-light.uiv-shine-btn{background:#FFFFFF;color:#0C4A3B;border-color:rgba(255,255,255,.45)}
       .btn-outline-w{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.45);color:#fff}
       .btn-outline-w:hover{background:rgba(255,255,255,.18)}
 
@@ -627,7 +636,7 @@
           <!-- ======== VIEW: HOME ======== -->
           <section class="view active" id="view-home">
             <div class="hero">
-              <img class="bg" src="assets/heroes/hero-01.webp" alt="Ảnh tướng Liên Quân Mobile trong banner kho tài khoản" loading="eager" decoding="async" fetchpriority="high" width="2736" height="912" />
+              <img class="bg" src="assets/heroes/hero-01.webp" alt="Ảnh tướng Liên Quân Mobile trong banner kho tài khoản" loading="eager" decoding="async" fetchpriority="high" width="1920" height="1080" />
               <canvas id="heroFx" aria-hidden="true"></canvas>
               <div class="hero-inner">
                 <div class="kicker" data-i18n="heroKicker">Liên Quân Mobile · Kho Telegram &amp; Website</div>

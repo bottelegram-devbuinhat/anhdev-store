@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#09090B">
+<meta name="description" content="Đăng nhập hoặc tạo tài khoản ANHDEV STORE — hệ thống mua bán tài khoản game.">
+<title>Đăng nhập · ANHDEV STORE</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   LOGIN — ANHDEV STORE (QT-00: tokens + quy tac design system)
+   Accent: emerald + vang kim cua STORE (thay cam cua design system goc)
+   — thuong hieu emerald+gold da chot o dot UI upgrade. Cau truc, token,
+   font, luoi, motion giu nguyen design system.
+   ========================================================================== */
+:root {
+  /* Nen phan tang (QT-01, QT-02, QT-03) */
+  --bg-canvas: #09090B;
+  --bg-surface: #111114;
+  --bg-elevated: #18181C;
+  --bg-active: #222228;
+  --bg-input: #0D0D10;
+
+  /* Chu chuan tuong phan WCAG 2.2 (QT-05) */
+  --text-primary: #F4F4F6;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-inverse: #09090B;
+
+  /* Accent STORE: emerald + vang kim (thay cam cua design system goc) */
+  --accent-primary: #10B981;
+  --accent-hover: #34D399;
+  --accent-subtle: rgba(16, 185, 129, 0.12);
+  --accent-gold: #F5B942;
+  --gold-light: #F7D774;
+  --gold-deep: #C89B3C;
+
+  /* Vien sieu manh + anh sang canh tren (QT-16) */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-accent: rgba(16, 185, 129, 0.55);
+  --border-gold: rgba(245, 185, 66, 0.23);
+  --edge-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --input-recess: inset 0 2px 4px 0 rgba(0, 0, 0, 0.45);
+
+  /* Mau ngu nghia co lap (QT-07) */
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-danger: #EF4444;
+  --status-info: #38BDF8;
+  --notice-error-bg: rgba(239, 68, 68, 0.10);
+  --notice-error-border: rgba(239, 68, 68, 0.25);
+  --notice-error-text: #FCA5A5;
+  --notice-success-bg: rgba(16, 185, 129, 0.10);
+  --notice-success-border: rgba(16, 185, 129, 0.25);
+  --notice-success-text: #6EE7B7;
+  --notice-info-bg: rgba(56, 189, 248, 0.10);
+  --notice-info-border: rgba(56, 189, 248, 0.25);
+  --notice-info-text: #7DD3FC;
+
+  /* Mau thuong hieu Telegram (nut dang nhap Telegram) */
+  --brand-telegram: #229ED9;
+  --brand-telegram-hover: #1B8AC0;
+  --brand-telegram-bg: rgba(34, 158, 217, 0.08);
+  --brand-telegram-bg-hover: rgba(34, 158, 217, 0.15);
+  --brand-telegram-border: rgba(34, 158, 217, 0.30);
+  --brand-telegram-text: #7CCBF0;
+
+  /* Anh sang nen trang tri (chi dung qua var) */
+  --glow-gold: rgba(245, 185, 66, 0.10);
+  --glow-emerald: rgba(16, 185, 129, 0.08);
+  --spinner-track: rgba(9, 9, 11, 0.25);
+
+  /* Font tieng Viet (QT-08) */
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Bo goc dong tam (QT-15, QT-41) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Luoi khong gian boi so 4px (QT-14) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Duong cong gia toc & thoi luong (QT-28, QT-29) */
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-normal: 250ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 15% 20%, var(--glow-gold), transparent 40%),
+    radial-gradient(ellipse at 85% 80%, var(--glow-emerald), transparent 42%),
+    var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  overflow-x: clip;
+}
+
+::selection {
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+a {
+  color: var(--accent-gold);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--gold-light);
+}
+
+/* Trang tri nen */
+.ambient {
+  position: fixed;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  border: 1px solid var(--border-gold);
+  pointer-events: none;
+}
+
+.ambient.one {
+  top: -180px;
+  left: -120px;
+}
+
+.ambient.two {
+  bottom: -200px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+}
+
+/* Khung dang nhap */
+.auth-container {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-6);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--edge-highlight);
+  animation: appear var(--dur-normal) var(--ease-out-expo);
+}
+
+@keyframes appear {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 15%;
+  width: 70%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.back-link:hover {
+  color: var(--accent-gold);
+}
+
+.back-link svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Thuong hieu */
+.brand {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.brand-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, var(--gold-light), var(--gold-deep));
+  color: var(--text-inverse);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  box-shadow: var(--edge-highlight);
+}
+
+.brand h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-wrap: balance;
+  background: linear-gradient(90deg, var(--gold-light), var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand p {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+/* Tab Dang nhap / Dang ky */
+.auth-tabs {
+  display: flex;
+  padding: var(--space-1);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
+}
+
+.tab {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background-color: transparent;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-snappy),
+    background-color var(--dur-fast) var(--ease-snappy),
+    color var(--dur-fast) var(--ease-snappy);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab:active {
+  transform: scale(0.97);
+}
+
+.tab.active {
+  color: var(--text-inverse);
+  background-color: var(--accent-gold);
+}
+
+/* Form */
+.form-group {
+  margin-bottom: var(--space-4);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.input-wrap {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--accent-gold);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.input-wrap input {
+  width: 100%;
+  height: 42px;
+  padding: 0 48px 0 44px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-input);
+  box-shadow: var(--input-recess);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-snappy);
+}
+
+.input-wrap input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-wrap input:focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.toggle-password {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-snappy),
+    color var(--dur-fast) var(--ease-snappy);
+}
+
+.toggle-password:hover {
+  color: var(--accent-gold);
+}
+
+.toggle-password:active {
+  transform: translateY(-50%) scale(0.97);
+}
+
+.toggle-password:focus-visible {
+  outline: none;
+  color: var(--accent-gold);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.toggle-password svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Tuy chon phu */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-1) 0 var(--space-5);
+  font-size: 12px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.remember input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+/* Nut gui chinh */
+.submit-btn {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent-primary);
+  box-shadow: var(--edge-highlight);
+  color: var(--text-inverse);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-snappy),
+    background-color var(--dur-fast) var(--ease-snappy);
+}
+
+.submit-btn:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.submit-btn:active {
+  transform: scale(0.97);
+}
+
+.submit-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.submit-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--spinner-track);
+  border-top-color: var(--text-inverse);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Duong phan cach */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background-color: var(--border-subtle);
+}
+
+/* Telegram */
+.telegram-widget {
+  display: flex;
+  justify-content: center;
+}
+
+.telegram-fallback {
+  margin-top: var(--space-3);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Chan trang */
+.footer {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.footer span {
+  color: var(--accent-gold);
+}
+
+/* Thong bao + trang thai */
+.hidden {
+  display: none !important;
+}
+
+.notice {
+  display: none;
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notice.error {
+  display: block;
+  background-color: var(--notice-error-bg);
+  border: 1px solid var(--notice-error-border);
+  color: var(--notice-error-text);
+}
+
+.notice.success {
+  display: block;
+  background-color: var(--notice-success-bg);
+  border: 1px solid var(--notice-success-border);
+  color: var(--notice-success-text);
+}
+
+.notice.info {
+  display: block;
+  background-color: var(--notice-info-bg);
+  border: 1px solid var(--notice-info-border);
+  color: var(--notice-info-text);
+}
+
+@media (max-width: 480px) {
+  body { padding: var(--space-4); }
+  .auth-container {
+    padding: var(--space-5) var(--space-4);
+  }
+  .brand-logo {
+    width: 56px;
+    height: 56px;
+  }
+  .brand h1 { font-size: 20px; }
+}
+
+@media (pointer: coarse) {
+  .submit-btn,
+  .tab,
+  .input-wrap input {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .auth-container {
+    animation: none;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="ambient one" aria-hidden="true"></div>
+<div class="ambient two" aria-hidden="true"></div>
+
+<main class="auth-container">
+
+  <a class="back-link" href="index.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+    Về cửa hàng
+  </a>
+
+  <header class="brand">
+    <div class="brand-logo" aria-hidden="true">A</div>
+    <h1>ANHDEV STORE</h1>
+    <p>Hệ thống mua bán tài khoản game</p>
+  </header>
+
+  <nav class="auth-tabs" aria-label="Chọn hình thức">
+    <button class="tab active" type="button" data-mode="login">
+      Đăng nhập
+    </button>
+    <button class="tab" type="button" data-mode="register">
+      Đăng ký
+    </button>
+  </nav>
+
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+  <form id="authForm" novalidate>
+
+    <div class="form-group">
+      <label for="username">Tên đăng nhập</label>
+      <div class="input-wrap">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+        <input id="username" name="username"
+          type="text" placeholder="Nhập tên tài khoản"
+          autocomplete="username" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Mật khẩu</label>
+      <div class="input-wrap">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+        <input id="password" name="password"
+          type="password" placeholder="Mật khẩu"
+          autocomplete="current-password" required>
+        <button class="toggle-password" type="button"
+          data-target="password" aria-label="Hiện mật khẩu">
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+          <svg class="icon-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group hidden" id="confirmGroup">
+      <label for="confirmPassword">Xác nhận mật khẩu</label>
+      <div class="input-wrap">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+        <input id="confirmPassword"
+          type="password" placeholder="Nhập lại mật khẩu"
+          autocomplete="new-password">
+        <button class="toggle-password" type="button"
+          data-target="confirmPassword"
+          aria-label="Hiện mật khẩu">
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+          <svg class="icon-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-options" id="loginOptions">
+      <label class="remember">
+        <input type="checkbox" id="remember" checked>
+        Ghi nhớ đăng nhập
+      </label>
+      <a href="#" id="forgotLink">Quên mật khẩu?</a>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" type="submit">
+      <span class="submit-spinner hidden" id="submitSpinner" aria-hidden="true"></span>
+      <span id="submitLabel">Đăng nhập ngay</span>
+    </button>
+
+  </form>
+
+  <div class="divider">Hoặc tiếp tục với</div>
+
+  <!-- Dang nhap Telegram THAT bang Telegram Login Widget (bot @devbn_bot),
+       giong store: Telegram goi onTelegramAuth(user) sau khi xac nhan. -->
+  <div class="telegram-widget" id="telegramLoginWrap">
+    <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="devbn_bot" data-size="large" data-lang="vi" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+  </div>
+  <p class="telegram-fallback">Chưa thấy nút Telegram? <a href="https://t.me/devbn_bot" target="_blank" rel="noopener noreferrer">Mở bot @devbn_bot</a></p>
+
+  <noscript>
+    <p class="notice error">Bật JavaScript để đăng nhập.</p>
+  </noscript>
+
+  <footer class="footer">
+    © 2026 <span>ANHDEV STORE</span> · ALL RIGHTS RESERVED
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var A = "https://anhdev-store-backend.onrender.com";
+  var T = "anhdev_web_token";
+  var R = "anhdev_web_remember";
+  var U = "anhdev_user";
+  var M = "login";
+  var B = false;
+  var f = document.getElementById("authForm");
+  var o = document.getElementById("notice");
+  var u = document.getElementById("username");
+  var p = document.getElementById("password");
+  var c = document.getElementById("confirmPassword");
+  var g = document.getElementById("confirmGroup");
+  var v = document.getElementById("loginOptions");
+  var s = document.getElementById("submitBtn");
+  var l = document.getElementById("submitLabel");
+  var w = document.getElementById("submitSpinner");
+  var r = document.getElementById("remember");
+  var z = document.querySelectorAll(".tab");
+
+  function N(m, y) {
+    o.textContent = m;
+    o.className = "notice " + (y || "error");
+  }
+
+  function C() {
+    o.textContent = "";
+    o.className = "notice";
+  }
+
+  function D(x) {
+    B = x;
+    s.disabled = x;
+    w.classList.toggle("hidden", !x);
+    l.textContent = x ? "Đang gửi…" : (M === "register" ? "Tạo tài khoản" : "Đăng nhập ngay");
+  }
+
+  function V() {
+    var a = u.value.trim().toLowerCase();
+    if (!/^[a-z0-9_]{4,24}$/.test(a)) return "Tên đăng nhập 4–24 ký tự, chỉ gồm chữ không dấu, số và dấu _.";
+    if (!p.value) return "Mật khẩu không được để trống.";
+    if (M === "register") {
+      if (p.value.length < 6) return "Mật khẩu tối thiểu 6 ký tự.";
+      if (p.value !== c.value) return "Mật khẩu nhập lại không khớp.";
+    }
+    return null;
+  }
+
+  function E(a) {
+    if (a && typeof a.status === "number") return a.message || "Sai tên đăng nhập hoặc mật khẩu.";
+    return "Không kết nối được máy chủ. Kiểm tra lại mạng hoặc thử lại sau.";
+  }
+
+  function F(j, q) {
+    q = q || {};
+    var x = new AbortController();
+    var h = setTimeout(function () { x.abort(); }, 60000);
+    var e = { "Content-Type": "application/json" };
+    var k = null;
+    try { k = localStorage.getItem(T); } catch (i) { k = null; }
+    if (k) e.Authorization = "Bearer " + k;
+    var n = { method: q.method || "GET", headers: e, credentials: "include", signal: x.signal };
+    if (q.body != null) n.body = JSON.stringify(q.body);
+    return fetch(A + j, n).then(function (y) {
+      return y.text().then(function (b) {
+        var d = null;
+        try { d = b ? JSON.parse(b) : null; } catch (i) { d = null; }
+        if (!y.ok) {
+          var g = new Error((d && (d.message || d.error)) || ("HTTP " + y.status));
+          g.status = y.status; g.data = d;
+          throw g;
+        }
+        return d;
+      });
+    }).then(function (a) { clearTimeout(h); return a; }, function (a) { clearTimeout(h); throw a; });
+  }
+
+  function K() {
+    try { localStorage.removeItem(T); sessionStorage.removeItem(T); } catch (i) {}
+  }
+
+  function S(t) {
+    try {
+      localStorage.setItem(T, t);
+      if (r.checked) {
+        localStorage.setItem(R, "1");
+        sessionStorage.removeItem(T);
+      } else {
+        localStorage.setItem(R, "0");
+        sessionStorage.setItem(T, t);
+      }
+    } catch (i) {}
+  }
+
+  function H() {
+    if (typeof window.__afterLogin === "function") { window.__afterLogin(); return; }
+    location.href = "index.html";
+  }
+
+  function Y(n) {
+    D(false);
+    n = n || u.value.trim().toLowerCase();
+    p.value = ""; c.value = "";
+    N("Chào " + n + "! Đang chuyển về cửa hàng…", "success");
+    setTimeout(H, 600);
+  }
+
+  function G(a) {
+    var t = (a && (a.token || a.access_token || a.jwt)) || null;
+    if (t) S(t);
+    F("/api/auth/me").then(function (m) {
+      Y(m && m.user && m.user.username);
+    }, function () { Y(null); });
+  }
+
+  /* Chuyen tab Dang nhap / Dang ky */
+  z.forEach(function (a) {
+    a.addEventListener("click", function () {
+      M = a.getAttribute("data-mode");
+      z.forEach(function (b) { b.classList.toggle("active", b === a); });
+      var k = M === "register";
+      g.classList.toggle("hidden", !k);
+      c.required = k;
+      v.classList.toggle("hidden", k);
+      p.autocomplete = k ? "new-password" : "current-password";
+      p.placeholder = k ? "Mật khẩu (từ 6 ký tự)" : "Mật khẩu";
+      l.textContent = k ? "Tạo tài khoản" : "Đăng nhập ngay";
+      C();
+    });
+  });
+
+  /* Hien / an mat khau */
+  document.querySelectorAll(".toggle-password").forEach(function (a) {
+    a.addEventListener("click", function () {
+      var i = document.getElementById(a.getAttribute("data-target"));
+      if (!i) return;
+      var x = i.type === "password";
+      i.type = x ? "text" : "password";
+      a.querySelector(".icon-eye").classList.toggle("hidden", x);
+      a.querySelector(".icon-eye-off").classList.toggle("hidden", !x);
+      a.setAttribute("aria-label", x ? "Ẩn mật khẩu" : "Hiện mật khẩu");
+      i.focus();
+    });
+  });
+
+  /* Xoa loi inline ngay khi sua lai o nhap */
+  [u, p, c].forEach(function (a) { a.addEventListener("input", C); });
+
+  /* Gui form: dang nhap / dang ky that qua backend */
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (B) return;
+    C();
+    var y = V();
+    if (y) { N(y, "error"); return; }
+    D(true);
+    var h = setTimeout(function () {
+      if (B) N("Máy chủ đang khởi động, vui lòng chờ thêm một lát…", "info");
+    }, 8000);
+    var j = M === "register" ? "/api/auth/register" : "/api/auth/login";
+    var q = { username: u.value.trim().toLowerCase(), password: p.value };
+    if (M === "register") q.password_confirm = c.value;
+    F(j, { method: "POST", body: q }).then(function (a) {
+      clearTimeout(h);
+      G(a);
+    }).catch(function (a) {
+      clearTimeout(h);
+      D(false);
+      N(E(a), "error");
+    });
+  });
+
+  /* Quen mat khau: backend chua co endpoint — dan sang admin qua bot */
+  document.getElementById("forgotLink").addEventListener("click", function (e) {
+    e.preventDefault();
+    N("Quên mật khẩu? Mở bot @devbn_bot và nhắn cho admin để được đặt lại mật khẩu.", "info");
+  });
+
+  /* Dang nhap Telegram THAT (Telegram Login Widget goi ham nay).
+     Luu phien dung dinh dang cua store (key "anhdev_user", co telegram_id)
+     de index.html/app.js khoi phuc phien; xoa token web nhu app.js. */
+  window.onTelegramAuth = function (a) {
+    if (!a || !a.id) return;
+    var n = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.username || "Khách Telegram";
+    var d = [];
+    Object.keys(a).forEach(function (k) {
+      var v = a[k];
+      if (v === null || v === undefined || v === "") return;
+      d.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+    });
+    try {
+      K();
+      localStorage.setItem(U, JSON.stringify({
+        name: n,
+        username: a.username || ("tg" + a.id),
+        telegram_id: a.id,
+        photo_url: a.photo_url || null,
+        auth_date: a.auth_date || null,
+        via: "Telegram",
+        login_data: d.join("&")
+      }));
+    } catch (i) {}
+    N("Đăng nhập Telegram thành công, chào " + n + "! Đang chuyển về cửa hàng…", "success");
+    setTimeout(H, 600);
+  };
+
+  /* Telegram Mini App: tu nhan dien tai khoan Telegram */
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      var t = window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user;
+      if (!t) return;
+      Telegram.WebApp.ready(); Telegram.WebApp.expand();
+      var n = [t.first_name, t.last_name].filter(Boolean).join(" ") || t.username || "Khách Telegram";
+      K();
+      localStorage.setItem(U, JSON.stringify({
+        name: n,
+        username: t.username || ("tg" + t.id),
+        telegram_id: t.id,
+        photo_url: t.photo_url || null,
+        via: "Telegram Mini App"
+      }));
+      H();
+    } catch (i) {}
+  });
+
+  /* Khoi phuc phien: neu da co token thi xac thuc lai roi ve cua hang.
+     "Khong ghi nho" (R = "0") + phien trinh duyet moi -> xoa token.
+     Chi xoa token khi /me tra 401/403; loi mang thi giu token. */
+  (function () {
+    var m = false;
+    try { m = !sessionStorage.getItem("anhdev_web_alive"); } catch (i) { m = false; }
+    try { sessionStorage.setItem("anhdev_web_alive", "1"); } catch (i) {}
+    var t = null;
+    try { t = localStorage.getItem(T); } catch (i) { t = null; }
+    if (m) {
+      var q = null;
+      try { q = localStorage.getItem(R); } catch (i) { q = null; }
+      if (q === "0") { K(); t = null; }
+    }
+    if (!t) return;
+    F("/api/auth/me").then(function () { H(); }).catch(function (a) {
+      if (a && (a.status === 401 || a.status === 403)) K();
+    });
+  })();
+})();
+
+/* ==========================================================================
+   Chú thích biến (QT-48) — biến 1 chữ cái cho logic nội bộ:
+   A: API_BASE_URL (backend Render) | B: busy, dang gui (chong double-submit)
+   C: ham xoa notice | D: ham dat trang thai busy | E: ham lay thong bao loi
+   F: ham goi API JSON (fetch + timeout 60s) | G: ham xu ly sau khi auth xong
+   H: ham chuyen ve index.html | K: ham xoa token web | M: mode ("login"/"register")
+   N: ham hien notice | R: key localStorage "anhdev_web_remember"
+   S: ham luu phien (token + co ghi nho) | T: key localStorage "anhdev_web_token"
+   U: key localStorage "anhdev_user" (phien Telegram) | V: ham kiem tra form
+   Y: ham hien loi chao + chuyen trang | c: o xac nhan mat khau
+   f: form | g: nhom o xac nhan | l: nhan nut gui | o: o notice
+   p: o mat khau | r: checkbox ghi nho | s: nut gui | u: o ten dang nhap
+   v: khoi tuy chon dang nhap | w: vong xoay mini 14px | z: danh sach tab
+   Bien cuc bo trong ham (a, b, d, e, g, h, i, j, k, m, n, q, t, x, y):
+   dung lai theo pham vi ham — xem chu thich tai cho trong code.
+   Mat khau KHONG bao gio luu vao localStorage/sessionStorage.
+   ========================================================================== */
+</script>
+
+</body>
+</html>
