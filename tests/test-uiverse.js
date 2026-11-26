@@ -141,10 +141,13 @@ function pageCodes(w){
     "found " + ((uivCss.match(/MIT License/g) || []).length));
   check("a4. loader: chu dung var(--ink) theo theme (fix trang tren nen sang 1.09:1)",
     /\.uiv-loading-text\s*\{[^}]*color:\s*var\(--ink\)/.test(uivCss));
-  check("a5. ripple hover: #0d6fb8, KHONG con #47a7f5 (fix trang tren #47a7f5 2.59:1)",
-    cssNoComments.indexOf("#0d6fb8") !== -1 && cssNoComments.indexOf("#47a7f5") === -1);
-  check("a6. ripple mac dinh giu nguyen #1D9AF2 tren #292D3E (4.52:1, khong doi)",
-    uivCss.indexOf("#1D9AF2") !== -1 && uivCss.indexOf("#292D3E") !== -1);
+  check("a5. ripple hover: var(--brand-primary), KHONG con #0d6fb8/#47a7f5 (Worker A doi sang mau brand)",
+    /\.uiv-ripple-btn:hover\s*\{[^}]*var\(--brand-primary\)/.test(uivCss) &&
+    cssNoComments.indexOf("#0d6fb8") === -1 && cssNoComments.indexOf("#47a7f5") === -1);
+  check("a6. ripple mac dinh: nen var(--brand-secondary) + chu var(--brand-secondary-text), KHONG con #1D9AF2/#292D3E (Worker A doi sang mau brand)",
+    /\.uiv-ripple-btn\s*\{[^}]*background-color:\s*var\(--brand-secondary\)/.test(uivCss) &&
+    /\.uiv-ripple-btn\s*\{[^}]*color:\s*var\(--brand-secondary-text\)/.test(uivCss) &&
+    uivCss.indexOf("#1D9AF2") === -1 && uivCss.indexOf("#292D3E") === -1);
   check("a7. ripple min-height 44px (fix chuan cham 36px)",
     /\.uiv-ripple-btn\s*\{[^}]*min-height:\s*44px/.test(uivCss));
   check("a8. shine: tat scale <=760px va tren nut full-width (fix tran card mobile)",
@@ -300,18 +303,23 @@ function pageCodes(w){
   /* ================= C. Tuong phan (WCAG, tinh toan) ======================== */
   console.log("== C. Tuong phan chu/nen (WCAG AA >= 4.5:1) ==");
   const contrastPairs = [
-    /* [VIBRANT 2026-11-26] Cap nhat theo palette Neon Aurora moi:
-       shine gio la gradient tim-hong (stop dam nhat #7C3AED);
-       loader Light/Dark theo --ink + --surface moi. */
-    ["shine: trang tren tim #7C3AED (gradient tim-hong, stop dam nhat)", "#ffffff", "#7C3AED"],
-    ["ripple mac dinh: #1D9AF2 tren #292D3E", "#1D9AF2", "#292D3E"],
-    ["ripple hover: trang tren #0d6fb8", "#ffffff", "#0d6fb8"],
-    ["glow input: trang tren #010201", "#ffffff", "#010201"],
-    ["glow placeholder: #c0b9c0 tren #010201", "#c0b9c0", "#010201"],
-    ["glitch label: #00f2ea tren #0d0d0d", "#00f2ea", "#0d0d0d"],
-    ["glitch input: #e5e5e5 tren #0d0d0d", "#e5e5e5", "#0d0d0d"],
-    ["loader Light: var(--ink) #1B1533 tren #FFFFFF", "#1B1533", "#FFFFFF"],
-    ["loader Dark: var(--ink) #F4F2FF tren #171733", "#F4F2FF", "#171733"]
+    /* [BRAND 2026-11-26 Worker D] Cap nhat theo palette Emerald + Vang kim
+       (Worker A): cac cap Neon Aurora cu (#7C3AED, #1D9AF2/#292D3E,
+       #010201, #00f2ea) khong con tren site — thay bang cac cap chu/nen
+       brand that. Vang --brand-gold (#C68B2C) KHONG dung lam chu tren nen
+       sang (~2.9:1); chu vang dung alias --gold (#92400E Light /
+       #F5B942 Dark) tren --gold-soft, xem 2 cap badge.pend duoi. */
+    ["Light text-primary #121E1A tren #F6F4EE", "#121E1A", "#F6F4EE"],
+    ["Light text-secondary #5A6963 tren #F6F4EE", "#5A6963", "#F6F4EE"],
+    ["Light ripple: #0C4A3B tren #E6EFEA", "#0C4A3B", "#E6EFEA"],
+    ["Light CTA: trang tren #0C4A3B", "#ffffff", "#0C4A3B"],
+    ["Dark text-primary #F2F6F4 tren #090D0C", "#F2F6F4", "#090D0C"],
+    ["Dark text-secondary #93A69F tren #090D0C", "#93A69F", "#090D0C"],
+    ["Dark ripple: #6EE7B7 tren #162420", "#6EE7B7", "#162420"],
+    ["Dark CTA: #082A20 tren #10B981", "#082A20", "#10B981"],
+    ["Hero kicker: vang #F5B942 tren #0C4A3B", "#F5B942", "#0C4A3B"],
+    ["badge.pend Light: #92400E tren #FEF3C7", "#92400E", "#FEF3C7"],
+    ["badge.pend Dark: #F5B942 tren #2E2410", "#F5B942", "#2E2410"]
   ];
   contrastPairs.forEach(function(p){
     const r = ratio(p[1], p[2]);

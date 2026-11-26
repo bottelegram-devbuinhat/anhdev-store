@@ -43,7 +43,7 @@
     "random-tele": { title:"Acc Random", sub:"Kho Telegram" },
     "detail":      { title:"Acc sẵn thông tin", sub:"Kho Telegram" },
     "white":       { title:"Acc trắng thông tin", sub:"Kho Telegram" },
-    "random-lq":   { title:"Random Tài Khoản Liên Quân", sub:"" },
+    "random-lq":   { title:"Random Liên Quân", sub:"" },
     "products":    { title:"Sản phẩm số", sub:"Kho bot" }
   };
   var PRODUCTS = [
@@ -105,7 +105,7 @@
     depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
     orders: [],            // {code, productName, price, time, user, pass}
     invoices: [],          // {code, amount, method, time}
-    filter: { cat:"all", q:"", sort:"shuffle", onlyStock:false, page:1 },
+    filter: { cat:"all", q:"", sort:"shuffle", onlyStock:false, price:"all", page:1 },
     pendingTopup: null,    // (giữ tương thích)
     currentPay: null,      // hoá đơn ngân hàng đang mở ở trang thanh toán
     checkin: null,         // số tiền đã điểm danh trong phiên (null = chưa điểm danh)
@@ -172,7 +172,7 @@
     ordRecvBot:{ vi:"Mở bot @devbn_bot → Đơn hàng của tôi để xem tài khoản + mật khẩu.", en:"Open the bot @devbn_bot → My orders to view the username + password." },
     ordRecvOnce:{ vi:"Tài khoản + mật khẩu đã hiển thị 1 lần ngay sau khi mua — hãy lưu lại khi mua để xem lại tại đây.", en:"Username + password were shown once right after purchase — save them when you buy to view them here." },
     invEmptyT:{ vi:"Chưa có hoá đơn nạp nào", en:"No top-up invoices yet" },
-    invEmptyS:{ vi:"Nạp tiền qua VietQR hoặc thẻ cào qua TheSieuRe, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR or TheSieuRe prepaid cards — invoices and their status will be saved here." },
+    invEmptyS:{ vi:"Nạp tiền qua VietQR hoặc thẻ cào, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR or prepaid cards — invoices and their status will be saved here." },
     accLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
     accLoginS:{ vi:"Đăng nhập để xem thông tin tài khoản, số dư và lịch sử của bạn.", en:"Log in to view your account info, balance and history." },
     accName:{ vi:"Tên hiển thị", en:"Display name" },
@@ -531,12 +531,24 @@
     }
     return arr;
   }
+  /* Khoang gia cua thanh loc gia (#priceChips): [min, max) — "Duoi 50k" la
+     < 50.000, "50k – 200k" la [50.000, 200.000), ... "Tren 500k" la >= 500.000. */
+  var PRICE_RANGES = {
+    under50:  { min:0,      max:50000 },
+    "50to200":  { min:50000,  max:200000 },
+    "200to500": { min:200000, max:500000 },
+    over500:  { min:500000, max:Infinity }
+  };
   function visibleProducts(){
     var f = state.filter;
     var list = PRODUCTS.filter(function(p){
       if (isSoldCode(p.code)) return false; // acc da ban tren web — an khoi luoi
       if (f.cat !== "all" && p.cat !== f.cat) return false;
       if (f.onlyStock && p.stock <= 0) return false;
+      if (f.price && f.price !== "all"){
+        var pr = PRICE_RANGES[f.price];
+        if (pr && (p.price < pr.min || p.price >= pr.max)) return false;
+      }
       if (f.q){
         // Lọc trên _searchKey đã chuẩn hoá sẵn lúc index (chỉ còn indexOf, <15ms cho 12k acc).
         // Random chỉ có từ chung chung trong _searchKey nên gõ tên skin không bao giờ
@@ -585,10 +597,10 @@
       '<div class="card-meta">' + stockHtml(p) + priceHtml(p) + '</div>' + btn + '</div></article>';
   }
   var CATS_EN = {
-    "random-tele": { title:"Random Accounts", sub:"Telegram Warehouse" },
+    "random-tele": { title:"Acc Random", sub:"Telegram Warehouse" },
     "detail":      { title:"Ready-info Accounts", sub:"Telegram Warehouse" },
     "white":       { title:"White Accounts", sub:"Telegram Warehouse" },
-    "random-lq":   { title:"Random Arena of Valor Accounts", sub:"" },
+    "random-lq":   { title:"Random Liên Quân Accounts", sub:"" },
     "products":    { title:"Digital Products", sub:"Bot Warehouse" }
   };
   function catInfo(key){
@@ -664,22 +676,30 @@
     var pageItems = list.slice(start, start + PAGE_SIZE);
     setAreaHtml(area, '<div class="grid">' + pageItems.map(cardHtml).join("") + '</div>' + pagerHtml(list.length, totalPages, start));
   }
-  function renderStats(){
+  /* Skeleton khi dang tai kho: luoi 8 the mo phong the acc that (class
+     .card-skeleton san co trong animations.css) + .uiv-liquid-loader o giua.
+     Hien khi bat dau tai (syncStock / init), renderProducts() thay bang luoi
+     that ngay khi co du lieu — khong de vung kho trong. */
+  function showStockSkeleton(){
+    var area = $("#productArea");
+    if (!area) return;
+    var one = '<div class="card-skeleton"><div class="sk-cover"></div><div class="sk-line"></div><div class="sk-line short"></div><div class="sk-line short"></div></div>';
+    var cards = "";
+    for (var i = 0; i < 8; i++) cards += one;
+    area.innerHTML = '<div style="display:flex;justify-content:center;padding:6px 0 2px">' + uivLoaderHtml("loadingStock") + '</div>' +
+      '<div class="grid" style="margin-top:12px">' + cards + '</div>';
+  }
+  /* Thanh 1 dong tren dau khu vuc "San pham trong kho" (ngay tren toolbar):
+     tong so acc dang co + gia khoi diem, so lieu live tu PRODUCTS.
+     Thay cho .stats-card cu (da bo) — khong con #statStock/#statModels/
+     #statFrom/#distRows. */
+  function renderStockBar(){
+    var bar = $("#stockBar");
+    if (!bar) return;
     var totalStock = PRODUCTS.reduce(function(s,p){ return s + p.stock; }, 0);
-    $("#statStock").textContent = totalStock.toLocaleString("vi-VN");
-    $("#statModels").textContent = PRODUCTS.length;
     var min = PRODUCTS.length ? Math.min.apply(null, PRODUCTS.map(function(p){ return p.price; })) : 0;
-    $("#statFrom").textContent = fmt(min);
-    var buckets = [
-      {label:"< " + fmt(20000), n:0, test:function(p){ return p.price < 20000; }},
-      {label:fmt(20000) + " – " + fmt(100000), n:0, test:function(p){ return p.price >= 20000 && p.price < 100000; }},
-      {label:"≥ " + fmt(100000), n:0, test:function(p){ return p.price >= 100000; }}
-    ];
-    PRODUCTS.forEach(function(p){ if (p.stock > 0) buckets.forEach(function(b){ if (b.test(p)) b.n++; }); });
-    var max = Math.max(1, Math.max.apply(null, buckets.map(function(b){ return b.n; })));
-    $("#distRows").innerHTML = buckets.map(function(b){
-      return '<div class="dist-row"><span>' + b.label + '</span><span class="dist-bar"><i style="width:' + Math.round(b.n/max*100) + '%"></i></span><b>' + b.n + '</b></div>';
-    }).join("");
+    bar.textContent = totalStock.toLocaleString("vi-VN") +
+      (state.lang === "en" ? " accounts · From " : " tài khoản · Giá từ ") + fmt(min);
   }
   /* ================= TÌM KIẾM THÔNG MINH (autocomplete + index 1 lần) =================
      Index build 1 lần sau mỗi lần PRODUCTS thay đổi (kho thật / catalog mẫu).
@@ -1183,7 +1203,7 @@
     } else {
       setSyncStatus("live", "Kho thật đã đồng bộ · " + counts + " đang bán" + (when ? " · cập nhật " + when : "") + ".");
     }
-    renderProducts(); renderStats();
+    renderProducts(); renderStockBar();
   }
   function useDemoStock(){
     PRODUCTS = DEMO_PRODUCTS.slice();
@@ -1191,7 +1211,7 @@
     buildSearchIndex();
     state.filter.page = 1;
     setSyncStatus("demo", "Không kết nối được kho thật — đang hiển thị catalog mẫu (không phải kho thật). Mua acc thật qua bot Telegram @devbn_bot.");
-    renderProducts(); renderStats();
+    renderProducts(); renderStockBar();
   }
   /* ===== CACHE stock.json BẰNG IndexedDB (stale-while-revalidate) =====
      stock.json ~15 MB — KHÔNG bỏ vào localStorage (chậm + giới hạn ~5 MB).
@@ -1233,7 +1253,12 @@
   }
   function syncStock(){
     document.dispatchEvent(new CustomEvent("anhdev:stock-syncing"));
+    /* Chua co kho that thi hien skeleton thay cho luoi trong — kho ve la
+       useLiveStock/useDemoStock goi renderProducts() thay the ngay. Da co kho
+       that roi thi giu nguyen luoi, khong chop skeleton de len. */
+    var hadLiveStock = (SYNC.mode === "live" || SYNC.mode === "saved");
     setSyncStatus("syncing", "Đang đồng bộ kho thật...");
+    if (!hadLiveStock) showStockSkeleton();
     // Nguồn kho thật duy nhất: stock.json tĩnh trong repo (cùng GitHub
     // Pages). Admin API /api/stock trên host chưa chạy được (app Flask
     // không spawn) nên KHÔNG gọi API nữa — tránh chờ timeout rồi mới
@@ -1354,7 +1379,7 @@
     return backendFetch("/api/shop/sold-codes")
       .then(function(d){
         applySoldCodes((d && d.codes) || []);
-        renderProducts(); renderStats();
+        renderProducts(); renderStockBar();
         return 0;
       })
       .catch(function(){ return 0; });
@@ -1365,7 +1390,7 @@
     if (!code) return;
     SOLD_CODES[String(code)] = true;
     PRODUCTS = PRODUCTS.filter(function(p){ return p.code !== code; });
-    renderProducts(); renderStats();
+    renderProducts(); renderStockBar();
   }
   function saveWebToken(t){
     state.webToken = t || null;
@@ -1516,6 +1541,16 @@
     $$("#catChips .chip").forEach(function(c){ c.classList.remove("on"); });
     chip.classList.add("on");
     state.filter.cat = chip.getAttribute("data-cat");
+    state.filter.page = 1;
+    renderProducts();
+  });
+  /* Thanh loc tam gia (#priceChips): ket hop voi loc danh muc + tim kiem +
+     sap xep hien co trong visibleProducts(), khong pha logic cu. */
+  $("#priceChips").addEventListener("click", function(e){
+    var chip = e.target.closest(".chip"); if (!chip) return;
+    $$("#priceChips .chip").forEach(function(c){ c.classList.remove("on"); });
+    chip.classList.add("on");
+    state.filter.price = chip.getAttribute("data-price");
     state.filter.page = 1;
     renderProducts();
   });
@@ -1933,7 +1968,7 @@
           user: acc.username, pass: acc.password
         });
         saveWebOrders(); // lưu đơn + tk|mk xuống localStorage để Lịch sử còn sau khi tải lại trang
-        refreshUserUI(); renderProducts(); renderStats();
+        refreshUserUI(); renderProducts(); renderStockBar();
         $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
         $("#buyBody").innerHTML =
           '<div class="sum-row"><span>' + L("buyProd") + '</span><b>' + esc(p.name) + '</b></div>' +
@@ -1996,7 +2031,7 @@
       pass: Math.random().toString(36).slice(2,8) + Math.floor(Math.random()*90+10)
     };
     state.orders.unshift(order);
-    refreshUserUI(); renderProducts(); renderStats();
+    refreshUserUI(); renderProducts(); renderStockBar();
     $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
     $("#buyBody").innerHTML =
       '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(order.user) + '</code><button class="copy-btn" data-copy="' + esc(order.user) + '">Copy</button></div>' +
@@ -2017,6 +2052,12 @@
   });
 
   /* ================= ORDERS / INVOICES / ACCOUNT ================= */
+  /* Eye-toggle Lịch sử mua hàng (Part 3): tk/mk mặc định che bằng ••••••••,
+     bấm mắt thì hiện tk/mk của đơn đó, bấm lại thì ẩn. Giá trị thật chỉ đọc
+     từ nút Copy (data-copy) đã có sẵn của đơn đó — không lưu thêm, không log. */
+  var EYE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><line x1="4" y1="4" x2="20" y2="20"/></svg>';
+  var CRED_MASK = "••••••••";
   function renderOrders(){
     var box = $("#ordersList");
     if (!state.user){
@@ -2028,17 +2069,35 @@
       box.innerHTML = '<div class="empty-box"><b>' + L("ordEmptyT") + '</b>' + L("ordEmptyS") + '</div>';
       return;
     }
-    box.innerHTML = state.orders.map(function(o){
-      var cred;
+    box.innerHTML = state.orders.map(function(o, i){
+      var cred, eyeBtn = "";
       if (o.user && o.pass){
-        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code>' + esc(o.user) + '</code><button class="copy-btn" data-copy="' + esc(o.user) + '">Copy</button></div>' +
-          '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code>' + esc(o.pass) + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
+        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("credUser") + '</span><code class="cred-val">' + CRED_MASK + '</code><button class="copy-btn" data-copy="' + esc(o.user) + '">Copy</button></div>' +
+          '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code class="cred-val">' + CRED_MASK + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
+        eyeBtn = '<button type="button" class="ord-eye-btn" data-eye="' + i + '" aria-pressed="false" aria-label="' + esc(L("eyeShow")) + '" title="' + esc(L("eyeShow")) + '" style="margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none">' + EYE_SVG + '</button>';
       } else {
         cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvOnce") + '</span></div></div>';
       }
-      return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span></div>' +
+      return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span>' + eyeBtn + '</div>' +
         '<div class="meta">Mã đơn ' + o.code + ' · ' + o.time + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
     }).join("");
+    /* Gắn eye-toggle cho từng đơn: bấm mắt đổi textContent của 2 ô tk/mk
+       trong chính đơn đó (hiện = đọc data-copy của nút Copy kề bên). */
+    $$(".ord-eye-btn", box).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var order = btn.closest(".order"); if (!order) return;
+        var shown = btn.getAttribute("aria-pressed") === "true";
+        $$(".cred-row", order).forEach(function(row){
+          var code = row.querySelector(".cred-val");
+          var copy = row.querySelector(".copy-btn");
+          if (code && copy) code.textContent = shown ? CRED_MASK : copy.getAttribute("data-copy");
+        });
+        btn.setAttribute("aria-pressed", shown ? "false" : "true");
+        btn.setAttribute("aria-label", shown ? L("eyeShow") : L("eyeHide"));
+        btn.title = shown ? L("eyeShow") : L("eyeHide");
+        btn.innerHTML = shown ? EYE_SVG : EYE_OFF_SVG;
+      });
+    });
   }
   function invoiceBadge(iv){
     if (iv.status === "pending") return '<span class="badge pend">Chờ xử lý</span>';
@@ -2047,7 +2106,25 @@
     if (iv.status === "cancelled") return '<span class="badge fail">Đã huỷ</span>';
     return '<span class="badge">Thành công</span>';
   }
+  /* The hoa don cho GON o dau view Hoa don (#pendInvCard, HTML tinh trong
+     index.html): ma hoa don + so tien + nut "Thanh toan ngay" dan sang view
+     payment co QR (qua handler [data-pay-invoice] san co). KHONG nhung khung
+     QR vao view Hoa don. An khi khong co hoa don cho. */
+  function renderPendInvCard(){
+    var card = $("#pendInvCard");
+    if (!card) return;
+    var pending = state.invoices.filter(function(iv){
+      return iv.status === "pending" && iv.method && iv.method.indexOf("Ngân Hàng") === 0;
+    })[0] || state.invoices.filter(function(iv){ return iv.status === "pending"; })[0];
+    if (!pending){ card.hidden = true; return; }
+    $("#pendInvCode").textContent = pending.code;
+    $("#pendInvAmt").textContent = fmt(pending.amount);
+    var btn = $("#pendInvPayBtn");
+    if (btn) btn.setAttribute("data-pay-invoice", pending.code);
+    card.hidden = false;
+  }
   function renderInvoices(){
+    renderPendInvCard();
     var box = $("#invoicesList");
     if (!state.invoices.length){
       box.innerHTML = '<div class="empty-box"><b>' + L("invEmptyT") + '</b>' + L("invEmptyS") + '</div>';
@@ -2199,7 +2276,7 @@
           var item = {
             code: bi.request_id, amount: bi.amount || 0,
             credited: (typeof bi.credited_amount === "number") ? bi.credited_amount : null,
-            method: "Thẻ cào · TheSieuRe", status: status,
+            method: "Thẻ cào", status: status,
             time: bi.created_at || "", detail: detail
           };
           var ex = null;
@@ -2490,7 +2567,7 @@
       var ivDemo = {
         code: randCode("THE"),
         amount: amount, credited: null,
-        method: "Thẻ cào · TheSieuRe · Demo",
+        method: "Thẻ cào · Demo",
         status: "pending", time: nowStr(), demo: true,
         detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
       };
@@ -2519,7 +2596,7 @@
           code: (d && d.request_id) || randCode("THE"),
           amount: amount,
           credited: (d && typeof d.credited_amount === "number") ? d.credited_amount : null,
-          method: "Thẻ cào · TheSieuRe",
+          method: "Thẻ cào",
           status: (d && d.status) || "pending",
           time: nowStr(),
           detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4)
@@ -2543,7 +2620,7 @@
           var iv = {
             code: d.request_id,
             amount: amount, credited: null,
-            method: "Thẻ cào · TheSieuRe",
+            method: "Thẻ cào",
             status: d.status || "failed",
             time: nowStr(),
             detail: telcoName + " · mệnh giá " + fmt(amount) + " · seri …" + serial.slice(-4) +
@@ -2631,6 +2708,17 @@
     { name:"son***34",  spent:515000,  orders:9 },
     { name:"tua***56",  spent:380000,  orders:7 }
   ];
+  /* Buc Top 1-2-3 o tren dau (#lbPodium): Top 1 o giua cao nhat (vang),
+     Top 2 ben trai (bac), Top 3 ben phai (dong); moi buc co ten + tong chi
+     tieu. Danh sach ben duoi (#lbList) bat dau tu hang 4. */
+  function podiumHtml(r, rank, tall){
+    var medal = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
+    return '<div style="flex:1;min-width:0;text-align:center;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:' + (tall ? '22px 8px 14px' : '14px 8px 12px') + ';min-height:' + (tall ? '132px' : '108px') + '">' +
+      '<span class="lb-rank ' + medal + '" style="margin:0 auto 8px">' + rank + '</span>' +
+      '<div class="lb-name" style="font-size:13px">' + esc(r.name) + (r.me ? ' <span class="lb-you">' + L("lbYou") + '</span>' : '') + '</div>' +
+      '<div class="lb-spent" style="margin-top:3px">' + fmt(r.spent) + '</div>' +
+      '<div class="lb-orders" style="margin-top:1px">' + r.orders + ' ' + L("lbOrders") + '</div></div>';
+  }
   function renderLeaderboard(){
     var box = $("#lbList");
     if (!box) return;
@@ -2640,9 +2728,22 @@
       rows.push({ name: state.user.username, spent: mySpent, orders: state.orders.length, me:true });
       rows.sort(function(a, b){ return b.spent - a.spent; });
     }
-    box.innerHTML = rows.map(function(r, i){
-      var medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
-      return '<div class="lb-row' + (r.me ? " me" : "") + '"><span class="lb-rank ' + medal + '">' + (i + 1) + '</span>' +
+    var podium = $("#lbPodium");
+    if (podium){
+      var top3 = rows.slice(0, 3);
+      /* Thu tu hien thi: Top 2 (trai) - Top 1 (giua, cao nhat) - Top 3 (phai). */
+      var slots = [top3[1], top3[0], top3[2]];
+      var ranks = [2, 1, 3];
+      var html = "";
+      slots.forEach(function(r, i){
+        if (r) html += podiumHtml(r, ranks[i], ranks[i] === 1);
+      });
+      podium.innerHTML = html ? '<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px">' + html + '</div>' : "";
+    }
+    var rest = rows.slice(3);
+    box.innerHTML = rest.map(function(r, i){
+      var rank = i + 4;
+      return '<div class="lb-row' + (r.me ? " me" : "") + '"><span class="lb-rank">' + rank + '</span>' +
         '<span class="lb-name">' + esc(r.name) + (r.me ? ' <span class="lb-you">' + L("lbYou") + '</span>' : '') + '</span>' +
         '<span class="lb-orders">' + r.orders + ' ' + L("lbOrders") + '</span>' +
         '<span class="lb-spent">' + fmt(r.spent) + '</span></div>';
@@ -2679,29 +2780,28 @@
     grpTopup:"Top up", navBank:"Bank", navCard:"Card Top-up", navInvoices:"Invoices",
     grpOptions:"Options", optLang:"Language", optCur:"Currency", grpMore:"More",
     heroKicker:"Arena of Valor Mobile · Telegram & Website Warehouse",
-    heroText:"Find accounts by name, price and stock status. Buy and receive your account right under Orders.",
+    heroText:"Hand-picked Liên Quân accounts with transparent info. Automatic payment — receive your account within seconds.",
     heroExplore:"Explore the warehouse ↓", heroTopup:"Top up with VietQR",
-    quick1T:"Warehouse from Telegram", quick1S:"Random and ready-info accounts",
-    quick2T:"My orders", quick2S:"View orders and delivered account details",
-    statsTitle:"Warehouse overview", statStock:"In stock", statModels:"Products", statFrom:"From", distTitle:"In-stock products by price",
     stepsTitle:"Buy an account in 4 steps",
     step1T:"Create an account", step1P:"Register with a username + password, or log in with Telegram. Opened inside the Mini App, you are recognised automatically.",
     step2T:"Top up your wallet", step2P:"Scan the VietQR code and transfer with the exact note — your wallet is credited after the system confirms the transfer, no receipt needed.",
     step3T:"Pick an account & Buy now", step3P:"Filter by account type and price, then hit Buy now. If your wallet covers it, stock is deducted instantly.",
     step4T:"Receive your account", step4P:"Username + password appear right in My Orders.",
     prodTitle:"Products in warehouse", sortDefault:"Default", sortShuffle:"Shuffle", sortAsc:"Price low → high", sortDesc:"Price high → low", sortStock:"Most in stock", stockOnly:"In stock",
-    chipAll:"All", chipRandom:"Random Accounts", chipDetail:"Ready-info Accounts", chipWhite:"White Accounts", chipRandomLq:"Random AoV",
+    chipAll:"All", chipRandom:"Acc Random", chipDetail:"Ready-info Accounts", chipWhite:"White Accounts", chipRandomLq:"Random Liên Quân", chipProducts:"Digital Products",
+    priceAll:"All prices", priceUnder50:"Under 50k", price50to200:"50k – 200k", price200to500:"200k – 500k", priceOver500:"Over 500k",
     "ph:searchPh":"Search product names...",
-    topupTitle:"Top up wallet", topupSub:"Bank transfer via VietQR — transfer the exact amount with the invoice code as the note; your wallet is credited after the system confirms the transfer.",
+    topupTitle:"Top up wallet", topupSub:"Scan the VietQR code and transfer with the exact note. The system verifies the transfer and credits your wallet automatically.",
     tabQr:"VietQR · Scan code", tabCard:"Prepaid card",
     amtLabel:"Top-up amount (đ)", amtHint:"Minimum 1,000đ. After creating the invoice, transfer the exact amount with the invoice code as the note — the system will credit your wallet after confirmation.",
     makeQr:"Create invoice & VietQR code", "ph:amtPh":"Or enter another amount...",
-    cardTelcoL:"Card type", cardAmountL:"Card denomination", cardAmountHint:"Pick the exact denomination printed on the card — if you declare it wrong, TheSieuRe settles at the real value and the card may be lost.",
+    cardTelcoL:"Card type", cardAmountL:"Card denomination", cardAmountHint:"Pick the correct carrier and the exact denomination printed on the card. If you declare the wrong denomination, it will be settled at the real value and the card may be lost.",
     cardSerialL:"Serial number", "ph:cardSerialPh":"Enter the serial printed on the card", cardPinL:"Card code", "ph:cardPinPh":"Scratch the silver layer and enter the code",
     cardSubmit:"Send card",
     cardDiscT:"Card discount rates",
     ordersTitle:"My orders", ordersSub:"All purchased accounts appear here.",
-    invTitle:"Top-up invoices", invSub:"History of top-ups via VietQR and TheSieuRe prepaid cards — cards clearly show pending, success or failed status.",
+    invTitle:"Top-up invoices", invSub:"Track the status of your bank-transfer and prepaid-card top-ups.",
+    pendInvT:"Pending invoice", pendInvBadge:"Pending", pendInvCode:"Invoice code", pendInvPay:"Pay now",
     accTitle:"My account", accSub:"Link Telegram for quick sign-in everywhere.",
     lbTitle:"Leaderboard", lbSub:"Top buyers at the shop — ranked by total spending.",
     authTitle:"Welcome to AnhDev Store", authSub:"Log in to buy accounts and top up.",
@@ -2709,8 +2809,8 @@
     authUserL:"Username", "ph:authUserPh":"Your username", authPassL:"Password", "ph:authPassPh":"Password",
     authPass2L:"Confirm password", "ph:authPass2Ph":"Repeat the password",
     authUserHint:"4–24 characters: letters (no accents), numbers, _",
-    authWebHint:"Web accounts live on the AnhDev server — or log in with Telegram below.",
-    tgBtn:"Log in with Telegram", tgHint:"Open the shop inside the Telegram Mini App and this step is automatic — the shop recognises the Telegram account you are using.",
+    authWebHint:"Log in with a web account, or connect quickly via Telegram below.",
+    tgBtn:"Log in with Telegram", tgHint:"Open the shop directly in the Telegram Mini App to be recognised automatically and sync your wallet.",
     ciTitle:"Daily check-in", ciSub:"Check in once a day to receive a random 1–500đ straight into your wallet.",
     paySecure:"Secure transaction", payBack:"Cancel",
     bnHome:"Home", bnShop:"Accounts", bnTopup:"Top up", bnOrders:"Orders", bnAccount:"Account",
@@ -2759,7 +2859,7 @@
     if (as && !authBusy) as.textContent = authMode === "register" ? L("submitRegister") : L("submitLogin");
     refreshUserUI();
     renderProducts();
-    renderStats();
+    renderStockBar();
     renderLeaderboard();
     renderOrders();
     renderInvoices();
@@ -2774,7 +2874,7 @@
     $("#curVal").textContent = this.value;
     refreshUserUI();
     renderProducts();
-    renderStats();
+    renderStockBar();
     renderOrders();
     renderInvoices();
     renderLeaderboard();
@@ -2834,8 +2934,8 @@
   setSyncStatus("syncing", "Đang đồng bộ kho thật...");
   buildSearchIndex(); // index trên catalog mẫu trước, syncStock() build lại khi kho thật về
   initSearch();
-  renderProducts();
-  renderStats();
+  showStockSkeleton(); // luoi that ve sau qua syncStock() -> renderProducts()
+  renderStockBar();
   refreshUserUI();
   renderOrders();
   renderInvoices();

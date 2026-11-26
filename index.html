@@ -27,71 +27,76 @@
          qrcodejs da go (khong cho nao dung QRCode — QR VietQR la <img> tu img.vietqr.io). -->
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
-      /* ===== VIBRANT MODERN — Neon Aurora (mac dinh TOI) =====
-         Palette moi 2026-11-26: nen tim-den, violet/hong/cyan/lime/vang
-         ruc ro, dong bo toan trang qua var(--...). Chu dam bao tuong phan
-         AA (>=4.5:1) — da kiem tra bang script tinh WCAG. */
+      /* ===== Thuong hieu AnhDev — Emerald + Vang kim (mac dinh TOI) =====
+         Light: Ivory am + Emerald dam + Vang co; Dark: Obsidian Emerald +
+         Vang chay. Bien cu (--wine, --gold, --bg, --surface, --ink, --line,
+         --wine-btn, --on-wine...) la ALIAS sang bien brand moi de code cu
+         khong vo. --brand-gold chi dung trang tri (vien/gradient/icon):
+         o Light no tren nen sang chi ~2.9:1 nen chu vang dung --gold
+         (#92400E, >=5.8:1). --brand-crimson trang tri; chu do dung
+         --danger/--crimson (#B91C1C Light, >=5.7:1). Nut CTA la mau dac
+         --brand-primary (KHONG gradient tim-hong); chu tren nut Dark la
+         #082A20 (6.08:1 tren #10B981; chu trang chi 2.54:1). */
       :root{
-        --bg:#0B0B1A; --bg-soft:#12122A; --surface:#171733; --surface-2:#1E1E42;
-        --ink:#F4F2FF; --ink-2:#B9B3E6; --muted:#8B86C2; --line:rgba(139,92,246,.30);
-        --wine:#A78BFA; --wine-deep:#7C3AED; --wine-soft:#241B4D;
-        --gold:#FBBF24; --gold-soft:#3A2E12;
-        --head-tint:#1A1440; --ok:#34D399; --ok-soft:#0F2E25;
-        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185;
+        --bg:#090D0C; --bg-soft:#182320; --surface:#111917; --surface-2:#1A2622;
+        --ink:#F2F6F4; --ink-2:#93A69F; --muted:#93A69F; --line:rgba(16,185,129,0.16);
+        --wine:#10B981; --wine-deep:#34D399; --wine-soft:#162420;
+        --gold:#F5B942; --gold-soft:#2E2410;
+        --head-tint:#162420; --ok:#34D399; --ok-soft:#0F2E25;
+        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185; --danger-fill:#DC2626;
         --shadow:0 10px 30px rgba(0,0,0,.45);
         --shadow-lg:0 24px 60px rgba(0,0,0,.60);
-        --radius:18px;
+        --radius:14px;
         /* Z-index thang chung: noi dung < topbar < goi y tim kiem < drawer/scrim < modal < toast < confetti */
         --z-topbar:30; --z-suggest:32; --z-scrim:35; --z-sidebar:40; --z-bottomnav:45;
         --z-modal:80; --z-toast:120; --z-confetti:200;
-        /* Nut CTA: gradient tim-hong (chu trang tren stop dam nhat #7C3AED = 5.70:1, #DB2777 = 4.60:1) */
-        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
-        /* Semantic aliases — Neon Aurora (Dark) */
-        --bg-main:#0B0B1A; --bg-surface:#171733; --bg-subtle:#12122A; --border-subtle:rgba(139,92,246,.30);
-        --bg-glass:rgba(11,11,26,.78);
-        --accent-primary:#8B5CF6; --accent-gold:#FBBF24; --accent-crimson:#FB7185;
-        --text-primary:#F4F2FF; --text-secondary:#B9B3E6;
-        /* Accent phu (neon) + cau vong xoay */
-        --accent-pink:#EC4899; --accent-cyan:#22D3EE; --accent-lime:#A3E635;
-        --accent-orange:#FB923C; --accent-violet:#8B5CF6;
-        --rainbow:conic-gradient(from var(--beam-angle,0deg), #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
-        --bg-input:#0D0D22;
+        /* Nut CTA: mau dac emerald (chu #082A20 tren #10B981 = 6.08:1) */
+        --wine-btn:#10B981; --on-wine:#082A20;
+        /* Bien brand chuan */
+        --bg-main:#090D0C; --bg-surface:#111917; --bg-subtle:#182320; --border-subtle:rgba(16,185,129,0.16);
+        --bg-glass:rgba(9,13,12,.78);
+        --brand-primary:#10B981; --brand-primary-hover:#34D399;
+        --brand-secondary:#162420; --brand-secondary-text:#6EE7B7;
+        --brand-gold:#F5B942; --brand-crimson:#F43F5E;
+        --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#FB7185;
+        --text-primary:#F2F6F4; --text-secondary:#93A69F;
+        --bg-input:#0E1614;
       }
       html[data-theme="light"]{
-        --bg:#F3F0FF; --bg-soft:#E9E4FF; --surface:#FFFFFF; --surface-2:#F7F5FF;
-        --ink:#1B1533; --ink-2:#5B5480; --muted:#6B6390; --line:#DDD6F5;
-        --wine:#7C3AED; --wine-deep:#6D28D9; --wine-soft:#EDE9FE;
-        --gold:#B45309; --gold-soft:#FEF3C7;
-        --head-tint:#EDE9FE; --ok:#047857; --ok-soft:#D1FAE5;
-        --danger:#BE123C; --danger-soft:#FFE4E6; --crimson:#BE123C;
-        --shadow:0 10px 30px rgba(124,58,237,.10); --shadow-lg:0 24px 60px rgba(124,58,237,.18);
-        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
-        --bg-main:#F3F0FF; --bg-surface:#FFFFFF; --bg-subtle:#E9E4FF; --border-subtle:#DDD6F5;
-        --bg-glass:rgba(243,240,255,.82);
-        --accent-primary:#7C3AED; --accent-gold:#B45309; --accent-crimson:#BE123C;
-        --text-primary:#1B1533; --text-secondary:#5B5480;
-        --accent-pink:#DB2777; --accent-cyan:#0E7490; --accent-lime:#4D7C0F;
-        --accent-orange:#EA580C; --accent-violet:#7C3AED;
-        --rainbow:conic-gradient(from var(--beam-angle,0deg), #7C3AED, #DB2777, #F59E0B, #65A30D, #0891B2, #7C3AED);
-        --bg-input:#F7F5FF;
+        --bg:#F6F4EE; --bg-soft:#ECE8DF; --surface:#FFFFFF; --surface-2:#F4F1E8;
+        --ink:#121E1A; --ink-2:#5A6963; --muted:#5A6963; --line:#E2DDD0;
+        --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E6EFEA;
+        --gold:#92400E; --gold-soft:#FEF3C7;
+        --head-tint:#E6EFEA; --ok:#047857; --ok-soft:#D1FAE5;
+        --danger:#B91C1C; --danger-soft:#FFE4E6; --crimson:#B91C1C; --danger-fill:#B91C1C;
+        --shadow:0 10px 30px rgba(12,74,59,.10); --shadow-lg:0 24px 60px rgba(12,74,59,.18);
+        --wine-btn:#0C4A3B; --on-wine:#FFFFFF;
+        --bg-main:#F6F4EE; --bg-surface:#FFFFFF; --bg-subtle:#ECE8DF; --border-subtle:#E2DDD0;
+        --bg-glass:rgba(246,244,238,.82);
+        --brand-primary:#0C4A3B; --brand-primary-hover:#08352A;
+        --brand-secondary:#E6EFEA; --brand-secondary-text:#0C4A3B;
+        --brand-gold:#C68B2C; --brand-crimson:#DC2626;
+        --accent-primary:#0C4A3B; --accent-gold:#92400E; --accent-crimson:#B91C1C;
+        --text-primary:#121E1A; --text-secondary:#5A6963;
+        --bg-input:#FFFFFF;
       }
       html[data-theme="dark"]{
-        --bg:#0B0B1A; --bg-soft:#12122A; --surface:#171733; --surface-2:#1E1E42;
-        --ink:#F4F2FF; --ink-2:#B9B3E6; --muted:#8B86C2; --line:rgba(139,92,246,.30);
-        --wine:#A78BFA; --wine-deep:#7C3AED; --wine-soft:#241B4D;
-        --gold:#FBBF24; --gold-soft:#3A2E12;
-        --head-tint:#1A1440; --ok:#34D399; --ok-soft:#0F2E25;
-        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185;
+        --bg:#090D0C; --bg-soft:#182320; --surface:#111917; --surface-2:#1A2622;
+        --ink:#F2F6F4; --ink-2:#93A69F; --muted:#93A69F; --line:rgba(16,185,129,0.16);
+        --wine:#10B981; --wine-deep:#34D399; --wine-soft:#162420;
+        --gold:#F5B942; --gold-soft:#2E2410;
+        --head-tint:#162420; --ok:#34D399; --ok-soft:#0F2E25;
+        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185; --danger-fill:#DC2626;
         --shadow:0 10px 30px rgba(0,0,0,.45); --shadow-lg:0 24px 60px rgba(0,0,0,.60);
-        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
-        --bg-main:#0B0B1A; --bg-surface:#171733; --bg-subtle:#12122A; --border-subtle:rgba(139,92,246,.30);
-        --bg-glass:rgba(11,11,26,.78);
-        --accent-primary:#8B5CF6; --accent-gold:#FBBF24; --accent-crimson:#FB7185;
-        --text-primary:#F4F2FF; --text-secondary:#B9B3E6;
-        --accent-pink:#EC4899; --accent-cyan:#22D3EE; --accent-lime:#A3E635;
-        --accent-orange:#FB923C; --accent-violet:#8B5CF6;
-        --rainbow:conic-gradient(from var(--beam-angle,0deg), #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
-        --bg-input:#0D0D22;
+        --wine-btn:#10B981; --on-wine:#082A20;
+        --bg-main:#090D0C; --bg-surface:#111917; --bg-subtle:#182320; --border-subtle:rgba(16,185,129,0.16);
+        --bg-glass:rgba(9,13,12,.78);
+        --brand-primary:#10B981; --brand-primary-hover:#34D399;
+        --brand-secondary:#162420; --brand-secondary-text:#6EE7B7;
+        --brand-gold:#F5B942; --brand-crimson:#F43F5E;
+        --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#FB7185;
+        --text-primary:#F2F6F4; --text-secondary:#93A69F;
+        --bg-input:#0E1614;
       }
       *{box-sizing:border-box}
       html,body{overflow-x:clip} /* chan tran ngang (360-430px); clip (khac hidden) khong pha position:sticky */
@@ -129,25 +134,25 @@
       .balance-card .sync-note{margin-top:6px;font-size:11px;font-weight:700;color:var(--ok)}
       .balance-card .sync-note.warn{color:var(--danger)}
       .nav-group h4{margin:14px 8px 6px;font-size:10.5px;letter-spacing:.12em;color:var(--muted);font-weight:700;text-transform:uppercase}
-      .nav-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;padding:10px 10px;border-radius:11px;color:var(--ink-2);font-size:14px;font-weight:600;min-height:44px}
+      .nav-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;padding:10px 10px;border-radius:8px;color:var(--ink-2);font-size:14px;font-weight:600;min-height:44px}
       .nav-item svg{width:19px;height:19px;flex:0 0 19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
       .nav-item:hover{background:var(--bg-soft)}
       .nav-item.active{background:var(--wine-soft);color:var(--wine)}
       .nav-item .chev{margin-left:auto;width:14px;height:14px;opacity:.6}
-      .side-note{margin-top:auto;background:var(--gold-soft);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink-2)}
+      .side-note{margin-top:auto;background:var(--gold-soft);border-radius:14px;padding:11px 13px;font-size:12px;color:var(--ink-2)}
       .side-note b{color:var(--ink)}
       .scrim{display:none}
 
       .main{flex:1;min-width:0;display:flex;flex-direction:column}
       .topbar{position:sticky;top:0;z-index:var(--z-topbar);background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 22px}
-      .icon-btn{width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink-2)}
+      .icon-btn{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink-2)}
       .icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
       .icon-btn:hover{border-color:var(--wine);color:var(--wine)}
       .burger{display:none}
-      .wallet-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:8px 13px;font-weight:700;font-size:13.5px;min-height:42px;min-width:0}
+      .wallet-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 13px;font-weight:700;font-size:13.5px;min-height:42px;min-width:0}
       .wallet-pill [data-balance]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .wallet-pill svg{width:17px;height:17px;stroke:var(--wine);fill:none;stroke-width:1.8}
-      .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-weight:700;font-size:14px;padding:9px 18px;min-height:42px;text-decoration:none;transition:background .15s,transform .1s}
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;border:1px solid transparent;font-weight:700;font-size:14px;padding:9px 18px;min-height:42px;text-decoration:none;transition:background .15s,transform .1s}
       .btn:active{transform:scale(.98)}
       .btn-wine{background:var(--wine-btn);color:var(--on-wine)}
       .btn-wine:hover{filter:brightness(1.15)}
@@ -157,7 +162,7 @@
       .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
       .user-chip{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
       .user-chip .avatar{width:36px;height:36px;border-radius:50%;background:var(--wine-soft);color:var(--wine);display:grid;place-items:center;font-weight:800;font-size:14px;border:1px solid var(--line)}
-      .theme-toggle{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+      .theme-toggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
       .theme-toggle button{border:0;background:var(--surface);width:40px;height:42px;display:grid;place-items:center;color:var(--muted)}
       .theme-toggle button.on{background:var(--wine-btn);color:var(--on-wine)}
       .theme-toggle svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
@@ -168,47 +173,24 @@
       @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
       /* ---------- Hero (Neon Aurora): lop phu tim-hong dao mau lien tuc ---------- */
-      .hero{position:relative;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#1E1748,#3B0764 55%,#831843);color:#fff;min-height:340px;display:flex;align-items:stretch;box-shadow:var(--shadow)}
+      .hero{position:relative;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,#052E22,#0C4A3B 55%,#065F46);color:#fff;min-height:260px;display:flex;align-items:stretch;box-shadow:var(--shadow)}
       .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center right}
-      .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,11,26,.94) 22%,rgba(11,11,26,.78) 48%,rgba(139,92,246,.22) 78%);animation:uiv-hero-hue 14s linear infinite}
-      @keyframes uiv-hero-hue{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
-      .hero-inner{position:relative;z-index:2;padding:44px 46px;max-width:620px;display:flex;flex-direction:column;justify-content:center}
-      .hero .kicker{color:#F0ABFC;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+      .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,13,12,.94) 22%,rgba(9,13,12,.78) 48%,rgba(16,185,129,.22) 78%)}
+      .hero-inner{position:relative;z-index:2;padding:32px 40px;max-width:620px;display:flex;flex-direction:column;justify-content:center}
+      .hero .kicker{color:#F5B942;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
       .hero h1{font-size:clamp(34px,4.6vw,54px);line-height:1.06;font-weight:900;margin:12px 0 12px;letter-spacing:-.015em}
-      .hero p{color:#D8D3F5;font-size:15.5px;margin:0 0 24px;max-width:44ch}
+      .hero p{color:#D1E7DD;font-size:15.5px;margin:0 0 16px;max-width:44ch}
       .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
-      .btn-light{background:linear-gradient(135deg,#fff,#EDE9FE);color:#5B21B6}
+      .btn-light{background:#FFFFFF;color:#0C4A3B}
       .btn-light:hover{background:#fff}
       .btn-outline-w{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.45);color:#fff}
       .btn-outline-w:hover{background:rgba(255,255,255,.18)}
-
-      .quick-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
-      .quick-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-align:left;width:100%;box-shadow:var(--shadow)}
-      .quick-card:hover{border-color:var(--wine)}
-      .quick-card .ic{width:44px;height:44px;border-radius:12px;background:var(--wine-soft);color:var(--wine);display:grid;place-items:center;flex:0 0 44px}
-      .quick-card .ic svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-      .quick-card b{display:block;font-size:15px;color:var(--wine)}
-      .quick-card span{font-size:12.5px;color:var(--muted)}
-      .quick-card .arr{margin-left:auto;color:var(--muted);font-size:18px}
-
-      /* ---------- Stats ---------- */
-      .stats-card{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px 22px;display:grid;grid-template-columns:1.25fr 1fr;gap:26px;box-shadow:var(--shadow)}
-      .stats-card h3{margin:0 0 14px;font-size:16.5px}
-      .stat-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-      .stat-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
-      .stat-tile .t{font-size:12px;color:var(--muted);font-weight:600}
-      .stat-tile .n{font-size:26px;font-weight:800;margin-top:2px}
-      .dist h5{margin:2px 0 12px;font-size:13px;color:var(--ink-2)}
-      .dist-row{display:grid;grid-template-columns:118px 1fr 30px;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:9px}
-      .dist-bar{height:8px;border-radius:99px;background:var(--bg-soft);overflow:hidden}
-      .dist-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-violet),var(--accent-pink),var(--accent-cyan));border-radius:99px}
-      .dist-row b{color:var(--ink);text-align:right}
 
       /* ---------- Steps ---------- */
       .steps{margin-top:26px}
       .steps h2,.section-head h2{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em}
       .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:14px}
-      .step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+      .step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
       .step .num{width:30px;height:30px;border-radius:50%;background:var(--wine-btn);color:var(--on-wine);display:grid;place-items:center;font-weight:800;font-size:14px;margin-bottom:10px}
       .step b{display:block;font-size:14.5px;margin-bottom:4px}
       .step p{margin:0;font-size:12.8px;color:var(--muted);overflow-wrap:break-word}
@@ -218,11 +200,11 @@
       .section-head .count{font-size:13px;color:var(--muted);white-space:nowrap}
       .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
       .search-wrap{flex:1 1 260px;min-width:0;position:relative}
-      .search-box{width:100%;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 14px}
+      .search-box{width:100%;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0 14px}
       .search-box svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;flex:0 0 18px}
       .search-box input{border:0;background:none;flex:1;font-size:14px;color:var(--ink);min-height:44px;outline:none}
-      .toolbar select{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--ink);min-height:44px}
-      .toggle-btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 16px;font-weight:700;font-size:13.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px;min-height:44px}
+      .toolbar select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--ink);min-height:44px}
+      .toggle-btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 16px;font-weight:700;font-size:13.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px;min-height:44px}
       .toggle-btn .dotsw{width:34px;height:19px;border-radius:99px;background:var(--bg-soft);border:1px solid var(--line);position:relative;flex:0 0 34px}
       .toggle-btn .dotsw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--muted);transition:left .15s,background .15s}
       .toggle-btn.on{color:var(--wine);border-color:var(--wine)}
@@ -235,21 +217,21 @@
       .cat-title small{font-weight:500;color:var(--muted);font-size:12.5px}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
       .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
-      .pg-btn{background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
+      .pg-btn{background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:8px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
       .pg-btn:disabled{opacity:.35;cursor:default}
       .pg-nums{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-      .pg-num{min-width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;cursor:pointer}
+      .pg-num{min-width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;cursor:pointer}
       .pg-num.on{background:var(--wine-btn);border-color:var(--wine-btn);color:var(--on-wine)}
       .pg-info{font-size:12.8px;color:var(--muted)}
       .pg-dots{color:var(--muted)}
       .card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);content-visibility:auto;contain-intrinsic-size:auto 340px}
-      /* Vien cau vong XOAY + DOI MAU lien tuc quanh moi the acc (chi trang tri:
+      /* Vien emerald→vang kim mong, chay nhe quanh moi the acc (chi trang tri:
          lop ::before nam duoi noi dung, chi 1.5px o ria, chu/gia/nut dung yen).
-         Dung co che @property --beam-angle san co (animations.css) — gradient
-         cau vong chay vong quanh vien. The VIP (.card.beam) giu beam rieng. */
-      .card::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1.5px;background:var(--rainbow);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:beamRotate 7s linear infinite}
+         Dung co che @property --beam-angle san co (animations.css). The VIP
+         (.card.beam) giu beam rieng. */
+      .card::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1.5px;background:conic-gradient(from var(--beam-angle,0deg),transparent 0deg,var(--brand-primary) 50deg,var(--brand-gold) 110deg,transparent 170deg,transparent 360deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:beamRotate 7s linear infinite}
       .card:hover{border-color:color-mix(in srgb,var(--wine) 45%,var(--line))}
-      .card-head{background:linear-gradient(135deg,var(--head-tint),color-mix(in srgb,var(--accent-pink) 16%,var(--head-tint)));padding:16px 18px 14px;min-height:96px}
+      .card-head{background:linear-gradient(135deg,var(--head-tint),color-mix(in srgb,var(--brand-gold) 16%,var(--head-tint)));padding:16px 18px 14px;min-height:96px}
       .card-head .game{font-size:10.5px;letter-spacing:.1em;color:var(--muted);font-weight:700;text-transform:uppercase}
       .card-head .ttl{font-size:21px;font-weight:800;margin-top:4px;letter-spacing:-.01em}
       .card-cover{height:158px;overflow:hidden;background:var(--head-tint)}
@@ -266,19 +248,19 @@
       .price-box .off{background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;vertical-align:2px}
       .price-box .price{font-size:20px;font-weight:800;display:block;line-height:1.15}
       .price-box .per{font-size:11px;color:var(--muted)}
-      .buy-btn{margin-top:11px;width:100%;background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:11px;font-weight:700;font-size:14px;padding:12px;min-height:46px}
+      .buy-btn{margin-top:11px;width:100%;background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:8px;font-weight:700;font-size:14px;padding:12px;min-height:46px}
       .buy-btn:hover{filter:brightness(1.15)}
       .buy-btn.out{background:var(--head-tint);color:var(--muted);cursor:not-allowed}
-      .empty-box{background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:38px 20px;text-align:center;color:var(--muted)}
+      .empty-box{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:38px 20px;text-align:center;color:var(--muted)}
       .empty-box b{color:var(--ink);display:block;font-size:16px;margin-bottom:5px}
-      .sync-status{margin:0 0 14px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--muted);color:var(--ink);overflow-wrap:break-word;word-break:break-word}
+      .sync-status{margin:0 0 14px;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--muted);color:var(--ink);overflow-wrap:break-word;word-break:break-word}
       .sync-status.live{border-left-color:#2e9e52}
       .sync-status.saved{border-left-color:#d9a521}
       .sync-status.demo{border-left-color:#d64545}
       .sync-status.syncing{border-left-color:#d9a521}
 
       /* ---------- Tables / lists ---------- */
-      .panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+      .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow)}
       .panel h2{margin:0 0 4px;font-size:20px}
       .panel .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
       .order{border:1px solid var(--line);border-radius:14px;padding:15px 17px;margin-bottom:12px;background:var(--surface-2)}
@@ -298,12 +280,12 @@
       /* ---------- Topup ---------- */
       .topup-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
       .amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-      .amount-btn{border:1px solid var(--line);background:var(--surface-2);border-radius:12px;font-weight:800;font-size:15px;padding:13px 6px;min-height:48px;color:var(--ink)}
+      .amount-btn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;font-weight:800;font-size:15px;padding:13px 6px;min-height:48px;color:var(--ink)}
       .amount-btn:hover{border-color:var(--wine)}
       .amount-btn.on{border-color:var(--wine);background:var(--wine-soft);color:var(--wine)}
       .field{margin-bottom:13px}
       .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
-      .field input,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);padding:10px 13px;font-size:14.5px;min-height:46px}
+      .field input,.field select{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:10px 13px;font-size:14.5px;min-height:46px}
       .field .hint{font-size:12px;color:var(--muted);margin-top:5px}
       /* Nut con mat hien/an mat khau trong modal dang nhap */
       .field.has-eye{position:relative}
@@ -314,21 +296,21 @@
       .pw-eye.on .slash{display:block}
       .pw-eye svg{pointer-events:none}
       /* Bang chiet khau nap the */
-      .card-disc{margin:4px 0 13px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--bg-soft)}
+      .card-disc{margin:4px 0 13px;border:1px solid var(--line);border-radius:14px;padding:11px 13px;background:var(--bg-soft)}
       .card-disc-title{font-size:13px;font-weight:800;margin-bottom:8px}
       .card-disc-table{display:flex;flex-direction:column;gap:5px;font-size:13px}
       .card-disc-row{display:flex;justify-content:space-between;gap:8px}
       .card-disc-row b{font-weight:700}
       .card-disc-row .disc-rate{color:var(--muted);text-align:right}
       .qr-box{text-align:center}
-      .qr-frame{display:inline-grid;place-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;min-width:232px;min-height:232px}
+      .qr-frame{display:inline-grid;place-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;min-width:232px;min-height:232px}
       .qr-frame img{margin:0 auto}
-      .transfer-info{text-align:left;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-size:13.5px;margin-top:14px}
+      .transfer-info{text-align:left;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;font-size:13.5px;margin-top:14px}
       .transfer-info .row{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
       .transfer-info .row span{color:var(--muted)}
       .transfer-info .row b{word-break:break-all;text-align:right}
       .method-tabs{display:flex;gap:8px;margin-bottom:16px}
-      .method-tabs button{flex:1;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:11px;font-weight:700;font-size:13.5px;color:var(--ink-2);min-height:46px}
+      .method-tabs button{flex:1;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;color:var(--ink-2);min-height:46px}
       .method-tabs button.on{border-color:var(--wine);color:var(--wine);background:var(--wine-soft)}
 
       /* ---------- Sidebar extras: badge, submenu, TÙY CHỌN ---------- */
@@ -337,7 +319,7 @@
       .nav-item.open .chev{transform:rotate(90deg)}
       .nav-sub{margin:2px 0 4px 16px;border-left:1px solid var(--line);padding-left:6px}
       .nav-item.sub{font-size:13.5px;min-height:40px;padding-top:7px;padding-bottom:7px}
-      .opt-row{position:relative;display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:11px;min-height:54px}
+      .opt-row{position:relative;display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;min-height:54px}
       .opt-row:hover{background:var(--bg-soft)}
       .opt-ic{width:37px;height:37px;border-radius:10px;background:var(--head-tint);color:var(--ink-2);display:grid;place-items:center;flex:0 0 37px}
       .opt-ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -349,7 +331,7 @@
       .user-chip{cursor:pointer}
 
       /* ---------- Leaderboard ---------- */
-      .lb-row{display:grid;grid-template-columns:44px 1fr auto auto;gap:12px;align-items:center;padding:11px 13px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;background:var(--surface-2)}
+      .lb-row{display:grid;grid-template-columns:44px 1fr auto auto;gap:12px;align-items:center;padding:11px 13px;border:1px solid var(--line);border-radius:14px;margin-bottom:9px;background:var(--surface-2)}
       .lb-rank{width:30px;height:30px;border-radius:50%;background:var(--bg-soft);display:grid;place-items:center;font-weight:800;font-size:13.5px}
       .lb-rank.gold{background:#f6d67c;color:#6b4e00}
       .lb-rank.silver{background:#e3e6ea;color:#4c565f}
@@ -363,14 +345,14 @@
       .checkin-done{background:var(--ok-soft);color:var(--ok);border-radius:12px;padding:14px 16px;font-weight:600;text-align:center}
 
       /* ---------- Payment page (kiểu accaov.store/client/payment) ---------- */
-      .pay-wrap{background:#0d0a0d;border:1px solid #2c2129;border-radius:22px;padding:26px;color:#f3e9ec;box-shadow:var(--shadow-lg)}
+      .pay-wrap{background:#0d0a0d;border:1px solid #2c2129;border-radius:20px;padding:26px;color:#f3e9ec;box-shadow:var(--shadow-lg)}
       .pay-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
       .pay-title{color:#e8b64c;font-weight:800;letter-spacing:.13em;font-size:13.5px}
       .secure-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #4a3a2a;background:#1d1712;color:#e8c987;border-radius:99px;padding:7px 14px;font-size:12.5px;font-weight:700}
       .secure-pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
       .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
       @media(max-width:820px){.pay-grid{grid-template-columns:1fr}.pay-wrap{padding:18px}}
-      .pay-card{background:#161114;border:1px solid #2c2129;border-radius:16px;padding:20px}
+      .pay-card{background:#161114;border:1px solid #2c2129;border-radius:14px;padding:20px}
       .pay-brand{display:flex;gap:12px;align-items:center;padding-bottom:14px;border-bottom:1px solid #223129;margin-bottom:4px}
       .pay-brand .brand-mark{flex:0 0 40px}
       .pay-brand small{display:block;color:#a08b97;font-size:12px}
@@ -392,7 +374,7 @@
       .pay-qr-card h3{color:#6fd3e7;margin:2px 0 8px;font-size:19px;letter-spacing:.02em}
       .pay-qr-card>p{color:#c9b6bf;font-size:13px;margin:0 0 16px}
       .pay-qr-card>p b{color:#f2c14e}
-      .pay-qr-frame{background:#fff;border-radius:16px;padding:18px 18px 12px;display:inline-block;max-width:100%}
+      .pay-qr-frame{background:#fff;border-radius:14px;padding:18px 18px 12px;display:inline-block;max-width:100%}
       .vietqr-logo{font-weight:900;font-style:italic;font-size:25px;color:#1b2a6b;line-height:1;margin-bottom:10px;letter-spacing:.01em}
       .vietqr-logo .vq-v{color:#e3252b;font-size:29px}
       .pay-qr-frame img{margin:0 auto}
@@ -417,27 +399,27 @@
       /* ---------- Modals ---------- */
       .modal-wrap{position:fixed;inset:0;z-index:var(--z-modal);display:none;align-items:flex-end;justify-content:center;background:rgba(20,8,14,.55);padding:0}
       .modal-wrap.open{display:flex}
-      .modal{background:var(--surface);width:100%;max-width:480px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:24px 24px 28px;animation:slideup .22s ease}
+      .modal{background:var(--surface);width:100%;max-width:480px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:24px 24px 28px;animation:slideup .22s ease}
       @keyframes slideup{from{transform:translateY(26px);opacity:.6}to{transform:none;opacity:1}}
-      @media(min-width:640px){.modal-wrap{align-items:center;padding:20px}.modal{border-radius:22px}}
+      @media(min-width:640px){.modal-wrap{align-items:center;padding:20px}.modal{border-radius:20px}}
       .modal h3{margin:0 0 4px;font-size:19px}
       .modal .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
-      .modal-x{float:right;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;line-height:1;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:16px;color:var(--muted)}
+      .modal-x{float:right;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;line-height:1;padding:0;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:16px;color:var(--muted)}
       .auth-tabs{display:flex;background:var(--bg-soft);border-radius:12px;padding:4px;margin-bottom:18px}
-      .auth-tabs button{flex:1;border:0;background:transparent;border-radius:9px;font-weight:700;font-size:14px;padding:9px;color:var(--muted);min-height:40px}
+      .auth-tabs button{flex:1;border:0;background:transparent;border-radius:8px;font-weight:700;font-size:14px;padding:9px;color:var(--muted);min-height:40px}
       .auth-tabs button.on{background:var(--surface);color:var(--wine);box-shadow:var(--shadow)}
       .divider{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;margin:16px 0}
       .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
-      .btn-telegram{width:100%;background:#229ed9;color:#fff;border:0;border-radius:11px;font-weight:700;font-size:14.5px;padding:12px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:9px}
+      .btn-telegram{width:100%;background:#229ed9;color:#fff;border:0;border-radius:8px;font-weight:700;font-size:14.5px;padding:12px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:9px}
       .btn-telegram:hover{background:#1b8ac0}
       .btn-telegram svg{width:20px;height:20px;fill:#fff}
-      .form-err{display:none;background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 13px;font-size:13px;font-weight:600;margin-bottom:13px}
+      .form-err{display:none;background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:10px 13px;font-size:13px;font-weight:600;margin-bottom:13px}
       .form-err.show{display:block}
       .sum-row{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;border-bottom:1px dashed var(--line)}
       .sum-row span{color:var(--muted)}
       .sum-row.total{border-bottom:0;font-size:16px}
       .sum-row.total b{color:var(--wine)}
-      .shortfall{background:var(--danger-soft);border-radius:12px;padding:13px 15px;margin:14px 0;font-size:13.5px}
+      .shortfall{background:var(--danger-soft);border-radius:14px;padding:13px 15px;margin:14px 0;font-size:13.5px}
       .shortfall b{color:var(--danger)}
       .buy-once{font-size:13px;color:var(--danger);margin:12px 0 0;font-weight:700}
       .modal-actions{display:flex;gap:10px;margin-top:18px}
@@ -466,12 +448,10 @@
         .theme-toggle button{width:34px;height:38px}
         .icon-btn{width:38px;height:38px}
         .user-chip .avatar{width:32px;height:32px}
-        .quick-row{grid-template-columns:1fr}
-        .stats-card{grid-template-columns:1fr}
         .steps-grid{grid-template-columns:1fr 1fr}
         .topup-grid{grid-template-columns:1fr}
-        .hero-inner{padding:30px 24px}
-        .hero{min-height:300px}
+        .hero-inner{padding:24px 20px}
+        .hero{min-height:240px}
         .hero::after{background:linear-gradient(90deg,rgba(6,20,15,.94) 30%,rgba(6,20,15,.55) 75%,rgba(6,20,15,.25))}
         .wallet-pill .wp-lbl{display:none}
         .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:var(--z-bottomnav);background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
@@ -479,7 +459,7 @@
         .bottom-nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
         .bottom-nav button.active{color:var(--wine)}
       }
-      @media(max-width:420px){.steps-grid{grid-template-columns:1fr}.stat-tiles{grid-template-columns:1fr 1fr 1fr;gap:8px}.stat-tile .n{font-size:21px}}
+      @media(max-width:420px){.steps-grid{grid-template-columns:1fr}}
       /* Man 360-400px: topbar chat — an icon vi, thu nut dang nhap, giu du cho avatar + theme */
       @media(max-width:400px){
         .topbar{gap:5px;padding:10px 10px}
@@ -518,21 +498,21 @@
           <div class="nav-group">
             <button class="nav-item uiv-ripple-btn" id="checkinItem">
               <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9.2 15.6 2 2 3.8-4"/></svg>
-              <span data-i18n="navCheckin">Điểm Danh</span>
+              <span data-i18n="navCheckin">Điểm danh</span>
               <span class="nav-badge" id="checkinBadge">1–500đ</span>
             </button>
             <button class="nav-item active" data-nav="home">
               <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
-              <span data-i18n="navHome">Trang Chủ</span>
+              <span data-i18n="navHome">Trang chủ</span>
             </button>
             <button class="nav-item" id="buyMenuToggle" aria-expanded="false">
               <svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 3h2l2.4 12.2a1.5 1.5 0 0 0 1.5 1.2h7.9a1.5 1.5 0 0 0 1.5-1.2L20.5 7H6"/></svg>
-              <span data-i18n="navBuy">Mua Tài Khoản</span>
+              <span data-i18n="navBuy">Mua tài khoản</span>
               <svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
             </button>
             <div class="nav-sub" id="buySubmenu">
               <div class="nav-sub-inner">
-                <button class="nav-item sub" data-catlink="random-tele"><span>Acc Random · Telegram</span></button>
+                <button class="nav-item sub" data-catlink="random-tele"><span>Acc Random</span></button>
                 <button class="nav-item sub" data-catlink="detail"><span>Acc sẵn thông tin</span></button>
                 <button class="nav-item sub" data-catlink="white"><span>Acc trắng thông tin</span></button>
                 <button class="nav-item sub" data-catlink="random-lq"><span>Random Liên Quân</span></button>
@@ -541,27 +521,27 @@
             </div>
             <button class="nav-item" data-nav="orders">
               <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3.5 2"/></svg>
-              <span data-i18n="navOrders">Lịch Sử Mua Hàng</span>
+              <span data-i18n="navOrders">Lịch sử mua hàng</span>
             </button>
             <button class="nav-item" data-nav="leaderboard">
               <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0z"/><path d="M7 6H4a1 1 0 0 0-1 1c0 2 1.6 3.6 4 3.6M17 6h3a1 1 0 0 1 1 1c0 2-1.6 3.6-4 3.6"/></svg>
-              <span data-i18n="navRank">Bảng Xếp Hạng</span>
+              <span data-i18n="navRank">Bảng xếp hạng</span>
             </button>
           </div>
           <div class="nav-group">
             <h4 data-i18n="grpTopup">Nạp tiền</h4>
             <button class="nav-item" data-nav="topup" data-tab="qr">
               <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21V10m4 11V10m4 11V10m4 11V10m4 11V10"/><path d="m2 10 10-6 10 6z"/></svg>
-              <span data-i18n="navBank">Ngân Hàng</span>
+              <span data-i18n="navBank">Ngân hàng</span>
             </button>
             <!-- TAM TAT: nap the cao tam dung (chua xac minh) — an nut nav, mo lai thi xoa style display:none -->
             <button class="nav-item" data-nav="topup" data-tab="card" style="display:none">
               <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
-              <span data-i18n="navCard">Nạp Thẻ</span>
+              <span data-i18n="navCard">Nạp thẻ</span>
             </button>
             <button class="nav-item" data-nav="invoices">
               <svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>
-              <span data-i18n="navInvoices">Hoá Đơn</span>
+              <span data-i18n="navInvoices">Hoá đơn</span>
             </button>
           </div>
           <div class="nav-group">
@@ -628,39 +608,11 @@
               <div class="hero-inner">
                 <div class="kicker" data-i18n="heroKicker">Liên Quân Mobile · Kho Telegram &amp; Website</div>
                 <h1 data-i18n-html="heroTitle">Kho tài khoản <br />ANHDEV</h1>
-                <p data-i18n="heroText">Tìm tài khoản theo tên, giá và tình trạng còn hàng. Mua xong nhận acc ngay trong mục Đơn hàng.</p>
+                <p data-i18n="heroText">Tuyển chọn acc Liên Quân chất lượng, minh bạch thông tin. Thanh toán tự động — nhận tài khoản ngay sau vài giây.</p>
                 <div class="hero-actions">
                   <button class="btn btn-light uiv-shine-btn" data-scroll="products" data-i18n="heroExplore">Khám phá kho ↓</button>
                   <button class="btn btn-outline-w uiv-ripple-btn" data-nav="topup" data-i18n="heroTopup">Nạp tiền VietQR</button>
                 </div>
-              </div>
-            </div>
-
-            <div class="quick-row">
-              <button class="quick-card" data-scroll="products">
-                <span class="ic"><svg viewBox="0 0 24 24"><path d="M21.9 4.6 19 19.3c-.2 1-.8 1.2-1.7.8l-4.6-3.4-2.2 2.1c-.3.3-.5.5-.9.5l.3-4.6 8.4-7.6c.4-.3-.1-.5-.6-.2L7.6 13.2 3.2 11.8c-1-.3-1-1 .2-1.4l17.2-6.6c.8-.3 1.5.2 1.3.8z"/></svg></span>
-                <span><b data-i18n="quick1T">Kho từ Telegram</b><span data-i18n="quick1S">Acc random và acc sẵn thông tin</span></span>
-                <span class="arr">→</span>
-              </button>
-              <button class="quick-card" data-nav="orders">
-                <span class="ic"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
-                <span><b data-i18n="quick2T">Đơn hàng của tôi</b><span data-i18n="quick2S">Xem đơn và thông tin bàn giao tài khoản</span></span>
-                <span class="arr">→</span>
-              </button>
-            </div>
-
-            <div class="stats-card">
-              <div>
-                <h3 data-i18n="statsTitle">Tổng quan kho đang xem</h3>
-                <div class="stat-tiles">
-                  <div class="stat-tile"><div class="t" data-i18n="statStock">Còn hàng</div><div class="n" id="statStock">–</div></div>
-                  <div class="stat-tile"><div class="t" data-i18n="statModels">Mẫu sản phẩm</div><div class="n" id="statModels">–</div></div>
-                  <div class="stat-tile"><div class="t" data-i18n="statFrom">Giá từ</div><div class="n" id="statFrom">–</div></div>
-                </div>
-              </div>
-              <div class="dist">
-                <h5 data-i18n="distTitle">Sản phẩm còn hàng theo giá</h5>
-                <div id="distRows"></div>
               </div>
             </div>
 
@@ -669,6 +621,7 @@
                 <h2 data-i18n="prodTitle">Sản phẩm trong kho</h2>
                 <span class="count" id="prodCount"></span>
               </div>
+              <div id="stockBar" role="status" style="font-size:13px;color:var(--muted);margin:2px 0 0"></div>
               <div id="syncStatus" class="sync-status syncing">Đang đồng bộ kho thật...</div>
               <div class="toolbar">
                 <div class="search-wrap">
@@ -692,7 +645,7 @@
                         <svg preserveAspectRatio="none" height="27" width="27" viewBox="4.8 4.56 14.832 15.408" fill="none" aria-hidden="true"><path d="M8.16 6.65002H15.83C16.47 6.65002 16.99 7.17002 16.99 7.81002V9.09002C16.99 9.56002 16.7 10.14 16.41 10.43L13.91 12.64C13.56 12.93 13.33 13.51 13.33 13.98V16.48C13.33 16.83 13.1 17.29 12.81 17.47L12 17.98C11.24 18.45 10.2 17.92 10.2 16.99V13.91C10.2 13.5 9.97 12.98 9.73 12.69L7.52 10.36C7.23 10.08 7 9.55002 7 9.20002V7.87002C7 7.17002 7.52 6.65002 8.16 6.65002Z" stroke="#d6d6e6" stroke-width="1" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                       </button>
                       <span class="uiv-glow-search-icon" id="uivSearchIcon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" height="24" fill="none"><circle stroke="url(#uivSearchGrad)" r="8" cy="11" cx="11"></circle><line stroke="url(#uivSearchGradL)" y2="16.65" y1="22" x2="16.65" x1="22"></line><defs><linearGradient gradientTransform="rotate(50)" id="uivSearchGrad"><stop stop-color="#F0ABFC" offset="0%"></stop><stop stop-color="#A78BFA" offset="50%"></stop></linearGradient><linearGradient id="uivSearchGradL"><stop stop-color="#22D3EE" offset="0%"></stop><stop stop-color="#8B5CF6" offset="50%"></stop></linearGradient></defs></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" height="24" fill="none"><circle stroke="url(#uivSearchGrad)" r="8" cy="11" cx="11"></circle><line stroke="url(#uivSearchGradL)" y2="16.65" y1="22" x2="16.65" x1="22"></line><defs><linearGradient gradientTransform="rotate(50)" id="uivSearchGrad"><stop style="stop-color:var(--brand-primary,#10B981)" offset="0%"></stop><stop style="stop-color:var(--brand-gold,#F5B942)" offset="50%"></stop></linearGradient><linearGradient id="uivSearchGradL"><stop style="stop-color:var(--brand-gold,#F5B942)" offset="0%"></stop><stop style="stop-color:var(--brand-primary,#10B981)" offset="50%"></stop></linearGradient></defs></svg>
                       </span>
                     </div>
                   </div>
@@ -713,9 +666,26 @@
                 <button class="chip" data-cat="detail" data-i18n="chipDetail">Acc sẵn thông tin</button>
                 <button class="chip" data-cat="white" data-i18n="chipWhite">Acc trắng thông tin</button>
                 <button class="chip" data-cat="random-lq" data-i18n="chipRandomLq">Random Liên Quân</button>
-                <button class="chip" data-cat="products">Sản phẩm số</button>
+                <button class="chip" data-cat="products" data-i18n="chipProducts">Sản phẩm số</button>
+              </div>
+              <div class="chips" id="priceChips" role="group" aria-label="Lọc theo giá">
+                <button class="chip on" data-price="all" data-i18n="priceAll">Tất cả giá</button>
+                <button class="chip" data-price="under50" data-i18n="priceUnder50">Dưới 50k</button>
+                <button class="chip" data-price="50to200" data-i18n="price50to200">50k – 200k</button>
+                <button class="chip" data-price="200to500" data-i18n="price200to500">200k – 500k</button>
+                <button class="chip" data-price="over500" data-i18n="priceOver500">Trên 500k</button>
               </div>
               <div id="productArea"></div>
+            </div>
+
+            <div class="steps">
+              <h2 data-i18n="stepsTitle">Mua acc trong 4 bước</h2>
+              <div class="steps-grid">
+                <div class="step"><div class="num">1</div><b data-i18n="step1T">Tạo tài khoản</b><p data-i18n="step1P">Đăng ký bằng tên đăng nhập + mật khẩu, hoặc đăng nhập bằng Telegram. Mở trong Mini App thì shop tự nhận tài khoản của bạn.</p></div>
+                <div class="step"><div class="num">2</div><b data-i18n="step2T">Nạp tiền vào ví</b><p data-i18n="step2P">Quét mã VietQR, chuyển khoản đúng số tiền và ghi đúng nội dung là mã hoá đơn — tiền vào ví sau khi hệ thống xác nhận, không cần gửi bill.</p></div>
+                <div class="step"><div class="num">3</div><b data-i18n="step3T">Chọn acc &amp; bấm Mua ngay</b><p data-i18n="step3P">Lọc theo loại acc và tầm giá rồi bấm Mua ngay. Ví đủ tiền thì kho trừ acc ngay lập tức.</p></div>
+                <div class="step"><div class="num">4</div><b data-i18n="step4T">Nhận tài khoản</b><p data-i18n="step4P">Tên đăng nhập + mật khẩu hiện ngay trong mục Đơn hàng của tôi.</p></div>
+              </div>
             </div>
           </section>
 
@@ -732,7 +702,7 @@
           <section class="view" id="view-topup">
             <div class="panel">
               <h2 data-i18n="topupTitle">Nạp tiền vào ví</h2>
-              <p class="sub" data-i18n="topupSub">Chuyển khoản ngân hàng qua VietQR — chuyển đúng số tiền và ghi đúng nội dung là mã hoá đơn, tiền vào ví sau khi hệ thống xác nhận giao dịch.</p>
+              <p class="sub" data-i18n="topupSub">Quét mã VietQR và chuyển khoản đúng nội dung. Hệ thống đối soát và cộng tiền vào ví tự động.</p>
               <div class="method-tabs" role="tablist">
                 <button class="on" id="tabQr" data-i18n="tabQr">VietQR · Quét mã</button>
                 <!-- TAM TAT: nap the cao tam dung (chua xac minh) — an tab, mo lai thi xoa style display:none -->
@@ -780,7 +750,7 @@
                     <option value="200000">200.000đ</option>
                     <option value="500000">500.000đ</option>
                   </select>
-                  <div class="hint" data-i18n="cardAmountHint">Chọn đúng mệnh giá in trên thẻ — khai sai mệnh giá, TheSieuRe xử lý theo mệnh giá thực và có thể mất thẻ.</div>
+                  <div class="hint" data-i18n="cardAmountHint">Chọn đúng nhà mạng và mệnh giá in trên thẻ. Khai sai mệnh giá sẽ xử lý theo mệnh giá thực và có thể mất thẻ.</div>
                 </div>
                 <div class="field"><label for="cardSerial" data-i18n="cardSerialL">Số seri</label><input id="cardSerial" inputmode="numeric" placeholder="Nhập số seri in trên thẻ" data-i18n-ph="cardSerialPh" /></div>
                 <div class="field"><label for="cardPin" data-i18n="cardPinL">Mã thẻ</label><input id="cardPin" inputmode="numeric" placeholder="Cào lớp bạc và nhập mã thẻ" data-i18n-ph="cardPinPh" /></div>
@@ -799,7 +769,12 @@
           <section class="view" id="view-invoices">
             <div class="panel">
               <h2 data-i18n="invTitle">Hoá đơn nạp tiền</h2>
-              <p class="sub" data-i18n="invSub">Lịch sử các lần nạp qua VietQR và thẻ cào TheSieuRe — thẻ cào hiện rõ trạng thái chờ xử lý, thành công hay thất bại.</p>
+              <p class="sub" data-i18n="invSub">Theo dõi trạng thái các giao dịch nạp tiền qua ngân hàng và thẻ cào của bạn.</p>
+              <div id="pendInvCard" class="order" hidden style="border-color:var(--gold)">
+                <div class="order-top"><b data-i18n="pendInvT">Hoá đơn đang chờ thanh toán</b><span class="badge pend" data-i18n="pendInvBadge">Chờ thanh toán</span></div>
+                <div class="meta"><span data-i18n="pendInvCode">Mã hoá đơn</span>: <b id="pendInvCode">—</b> · <b id="pendInvAmt">—</b></div>
+                <div style="margin-top:11px"><button class="btn btn-wine" id="pendInvPayBtn" style="padding:7px 15px;min-height:38px;font-size:13px" data-i18n="pendInvPay">Thanh toán ngay</button></div>
+              </div>
               <div id="invoicesList"></div>
             </div>
           </section>
@@ -874,6 +849,7 @@
             <div class="panel">
               <h2 data-i18n="lbTitle">Bảng xếp hạng</h2>
               <p class="sub" data-i18n="lbSub">Top khách mua nhiều nhất tại shop — xếp theo tổng chi tiêu.</p>
+              <div id="lbPodium"></div>
               <div id="lbList"></div>
             </div>
           </section>
@@ -918,7 +894,7 @@
         <form id="authForm" novalidate>
           <!-- Uiverse glitch card header (Phase 1): chi trang tri, form + ID giu nguyen -->
           <div class="uiv-glitch-head">
-            <span class="uiv-glitch-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path><path d="M12 11.5a3 3 0 0 0 -3 2.824v1.176a3 3 0 0 0 6 0v-1.176a3 3 0 0 0 -3 -2.824z"></path></svg><span>ANHDEV_SECURE</span></span>
+            <span class="uiv-glitch-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path><path d="M12 11.5a3 3 0 0 0 -3 2.824v1.176a3 3 0 0 0 6 0v-1.176a3 3 0 0 0 -3 -2.824z"></path></svg><span>ANHDEV_MEMBER</span></span>
             <span class="uiv-glitch-dots" aria-hidden="true"><span></span><span></span><span></span></span>
           </div>
           <div class="field">
@@ -938,7 +914,7 @@
           </div>
           <button class="btn btn-wine" type="submit" id="authSubmit" data-text="Đăng nhập" style="width:100%">Đăng nhập</button>
         </form>
-        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center" data-i18n="authWebHint">Tài khoản web lưu trên máy chủ AnhDev — hoặc đăng nhập bằng Telegram bên dưới.</p>
+        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center" data-i18n="authWebHint">Đăng nhập bằng tài khoản web hoặc kết nối nhanh qua Telegram bên dưới.</p>
         <div class="divider">hoặc</div>
         <!-- Đăng nhập Telegram THẬT bằng Telegram Login Widget (bot @devbn_bot).
              Cần vào @BotFather → /setdomain → đăng ký domain bottelegram-devbuinhat.github.io
@@ -946,7 +922,7 @@
         <div id="telegramLoginWrap" style="display:flex;justify-content:center">
           <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="devbn_bot" data-size="large" data-lang="vi" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
         </div>
-        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center" data-i18n="tgHint">Mở shop trong Telegram Mini App thì bước này tự xong — shop tự nhận tài khoản Telegram đang dùng.</p>
+        <p class="hint" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center" data-i18n="tgHint">Mở shop trực tiếp trong Telegram Mini App để tự động nhận diện tài khoản và đồng bộ ví.</p>
       </div>
     </div>
 

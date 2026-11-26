@@ -270,3 +270,42 @@ Phương pháp đợt này: KHÔNG re-fire lại toàn bộ script tấn công (
 | **S10 — Hồi quy giao diện** | **PASS.** Frontend **193/193 PASS** (177 cũ + 16 mới test-topup-privacy: a1, b1, c1–c6, d1–d8); backend **209/209 PASS** (test_self 86, test_admin 70, test_shop 53). Không regression. |
 
 **Kết luận đợt re-check:** 9/10 kịch bản chặn được (như trước); **chỉ còn S6C mở** — dữ liệu `stock.json` công khai vẫn lộ cho tới khi re-export ~29/11 (đã có sẵn script lược + admin search đã chuyển sang `shop_stock`, chỉ chờ Anh đồng ý + Chrome để chạy). Không có kịch bản nào thủng thêm sau các thay đổi gần đây (S6C backend `f0c9e41`, rework Neon Aurora `acbb34df`, 3 mục vá trên).
+
+---
+
+## 8. UI/UX Upgrade — Worker D: kiểm tra toàn bộ + push (2026-11-26 ~21:43–22:0x +07)
+
+**Phạm vi:** chỉ frontend store (`index.html`, `assets/app.js`, `tests/test-uiverse.js`). Không động backend, bot, HostVN, Render, `stock.json`, dữ liệu thật. 5 acc test giữ nguyên.
+
+### 8.1. Vá 2 điểm sót Worker C2
+1. **Xóa 5 key EN mồ côi trong `I18N_EN` (app.js, ~2785–2787):** `quick1S`, `quick2S`, `statModels`, `statFrom`, `distTitle`. Grep lại trước khi xóa: chỉ còn xuất hiện trong dict + 1 comment mô tả ở app.js:694–695 (ghi chú `.stats-card` đã bỏ — giữ lại vì là tài liệu đúng). Không còn HTML/JS nào dùng.
+2. **Thêm `data-i18n="chipProducts"` cho chip "Sản phẩm số"** (index.html, `data-cat="products"`). Key EN `chipProducts:"Digital Products"` đã có sẵn; trước đó chip này không đổi sang EN. Đã kiểm chứng bằng jsdom: chuyển EN → chip hiện "Digital Products".
+
+### 8.2. Dọn CSS chết
+Xóa khỏi `<style>` của `index.html` (grep xác nhận 0 HTML/JS nào dùng): `.quick-row` + toàn bộ `.quick-card` (cùng block đã bỏ), `.stats-card` + `.stat-tiles`/`.stat-tile`/`.dist`/`.dist-row`/`.dist-bar`, và 2 override trong media query (`@media 760px` + `@media 420px`). Giữ lại `.steps` (đang dùng).
+
+### 8.3. Hero thu gọn (đã làm, CSS-only, rủi ro thấp)
+`.hero` min-height 340px → 260px (mobile 300px → 240px), `.hero-inner` padding 44px 46px → 32px 40px (mobile 30px 24px → 24px 20px), đoạn `p` margin-bottom 24px → 16px. Không đổi layout/cấu trúc.
+
+### 8.4. Cập nhật test
+- **test-uiverse.js a5, a6 (ripple):** Worker A đã đổi ripple sang màu brand (nền `var(--brand-secondary)`, chữ `var(--brand-secondary-text)`, hover/gợn sóng `var(--brand-primary)`) nên expectation cũ (`#0d6fb8`/`#47a7f5`, `#1D9AF2` trên `#292D3E`) fail — 2 test này là FAIL duy nhất ở baseline. Cập nhật sang assert dùng đúng biến brand + khẳng định 4 mã màu cũ không còn trong CSS.
+- **test-shop-buy.js a10 + test-orders-history.js b3/b5 (eye-toggle):** Worker C đã cập nhật xong trước Worker D (thành a10a/a10b, b3a/b3b/b3c, b5a/b5b: tk/mk mặc định che `••••••••`, bấm mắt mới hiện) — baseline đã PASS, Worker D không sửa thêm.
+- **test-uiverse.js mục C (tương phản):** các cặp WCAG cũ còn dùng màu Neon Aurora đã bỏ (`#7C3AED`, `#1D9AF2/#292D3E`, `#010201`, `#00f2ea`) — chỉ là literal tính tỉ lệ nên vẫn PASS nhưng không còn mô tả site. Worker D thay bằng 11 cặp brand thật (xem 8.5). Suite uiverse 48 → 50 test.
+
+### 8.5. Kết quả test
+- **Frontend jsdom — 199 PASS, 0 FAIL:** test-admin-frontend 49, test-orders-history 21, test-shop-buy 27, test-sold-codes 18, test-topup-privacy 16, test-uiverse 50, test-white-shuffle 18. Baseline trước khi sửa: 197 PASS, 2 FAIL (a5, a6).
+- **Backend — 209 PASS, 0 FAIL** (chỉ chạy, không sửa): test_self 86, test_admin 70, test_shop 53. Lưu ý môi trường: `python3` hệ thống thiếu Flask/JWT/cryptography nên chạy bằng venv tạm `/tmp/be-venv` cài từ `requirements.txt` (không sửa backend).
+- `node --check` sạch: `app.js`, `animations.js`, `admin-random-search.js`, toàn bộ `tests/test-*.js`. Ngoặc `{}` cân bằng: index.html 349/349, uiverse.css 116/116, animations.css 184/184.
+
+### 8.6. Kiểm tra giao diện (jsdom + kiểm tra tĩnh)
+- **Console/CSP:** jsdom VirtualConsole khi tải trang: 0 lỗi JS thật (chỉ 1 cảnh báo jsdom không hỗ trợ canvas `getContext()` cho `#heroFx` — giới hạn của jsdom, không phải lỗi trang; test-topup-privacy a1 cũng 0 lỗi). CSP meta còn nguyên, connect-src Worker + Render; 0 `<script>` nội tuyến; thuộc tính `data-onauth` trên thẻ script Telegram widget là có từ trước, không phải handler nội tuyến mới.
+- **Xung đột `.uiv-*`:** 72 rule `.uiv-` trong uiverse.css, không có selector trùng lặp thật — `.uiv-shine-btn:hover` xuất hiện 2 lần là có chủ đích (rule gốc + override `transform:none` trong `@media (max-width:760px)`).
+- **Cuộn ngang 390px:** `html,body{overflow-x:clip}`; mọi width ≥390px đều là `max-width` hoặc nằm trong media query (`.content` max-width 1240 + width:100%, modal max-width 480 + width:100%); test a8/a9/a11 (shine tắt scale mobile, glitch margin:0, glow input 100%) đều PASS.
+- **Tương phản (WCAG, tính tay):** Light text-primary 15.57:1, text-secondary 5.25:1, ripple 8.70:1, CTA trắng trên `#0C4A3B` 10.20:1; Dark text-primary 17.93:1, text-secondary 7.63:1, ripple 10.54:1, CTA `#082A20` trên `#10B981` 6.08:1; kicker vàng `#F5B942` trên `#0C4A3B` 5.78:1; badge.pend Light `#92400E` trên `#FEF3C7` 6.37:1, Dark `#F5B942` trên `#2E2410` 8.65:1 — tất cả ≥4.5:1. Lưu ý: `--brand-gold` `#C68B2C` trên nền sáng chỉ ~2.95:1 nên KHÔNG dùng làm chữ (đã ghi trong comment index.html:34–35); chữ vàng dùng alias `--gold` như trên.
+- **Light/Dark + toggle:** mặc định dark (`<html data-theme="dark">`, chưa có lựa chọn lưu → dark); jsdom: bấm `#themeLight` → light + lưu `anhdev_theme=light`, bấm `#themeDark` → dark. StockBar live: "12.126 accounts · From 3.000đ"; `#lbPodium` có mặt.
+- **5 acc test + autocomplete:** backend test_admin đăng nhập cả 5 acc test (nhatdeptrai/nhatdz/muaacc/colonmahup/admin2); frontend test-admin-frontend 49 PASS (login nhatdeptrai + admin2, số dư 250.000đ). Autocomplete: `SEARCH_ALIASES` đủ 16 alias; test-uiverse b6 (dropdown gợi ý mở khi gõ) PASS.
+- **Chưa kiểm chứng bằng trình duyệt thật:** console CSP thật, cuộn ngang 390px trên điện thoại, hero thu gọn nhìn thực tế — cần Anh mở store trên điện thoại + desktop sau deploy.
+
+### 8.7. Push
+- Commit (snapshot push, chỉ 4 file UTF-8: `index.html`, `assets/app.js`, `tests/test-uiverse.js`, `REPORT.md`): xem mục 8.8. Không push `stock.json` hay file nhị phân (ảnh `.webp` đã có sẵn trên repo, không đụng tới).
+- Xác minh Pages sau push: xem 8.8.
