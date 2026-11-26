@@ -6,14 +6,21 @@
    .border, .card-header, .submit-btn, ...) ra global scope va khong pha
    Sidebar / Toast / Modal / the Acc cua store.
 
+   [BRAND 2026-11-26] Palette Neon Aurora (tim/hong/cyan/lime, cau vong)
+   da doi sang Emerald + Vang kim: --brand-primary / --brand-gold /
+   --brand-secondary / var(--on-wine) theo theme (xem :root trong
+   index.html). Khong con gradient tim-hong, khong con hue-rotate doi
+   mau cau vong; cac hieu ung xoay/dao sang GIU NGUYEN nhung chi bang
+   mau thuong hieu. Chu tren nut CTA dung var(--on-wine): Light trang
+   tren #0C4A3B = 10.20:1, Dark #082A20 tren #10B981 = 6.08:1.
+
    Cac sua doi so voi ban goc (theo PROMPT_TONG.md + worker check):
    - 01 shine: hover scale(1.05) TAT tren nut full-width (.buy-btn,
      #makeQrBtn, #cardSubmit) va o <=760px (tran card tren mobile).
    - 02 loader: chu loading dung var(--ink) theo theme — ban goc chu trang
      #ffffff tren nen sang Light mode chi 1.09:1 (khong doc duoc).
-     [VIBRANT 2026-11-26] Light: #1B1533 tren #FFFFFF = 17.48:1,
-     Dark: #F4F2FF tren #171733 = 15.74:1.
-     Gradient cua loader giu nguyen.
+     Gradient cua loader: Emerald (#0C4A3B Light / #10B981 Dark) ->
+     Vang kim (--brand-gold); bo hue-rotate doi mau.
    - 03 glow search: bo comment `//` sai chuan, go block #poda:hover trung
      lap, bo width co dinh (input 301px -> width:100%), wrapper co
      position:relative + isolation (lop glow z-index:-1 truoc day can theo
@@ -21,11 +28,18 @@
      input[type=search] (dung nut × tuy chinh), nut filter la <button> that.
      Dropdown autocomplete (#searchSuggest, z-index 32) la SIBLING cua
      wrapper (khong nam trong wrapper) nen luon noi tren cac lop glow.
+     [BRAND] Light: nen input #FFFFFF (var(--bg-input)), vien sang conic
+     Emerald #0C4A3B + Vang kim #C68B2C — KHONG hop den tuyen;
+     Dark: nen #0E1614, vien Emerald #10B981 + Vang kim #F5B942.
+     Xoay lien tuc GIU NGUYEN, chi doi sang mau thuong hieu.
    - 04 glitch login: ap len modal hien co (khong thay form), margin:0 khi
      long trong .modal (ban goc margin:1rem tran ~32px o 390px).
-   - 05 ripple: min-height 36px -> 44px (chuan cham); hover #47a7f5
-     (trang tren do chi 2.59:1) -> #0d6fb8 (trang tren do 5.27:1, dat AA).
-     Trang thai mac dinh #1D9AF2 tren #292D3E (4.52:1) GIU NGUYEN.
+     [BRAND] neon cyan/tim -> Emerald #10B981 + Vang kim #F5B942;
+     bo goc 0 -> 16px (khop Modal 20px).
+   - 05 ripple: min-height 36px -> 44px (chuan cham); [BRAND] nen
+     var(--brand-secondary), vien var(--border-subtle), chu
+     var(--brand-secondary-text) (Light #0C4A3B tren #E6EFEA = 8.70:1,
+     Dark #6EE7B7 tren #162420 = 10.54:1), gon song var(--brand-primary).
    - .grid o index.html:236 la product grid cua store, KHONG phai leak.
    - Toast container (z-index:9999 literal) de nguyen, khong dung.
    ============================================================================ */
@@ -40,14 +54,15 @@
   padding-block: 0.5rem;
   padding-inline: 1.25rem;
   min-height: 44px; /* [VA 2026-11-26] nut bam >=44px (goc .btn chi 42px) */
-  /* [VIBRANT 2026-11-26] gradient tim-hong (chu trang tren stop dam nhat
-     #7C3AED = 5.70:1, #DB2777 = 4.60:1) thay xanh duong #006BB3. */
-  background: linear-gradient(135deg, var(--accent-violet, #8B5CF6), var(--accent-pink, #EC4899));
+  /* [BRAND 2026-11-26] Nen dac Emerald var(--brand-primary); chu
+     var(--on-wine) (Light trang tren #0C4A3B = 10.20:1, Dark #082A20
+     tren #10B981 = 6.08:1). Bo gradient tim-hong. */
+  background: var(--brand-primary);
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--on-wine);
   gap: 10px;
   font-weight: bold;
   border: 3px solid #ffffff4d;
@@ -56,9 +71,9 @@
   font-size: 15px;
   cursor: pointer;
 }
-/* [VIBRANT 2026-11-26] Vien cau vong XOAY quanh nut CTA (chi trang tri:
-   ::after nam tren cung nhung chi 2px o ria, chu dung yen). Dung co che
-   @property --beam-angle (animations.css) — gradient chay vong quanh vien. */
+/* [BRAND 2026-11-26] Vien Emerald→Vang kim XOAY quanh nut CTA (chi trang
+   tri: ::after nam tren cung nhung chi 2px o ria, chu dung yen). Dung co
+   che @property --beam-angle (animations.css). */
 .uiv-shine-btn::after {
   content: "";
   position: absolute;
@@ -66,7 +81,8 @@
   border-radius: inherit;
   padding: 2px;
   background: conic-gradient(from var(--beam-angle, 0deg),
-    #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
+    transparent 0deg, var(--brand-primary) 70deg, var(--brand-gold) 130deg,
+    transparent 200deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -94,10 +110,12 @@
   position: absolute;
   width: 100px;
   height: 100%;
+  /* [BRAND] Anh sang luot trang + vang kim tinh te (khong tim/hong). */
   background-image: linear-gradient(
     120deg,
     rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0.8) 48%,
+    rgba(245, 185, 66, 0.55) 52%,
     rgba(255, 255, 255, 0) 70%
   );
   top: 0;
@@ -138,32 +156,32 @@
   position: relative;
   width: 180px;
   height: 32px;
-  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
   overflow: hidden;
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.6),
-    0 1px 3px rgba(255, 255, 255, 0.1);
+    inset 0 2px 4px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .uiv-liquid-fill {
   position: absolute;
   top: 2px;
   left: 2px;
   height: calc(100% - 4px);
-  background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899, #f59e0b);
+  /* [BRAND] Dai mau chay: Emerald var(--brand-primary) (#0C4A3B Light /
+     #10B981 Dark) -> Vang kim var(--brand-gold). Bo gradient tim-xanh-hong. */
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-gold));
   border-radius: 14px;
-  animation:
-    uiv-fill-progress 4s ease-out infinite,
-    uiv-color-shift 3s linear infinite;
+  animation: uiv-fill-progress 4s ease-out infinite;
   box-shadow:
-    0 0 12px rgba(124, 58, 237, 0.4),
+    0 0 12px rgba(16, 185, 129, 0.4),
     inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 /* FIX (worker check Desktop): ban goc chu trang #ffffff — tren nen sang
-   Light mode chi 1.09:1 (khong doc duoc). Dung var(--ink) theo theme:
-   [VIBRANT 2026-11-26] Light #1B1533 tren #FFFFFF = 17.48:1,
-   Dark #F4F2FF tren #171733 = 15.74:1.
-   Gradient cua loader giu nguyen. */
+   Light mode chi 1.09:1 (khong doc duoc). Dung var(--ink) theo theme
+   (= var(--text-primary)): Light #121E1A tren #FFFFFF = 17.12:1,
+   Dark #F2F6F4 tren #111917 = 16.39:1. */
 .uiv-loading-text {
   color: var(--ink);
   font-size: 18px;
@@ -185,15 +203,11 @@
   75% { width: 75%; }
   100% { width: calc(100% - 4px); }
 }
-@keyframes uiv-color-shift {
-  0% { filter: hue-rotate(0deg) brightness(1); }
-  33% { filter: hue-rotate(120deg) brightness(1.1); }
-  66% { filter: hue-rotate(240deg) brightness(0.9); }
-  100% { filter: hue-rotate(360deg) brightness(1); }
-}
+/* [BRAND] Bo uiv-color-shift (hue-rotate doi mau cau vong) — dai mau
+   Emerald→Vang kim giu nguyen mau thuong hieu trong suot qua trinh chay. */
 @keyframes uiv-text-glow {
-  0%, 100% { opacity: 0.7; text-shadow: 0 0 8px rgba(139, 92, 246, 0.3); }
-  50% { opacity: 1; text-shadow: 0 0 16px rgba(139, 92, 246, 0.6); }
+  0%, 100% { opacity: 0.7; text-shadow: 0 0 8px rgba(16, 185, 129, 0.3); }
+  50% { opacity: 1; text-shadow: 0 0 16px rgba(245, 185, 66, 0.6); }
 }
 @keyframes uiv-blink {
   0%, 50% { opacity: 1; }
@@ -232,21 +246,23 @@
   inset: 0;
   overflow: hidden;
   z-index: -1;
-  border-radius: 12px;
+  border-radius: 8px;
   filter: blur(3px);
 }
 .uiv-glow-input {
-  background-color: #010201;
+  /* [BRAND] Nen theo theme: Light #FFFFFF, Dark #0E1614 (var(--bg-input));
+     KHONG hop den tuyen trong Light. Chu var(--ink) theo theme. */
+  background-color: var(--bg-input);
   border: none;
   width: 100%;
   height: 56px;
-  border-radius: 10px;
-  color: #ffffff;
+  border-radius: 8px;
+  color: var(--ink);
   padding: 0 104px 0 59px; /* [VA 2026-11-26] phai 104px: clear ket thuc 96px + 8px dem */
   font-size: 18px;
 }
 .uiv-glow-input::placeholder {
-  color: #c0b9c0;
+  color: var(--muted);
 }
 .uiv-glow-input:focus {
   outline: none;
@@ -267,7 +283,7 @@
   width: 100px;
   height: 20px;
   position: absolute;
-  background: linear-gradient(90deg, transparent, black);
+  background: linear-gradient(90deg, transparent, var(--bg-input));
   top: 18px;
   left: 70px;
 }
@@ -276,24 +292,25 @@
   width: 30px;
   height: 20px;
   position: absolute;
-  background: #cf30aa;
+  /* [BRAND] Cham vang kim (khong con hong); nhap nhay nhe
+     bang opacity thay vi hue-rotate doi mau. */
+  background: var(--brand-gold);
   top: 10px;
   left: 5px;
   filter: blur(20px);
   opacity: 0.8;
   transition: opacity 2s;
-  /* [VIBRANT 2026-11-26] Cham hong dao mau lien tuc (hue-rotate). */
-  animation: uiv-pink-hue 5s linear infinite;
+  animation: uiv-gold-pulse 5s ease-in-out infinite;
 }
-@keyframes uiv-pink-hue {
-  from { filter: blur(20px) hue-rotate(0deg); }
-  to { filter: blur(20px) hue-rotate(360deg); }
+@keyframes uiv-gold-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.35; }
 }
 .uiv-glow-main:hover > .uiv-glow-pink-mask {
   opacity: 0;
 }
 .uiv-glow-white {
-  border-radius: 10px;
+  border-radius: 8px;
   filter: blur(2px);
 }
 .uiv-glow-white::before {
@@ -309,21 +326,22 @@
   background-repeat: no-repeat;
   background-position: 0 0;
   filter: brightness(1.4);
+  /* [BRAND] Vien sang conic Emerald + Vang kim (khong tim/hong). */
   background-image: conic-gradient(
     rgba(0, 0, 0, 0) 0%,
-    var(--accent-violet, #8B5CF6),
+    var(--brand-primary),
     rgba(0, 0, 0, 0) 8%,
     rgba(0, 0, 0, 0) 50%,
-    var(--accent-pink, #EC4899),
+    var(--brand-gold),
     rgba(0, 0, 0, 0) 58%
   );
-  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC ngay ca khi khong bam
-     (khong chi luc hover/focus). */
+  /* [BRAND] XOAY LIEN TUC ngay ca khi khong bam (khong chi luc
+     hover/focus) — giu hieu ung Anh thich, chi doi sang mau thuong hieu. */
   --uiv-rot: 83deg;
   animation: uiv-glow-spin 9s linear infinite;
 }
 .uiv-glow-border {
-  border-radius: 11px;
+  border-radius: 8px;
   filter: blur(0.5px);
 }
 .uiv-glow-border::before {
@@ -340,14 +358,14 @@
   background-repeat: no-repeat;
   background-position: 0 0;
   background-image: conic-gradient(
-    var(--bg-input, #0D0D22),
-    var(--accent-violet, #8B5CF6) 5%,
-    var(--bg-input, #0D0D22) 14%,
-    var(--bg-input, #0D0D22) 50%,
-    var(--accent-pink, #EC4899) 60%,
-    var(--bg-input, #0D0D22) 64%
+    var(--bg-input),
+    var(--brand-primary) 5%,
+    var(--bg-input) 14%,
+    var(--bg-input) 50%,
+    var(--brand-gold) 60%,
+    var(--bg-input) 64%
   );
-  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  /* [BRAND] XOAY LIEN TUC. */
   --uiv-rot: 70deg;
   animation: uiv-glow-spin 7s linear infinite reverse;
 }
@@ -365,13 +383,13 @@
   background-position: 0 0;
   background-image: conic-gradient(
     rgba(0, 0, 0, 0),
-    var(--accent-cyan, #22D3EE),
+    var(--brand-primary),
     rgba(0, 0, 0, 0) 10%,
     rgba(0, 0, 0, 0) 50%,
-    var(--accent-pink, #EC4899),
+    var(--brand-gold),
     rgba(0, 0, 0, 0) 60%
   );
-  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  /* [BRAND] XOAY LIEN TUC. */
   --uiv-rot: 82deg;
   animation: uiv-glow-spin 8s linear infinite;
 }
@@ -379,7 +397,7 @@
 .uiv-glow-search:hover > .uiv-glow-layer::before,
 .uiv-glow-search:hover > .uiv-glow-white::before,
 .uiv-glow-search:hover > .uiv-glow-border::before {
-  /* [VIBRANT 2026-11-26] Xoay da chay lien tuc nen hover chi tang sang. */
+  /* [BRAND] Xoay da chay lien tuc nen hover chi tang sang. */
   filter: brightness(1.6);
 }
 .uiv-glow-search:focus-within > .uiv-glow-dark-border::before,
@@ -406,18 +424,18 @@
   background-repeat: no-repeat;
   background-position: 0 0;
   background-image: conic-gradient(
-    #000,
-    var(--accent-violet, #8B5CF6) 5%,
-    #000 38%,
-    #000 50%,
-    var(--accent-pink, #EC4899) 60%,
-    #000 87%
+    var(--bg-main),
+    var(--brand-primary) 5%,
+    var(--bg-main) 38%,
+    var(--bg-main) 50%,
+    var(--brand-gold) 60%,
+    var(--bg-main) 87%
   );
-  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  /* [BRAND] XOAY LIEN TUC. */
   --uiv-rot: 60deg;
   animation: uiv-glow-spin 6s linear infinite reverse;
 }
-/* [VIBRANT 2026-11-26] Xoay lien tuc cho cac lop glow cua thanh tim kiem:
+/* [BRAND] Xoay lien tuc cho cac lop glow cua thanh tim kiem:
    giu nguyen goc xuat phat (--uiv-rot) cua tung lop, quay them 360 do. */
 @keyframes uiv-glow-spin {
   from { transform: translate(-50%, -50%) rotate(var(--uiv-rot, 0deg)); }
@@ -442,18 +460,18 @@
   width: 44px; /* [VA 2026-11-26] du 44px chuan cham (truoc 38px) */
   isolation: isolate;
   overflow: hidden;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #1E1E42, #0B0B1A, #241B4D);
-  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
   padding: 0;
   cursor: pointer;
 }
 .uiv-glow-filter:hover {
-  border-color: rgba(0, 242, 234, 0.55);
+  border-color: var(--brand-primary);
 }
 .uiv-glow-filter.on {
-  border-color: #00f2ea;
-  box-shadow: 0 0 10px rgba(0, 242, 234, 0.55);
+  border-color: var(--brand-gold);
+  box-shadow: 0 0 10px rgba(245, 185, 66, 0.55);
 }
 .uiv-glow-filter-border {
   height: 42px;
@@ -462,7 +480,7 @@
   overflow: hidden;
   top: 7px;
   right: 7px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .uiv-glow-filter-border::before {
   content: "";
@@ -478,10 +496,10 @@
   filter: brightness(1.35);
   background-image: conic-gradient(
     rgba(0, 0, 0, 0),
-    var(--accent-violet, #8B5CF6),
+    var(--brand-primary),
     rgba(0, 0, 0, 0) 50%,
     rgba(0, 0, 0, 0) 50%,
-    var(--accent-cyan, #22D3EE),
+    var(--brand-gold),
     rgba(0, 0, 0, 0) 100%
   );
   animation: uiv-rotate 4s linear infinite;
@@ -513,15 +531,15 @@
   background: transparent;
   border: 0;
   border-radius: 8px;
-  color: #c0b9c0;
+  color: var(--muted);
   font-size: 22px;
   line-height: 1;
   padding: 0;
   cursor: pointer;
 }
 .uiv-glow-clear:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+  background: var(--bg-subtle);
 }
 .uiv-glow-clear[hidden] {
   display: none;
@@ -538,15 +556,16 @@
    duoc ca Light lan Dark mode. margin:0 (ban goc margin:1rem tran ~32px
    khi long trong .modal o 390px). */
 .uiv-glitch-auth #authForm {
-  --uiv-glitch-bg: #0d0d0d;
-  --uiv-glitch-primary: #00f2ea;
-  --uiv-glitch-secondary: #a855f7;
+  --uiv-glitch-bg: #0E1614;
+  --uiv-glitch-primary: #10B981;
+  --uiv-glitch-secondary: #F5B942;
   --uiv-glitch-text: #e5e5e5;
   --uiv-glitch-anim-duration: 0.5s;
   background-color: var(--uiv-glitch-bg);
-  border: 1px solid rgba(0, 242, 234, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 16px;
   box-shadow:
-    0 0 20px rgba(0, 242, 234, 0.1),
+    0 0 20px rgba(16, 185, 129, 0.1),
     inset 0 0 10px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   margin: 0;
@@ -559,11 +578,11 @@
   align-items: center;
   background-color: rgba(0, 0, 0, 0.3);
   padding: 0.5em 0.75em;
-  border-bottom: 1px solid rgba(0, 242, 234, 0.2);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
   margin: -1.25rem -1.25rem 1.25rem;
 }
 .uiv-glitch-title {
-  color: var(--uiv-glitch-primary, #00f2ea);
+  color: var(--uiv-glitch-primary, #10B981);
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -575,7 +594,7 @@
 .uiv-glitch-title svg {
   width: 1.2em;
   height: 1.2em;
-  stroke: var(--uiv-glitch-primary, #00f2ea);
+  stroke: var(--uiv-glitch-primary, #10B981);
 }
 .uiv-glitch-dots span {
   display: inline-block;
@@ -587,7 +606,7 @@
 }
 .uiv-glitch-auth .auth-tabs {
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(0, 242, 234, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.15);
 }
 .uiv-glitch-auth .auth-tabs button {
   color: rgba(229, 229, 229, 0.6);
@@ -597,13 +616,13 @@
   font-size: 13px;
 }
 .uiv-glitch-auth .auth-tabs button.on {
-  background: rgba(0, 242, 234, 0.12);
-  color: #00f2ea;
-  border: 1px solid rgba(0, 242, 234, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
   box-shadow: none;
 }
 .uiv-glitch-auth #authForm .field label {
-  color: #00f2ea;
+  color: #10B981;
   font-family: inherit;
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -616,16 +635,16 @@
 }
 @keyframes uiv-glitch-label {
   0% { transform: translate(0); text-shadow: none; }
-  20% { transform: translate(-2px, 1px); text-shadow: 2px 0 #a855f7, -2px 0 #00f2ea; }
-  40% { transform: translate(2px, -1px); text-shadow: -2px 0 #a855f7, 2px 0 #00f2ea; }
-  60% { transform: translate(-1px, 1px); text-shadow: 2px 0 #a855f7, -2px 0 #00f2ea; }
+  20% { transform: translate(-2px, 1px); text-shadow: 2px 0 #F5B942, -2px 0 #10B981; }
+  40% { transform: translate(2px, -1px); text-shadow: -2px 0 #F5B942, 2px 0 #10B981; }
+  60% { transform: translate(-1px, 1px); text-shadow: 2px 0 #F5B942, -2px 0 #10B981; }
   100% { transform: translate(0); text-shadow: none; }
 }
 .uiv-glitch-auth #authForm .field input {
   width: 100%;
   background: transparent;
   border: 1px solid transparent;
-  border-bottom: 2px solid rgba(0, 242, 234, 0.3);
+  border-bottom: 2px solid rgba(16, 185, 129, 0.3);
   border-radius: 0;
   padding: 0.75em 0;
   font-size: 1rem;
@@ -638,14 +657,14 @@
   padding-right: 44px;
 }
 .uiv-glitch-auth #authForm .field input:focus {
-  border-bottom-color: #00f2ea;
+  border-bottom-color: #10B981;
   outline: none;
 }
 .uiv-glitch-auth #authForm .field .hint {
   color: #8a9a94;
 }
 .uiv-glitch-auth #authForm .pw-eye {
-  color: rgba(0, 242, 234, 0.7);
+  color: rgba(16, 185, 129, 0.7);
 }
 .uiv-glitch-auth #authForm .pw-eye:hover {
   color: #ffffff;
@@ -657,8 +676,8 @@
   padding: 0.8em;
   margin-top: 1rem;
   background-color: transparent;
-  border: 2px solid #00f2ea;
-  color: #00f2ea;
+  border: 2px solid #10B981;
+  color: #10B981;
   font-family: inherit;
   font-size: 1rem;
   font-weight: 700;
@@ -671,9 +690,9 @@
 }
 .uiv-glitch-auth #authSubmit:hover,
 .uiv-glitch-auth #authSubmit:focus {
-  background-color: #00f2ea;
-  color: #0d0d0d;
-  box-shadow: 0 0 25px rgba(0, 242, 234, 0.6);
+  background-color: #10B981;
+  color: #082A20;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
   outline: none;
 }
 .uiv-glitch-auth #authSubmit:active {
@@ -691,19 +710,19 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  background-color: #00f2ea;
+  background-color: #10B981;
   transition: opacity 0.2s ease;
 }
 .uiv-glitch-auth #authSubmit:hover::before,
 .uiv-glitch-auth #authSubmit:focus::before {
   opacity: 1;
-  color: #a855f7;
+  color: #F5B942;
   animation: uiv-glitch-anim 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .uiv-glitch-auth #authSubmit:hover::after,
 .uiv-glitch-auth #authSubmit:focus::after {
   opacity: 1;
-  color: #0d0d0d;
+  color: #082A20;
   animation: uiv-glitch-anim 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both;
 }
 @keyframes uiv-glitch-anim {
@@ -727,13 +746,15 @@
 
 /* ================= 05. Ripple button (.uiv-ripple-btn) =================
    Scoped Ripple Effect Button (da sua: flexbox can giua + min-height 44px
-   theo chuan cham; hover #47a7f5 -> #0d6fb8 de chu trang dat AA 5.27:1;
-   mac dinh #1D9AF2 tren #292D3E = 4.52:1 giu nguyen). */
+   theo chuan cham; [BRAND] nen var(--brand-secondary), vien
+   var(--border-subtle), chu var(--brand-secondary-text) — Light #0C4A3B
+   tren #E6EFEA = 8.70:1, Dark #6EE7B7 tren #162420 = 10.54:1; gon song
+   var(--brand-primary) diu mat; hover nen Emerald, chu var(--on-wine)). */
 .uiv-ripple-btn {
-  color: #1D9AF2;
-  background-color: #292D3E;
-  border: 1px solid #1D9AF2;
-  border-radius: 6px;
+  color: var(--brand-secondary-text);
+  background-color: var(--brand-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
   padding: 0.5rem 1rem;
   cursor: pointer;
   min-height: 44px;
@@ -742,32 +763,32 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 0 4px rgba(29, 154, 242, 0.35);
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.25);
   outline: none;
   background-position: center;
   transition: background 0.8s, color 0.2s;
 }
 .uiv-ripple-btn:hover {
-  background: #0d6fb8 radial-gradient(circle, transparent 1%, #0d6fb8 1%) center/15000%;
-  color: white;
+  background: var(--brand-primary) radial-gradient(circle, transparent 1%, var(--brand-primary) 1%) center/15000%;
+  color: var(--on-wine);
 }
 /* Nut chon menh gia (.amount-btn): khoi phuc kich thuoc + mau goc cua store
    (48px, padding 13px 6px, nen var(--surface-2), chu var(--ink)) — ripple
    chi giu hieu ung hover/active. [VA 2026-11-26] Truoc day ripple ghi de
-   xuong 44px + nen xanh navy #292D3E o ca Light mode. */
+   xuong 44px + nen xanh navy o ca Light mode. */
 .amount-btn.uiv-ripple-btn {
   min-height: 48px;
   padding: 13px 6px;
   background-color: var(--surface-2);
   color: var(--ink);
   border-color: var(--line);
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 800;
   box-shadow: none;
 }
 .uiv-ripple-btn:active {
-  background-color: #292d3e;
+  background-color: var(--brand-secondary);
   background-size: 100%;
   transition: background 0s;
 }
@@ -784,8 +805,8 @@
   background: var(--surface-2);
   color: var(--ink);
 }
-/* Nut menh gia dang chon (.amount-btn.on): giu mau wine cua store de chu
-   khong roi xuong xanh #1D9AF2 tren nen sang (chi ~2.6:1). */
+/* Nut menh gia dang chon (.amount-btn.on): giu mau wine cua store
+   (alias sang --brand-primary) de chu luon dat tuong phan. */
 .uiv-ripple-btn.amount-btn.on {
   background: var(--wine-soft);
   border-color: var(--wine);

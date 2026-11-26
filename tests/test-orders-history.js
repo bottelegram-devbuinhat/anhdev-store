@@ -214,8 +214,17 @@ function firstRealBuyBtn(w){
     storedRaw.indexOf(code2) !== -1 && storedRaw.indexOf("testuser123") !== -1,
     storedRaw.slice(0, 200));
   await openOrders(p2.w);
-  check("b3. lich su trong phien hien don vua mua kem tk|mk",
-    ordersText(p2.w).indexOf(code2) !== -1 && ordersText(p2.w).indexOf("testuser123") !== -1,
+  const eye2 = p2.w.document.querySelector(".ord-eye-btn");
+  check("b3a. tk/mk mac dinh bi che (••••••••) trong lich su",
+    !!eye2 && ordersText(p2.w).indexOf(code2) !== -1 && ordersText(p2.w).indexOf("••••••••") !== -1 && ordersText(p2.w).indexOf("testuser123") === -1,
+    ordersText(p2.w).slice(0, 200));
+  if (eye2) eye2.click();
+  check("b3b. bam mat thi hien tk/mk cua don do",
+    ordersText(p2.w).indexOf("testuser123") !== -1 && ordersText(p2.w).indexOf("testpass123") !== -1,
+    ordersText(p2.w).slice(0, 200));
+  if (eye2) eye2.click();
+  check("b3c. bam mat lan nua thi an lai tk/mk",
+    ordersText(p2.w).indexOf("testuser123") === -1 && ordersText(p2.w).indexOf("••••••••") !== -1,
     ordersText(p2.w).slice(0, 200));
   check("b4. khong trung lap don (local + backend cung ma chi 1 dong)",
     ordersRows(p2.w) === 1, "rows=" + ordersRows(p2.w));
@@ -225,8 +234,13 @@ function firstRealBuyBtn(w){
     "anhdev_web_orders_webbuyer": storedRaw } });
   await sleep(900); // doi restoreWebSession (/me) + refreshBackendOrders
   await openOrders(p2b.w);
-  check("b5. sau khi tai lai trang, lich su van thay don kem tk|mk",
-    ordersText(p2b.w).indexOf(code2) !== -1 && ordersText(p2b.w).indexOf("testuser123") !== -1,
+  const eye2b = p2b.w.document.querySelector(".ord-eye-btn");
+  check("b5a. sau khi tai lai trang, tk/mk van bi che mac dinh",
+    !!eye2b && ordersText(p2b.w).indexOf(code2) !== -1 && ordersText(p2b.w).indexOf("••••••••") !== -1 && ordersText(p2b.w).indexOf("testuser123") === -1,
+    ordersText(p2b.w).slice(0, 200));
+  if (eye2b) eye2b.click();
+  check("b5b. sau khi tai lai trang, bam mat thi hien tk/mk",
+    ordersText(p2b.w).indexOf("testuser123") !== -1 && ordersText(p2b.w).indexOf("testpass123") !== -1,
     ordersText(p2b.w).slice(0, 200));
   check("b6. sau khi tai lai trang, khong trung lap don",
     ordersRows(p2b.w) === 1, "rows=" + ordersRows(p2b.w));

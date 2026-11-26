@@ -216,9 +216,15 @@ function buyActionsHtml(w){
   p1.w.document.querySelector("[data-buy-orders]").click();
   await sleep(400);
   const ordersText = (p1.w.document.querySelector("#ordersList") || {}).textContent || "";
-  check("a10. don hang moi hien trong lich su mua, kem tk|mk",
-    ordersText.indexOf(code1) !== -1 && ordersText.indexOf("testuser123") !== -1,
+  const eye1 = p1.w.document.querySelector(".ord-eye-btn");
+  check("a10a. don hang moi hien trong lich su, tk/mk mac dinh bi che",
+    !!eye1 && ordersText.indexOf(code1) !== -1 && ordersText.indexOf("••••••••") !== -1 && ordersText.indexOf("testuser123") === -1,
     ordersText.slice(0, 200));
+  if (eye1) eye1.click();
+  const ordersTextShown = (p1.w.document.querySelector("#ordersList") || {}).textContent || "";
+  check("a10b. bam mat thi hien tk/mk cua don moi mua",
+    ordersTextShown.indexOf("testuser123") !== -1 && ordersTextShown.indexOf("testpass123") !== -1,
+    ordersTextShown.slice(0, 200));
 
   console.log("== b. double-click nut Xac nhan ==");
   buyMode = "success"; buyCalls = [];

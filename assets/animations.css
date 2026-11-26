@@ -24,7 +24,7 @@
 @keyframes brandShine{ 0%,60%{ transform:translateX(-130%); } 90%,100%{ transform:translateX(130%); } }
 @media (hover:hover) and (pointer:fine){
   .brand:hover .brand-mark{
-    box-shadow:0 0 0 2px var(--gold-soft), 0 0 18px rgba(251,191,36,.55);
+    box-shadow:0 0 0 2px var(--gold-soft), 0 0 18px rgba(245,185,66,.55);
   }
 }
 
@@ -37,8 +37,8 @@
   content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
   padding:1.5px;
   background:conic-gradient(from var(--beam-angle),
-    transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
-    transparent 180deg, var(--accent-pink, #EC4899) 210deg, var(--accent-cyan, #22D3EE) 240deg, transparent 270deg);
+    transparent 0deg, var(--brand-gold) 40deg, transparent 90deg,
+    transparent 180deg, var(--brand-primary) 210deg, var(--brand-gold) 240deg, transparent 270deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor; mask-composite:exclude;
   animation:beamRotate 3.2s linear infinite;
@@ -52,8 +52,8 @@
   content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit; z-index:2;
   padding:1.5px;
   background:conic-gradient(from var(--beam-angle),
-    transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
-    transparent 180deg, var(--accent-pink, #EC4899) 210deg, var(--accent-cyan, #22D3EE) 240deg, transparent 270deg);
+    transparent 0deg, var(--brand-gold) 40deg, transparent 90deg,
+    transparent 180deg, var(--brand-primary) 210deg, var(--brand-gold) 240deg, transparent 270deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor; mask-composite:exclude;
   animation:beamRotate 3.2s linear infinite;
@@ -61,8 +61,8 @@
 
 /* ---------- 3. Diem danh: pulse + hat confetti + so bay ---------- */
 @keyframes checkinPulse{
-  0%{ box-shadow:0 0 0 0 rgba(139,92,246,.45); }
-  100%{ box-shadow:0 0 0 16px rgba(139,92,246,0); }
+  0%{ box-shadow:0 0 0 0 rgba(16,185,129,.45); }
+  100%{ box-shadow:0 0 0 16px rgba(16,185,129,0); }
 }
 .checkin-pulse{ animation:checkinPulse .8s ease-out 2; }
 .confetti-piece{
@@ -122,7 +122,7 @@
 .topbar{ transition:background .3s ease, box-shadow .3s ease, backdrop-filter .3s ease; }
 .topbar.scrolled{
   background:color-mix(in srgb, var(--surface) 82%, transparent);
-  box-shadow:0 8px 28px rgba(139,92,246,.18);
+  box-shadow:0 8px 28px rgba(16,185,129,.18);
 }
 @supports not (background: color-mix(in srgb, red 50%, blue)){
   .topbar.scrolled{ background:var(--surface); }
@@ -153,7 +153,7 @@ html.gsap-on .hero img.bg{ animation:none; }
 /* ---------- 7. Card: skeleton + fade-up lan luot + hover lift/tilt/glow ---------- */
 /* Skeleton hien trong luc syncStock dang tai kho */
 .card-skeleton{
-  border:1px solid var(--line); border-radius:16px; background:var(--surface);
+  border:1px solid var(--line); border-radius:14px; background:var(--surface);
   overflow:hidden; min-height:264px;
 }
 .card-skeleton .sk-cover{ height:158px; }
@@ -194,19 +194,19 @@ html.gsap-on .hero img.bg{ animation:none; }
   #productArea .card{ transition:transform .28s cubic-bezier(.16,1,.3,1), box-shadow .28s ease, border-color .28s ease; }
   #productArea .card:hover{
     transform:perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-4px);
-    box-shadow:0 14px 30px rgba(139,92,246,.28);
+    box-shadow:0 14px 30px rgba(16,185,129,.28);
   }
-  #productArea .card[data-cat="random-tele"]:hover{ border-color:rgba(236,72,153,.6); box-shadow:0 14px 30px rgba(236,72,153,.25); }
-  #productArea .card[data-cat="detail"]:hover{ border-color:rgba(139,92,246,.6); box-shadow:0 14px 30px rgba(139,92,246,.25); }
-  #productArea .card[data-cat="random-lq"]:hover{ border-color:rgba(34,211,238,.55); box-shadow:0 14px 30px rgba(34,211,238,.22); }
-  #productArea .card[data-cat="products"]:hover{ border-color:rgba(245,158,11,.6); box-shadow:0 14px 30px rgba(245,158,11,.22); }
+  #productArea .card[data-cat="random-tele"]:hover{ border-color:rgba(245,185,66,.6); box-shadow:0 14px 30px rgba(245,185,66,.25); }
+  #productArea .card[data-cat="detail"]:hover{ border-color:rgba(16,185,129,.6); box-shadow:0 14px 30px rgba(16,185,129,.25); }
+  #productArea .card[data-cat="random-lq"]:hover{ border-color:rgba(52,211,153,.55); box-shadow:0 14px 30px rgba(52,211,153,.22); }
+  #productArea .card[data-cat="products"]:hover{ border-color:rgba(245,185,66,.6); box-shadow:0 14px 30px rgba(245,185,66,.22); }
   .card .card-cover img{ transition:transform .5s cubic-bezier(.16,1,.3,1); }
   #productArea .card:hover .card-cover img{ transform:scale(1.05); }
 }
 
 /* ---------- 8. Switcher (ngon ngu / tien te) + gia crossfade ---------- */
 #langSelect, #curSelect{ transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
-#langSelect:focus, #curSelect:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(251,191,36,.25); outline:none; }
+#langSelect:focus, #curSelect:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,185,66,.25); outline:none; }
 /* Gia doi tien: JS them class .flip cho #productArea khi doi #curSelect;
    gia trong card flip nhe len (card dong thoi fade-in theo stagger). */
 #productArea.flip .price{ animation:priceFlip .35s ease; }
@@ -299,7 +299,7 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
 .toast-warning .toast-ic{ background:#D97706; color:#fff; }
 .toast-warning .toast-bar{ color:#D97706; }
 .toast-error{ border-color:color-mix(in srgb, var(--danger) 45%, var(--line)); }
-.toast-error .toast-ic{ background:var(--danger); color:#fff; }
+.toast-error .toast-ic{ background:var(--danger-fill,#dc2626); color:#fff; }
 .toast-error .toast-bar{ color:var(--danger); }
 @media (max-width:720px){
   .toast-container{ top:14px; right:12px; max-width:calc(100vw - 24px); }
@@ -391,9 +391,9 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
    Badge ADMIN + toggle "Soi skin Acc Random" chỉ được tạo bằng JS khi
    /api/auth/me xác nhận role=admin (assets/admin-random-search.js). Khách
    thường / chưa đăng nhập không bao giờ thấy các class này trong DOM. */
-.admin-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;line-height:1;color:#fff;background:var(--accent-crimson,#dc2626);border-radius:99px;padding:4px 8px;flex:0 0 auto;box-shadow:0 1px 6px rgba(220,38,38,.45)}
+.admin-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;line-height:1;color:#fff;background:var(--danger-fill,#dc2626);border-radius:99px;padding:4px 8px;flex:0 0 auto;box-shadow:0 1px 6px rgba(220,38,38,.45)}
 .admin-toggle{border-color:var(--accent-crimson,#dc2626);color:var(--accent-crimson,#dc2626)}
-.admin-toggle.on{background:var(--accent-crimson,#dc2626);border-color:var(--accent-crimson,#dc2626);color:#fff}
+.admin-toggle.on{background:var(--danger-fill,#dc2626);border-color:var(--danger-fill,#dc2626);color:#fff}
 .admin-toggle.on .dotsw{border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.25)}
 .admin-toggle.on .dotsw::after{left:17px;background:#fff}
 /* Kết quả soi skin admin — thẻ riêng, KHÔNG có nút mua (chỉ để kiểm tra kho). */
