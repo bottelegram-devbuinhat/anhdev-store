@@ -278,7 +278,14 @@
 .uiv-glow-main:focus-within > .uiv-glow-input-mask {
   display: none;
 }
+/* [FIX 2026-11-26] An han lop mask nay: gradient trong suot -> mau nen cua
+   no (width 100px, top 18px, left 70px) de dung vung chu placeholder cua
+   input (padding-left 59px, font 18px) tao vet mo/bong de len chu
+   "Tim ten san pham..." (anh Anh gui). No chi co tac dung lam mo mep phai
+   cua chu khi cuon ngang trong o tim kiem — khong phai chuc nang chinh;
+   an han thi placeholder sach, cac lop glow khac van xoay binh thuong. */
 .uiv-glow-input-mask {
+  display: none;
   pointer-events: none;
   width: 100px;
   height: 20px;

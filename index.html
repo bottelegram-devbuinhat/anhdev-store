@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi" data-theme="dark">
+<html lang="vi">
   <head>
     <meta charset="utf-8" />
     <!-- Content Security Policy: chi cho phep tai nguyen trang thuc su dung.
@@ -27,7 +27,7 @@
          qrcodejs da go (khong cho nao dung QRCode — QR VietQR la <img> tu img.vietqr.io). -->
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
-      /* ===== Thuong hieu AnhDev — Emerald + Vang kim (mac dinh TOI) =====
+      /* ===== Thuong hieu AnhDev — Emerald + Vang kim (mac dinh theo he thong) =====
          Light: Ivory am + Emerald dam + Vang co; Dark: Obsidian Emerald +
          Vang chay. Bien cu (--wine, --gold, --bg, --surface, --ink, --line,
          --wine-btn, --on-wine...) la ALIAS sang bien brand moi de code cu
@@ -61,6 +61,30 @@
         --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#FB7185;
         --text-primary:#F2F6F4; --text-secondary:#93A69F;
         --bg-input:#0E1614;
+      }
+      /* Mac dinh theo he thong TRUOC khi app.js chay: he sang dung palette
+         Light (copy y het html[data-theme="light"] ben duoi), he toi dung
+         :root (Dark). Khi app.js set data-theme thi rule
+         html[data-theme="..."] (dac hieu hon :root) thang, khong xung dot. */
+      @media (prefers-color-scheme: light){
+        :root{
+          --bg:#F6F4EE; --bg-soft:#ECE8DF; --surface:#FFFFFF; --surface-2:#F4F1E8;
+          --ink:#121E1A; --ink-2:#5A6963; --muted:#5A6963; --line:#E2DDD0;
+          --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E6EFEA;
+          --gold:#92400E; --gold-soft:#FEF3C7;
+          --head-tint:#E6EFEA; --ok:#047857; --ok-soft:#D1FAE5;
+          --danger:#B91C1C; --danger-soft:#FFE4E6; --crimson:#B91C1C; --danger-fill:#B91C1C;
+          --shadow:0 10px 30px rgba(12,74,59,.10); --shadow-lg:0 24px 60px rgba(12,74,59,.18);
+          --wine-btn:#0C4A3B; --on-wine:#FFFFFF;
+          --bg-main:#F6F4EE; --bg-surface:#FFFFFF; --bg-subtle:#ECE8DF; --border-subtle:#E2DDD0;
+          --bg-glass:rgba(246,244,238,.82);
+          --brand-primary:#0C4A3B; --brand-primary-hover:#08352A;
+          --brand-secondary:#E6EFEA; --brand-secondary-text:#0C4A3B;
+          --brand-gold:#C68B2C; --brand-crimson:#DC2626;
+          --accent-primary:#0C4A3B; --accent-gold:#92400E; --accent-crimson:#B91C1C;
+          --text-primary:#121E1A; --text-secondary:#5A6963;
+          --bg-input:#FFFFFF;
+        }
       }
       html[data-theme="light"]{
         --bg:#F6F4EE; --bg-soft:#ECE8DF; --surface:#FFFFFF; --surface-2:#F4F1E8;

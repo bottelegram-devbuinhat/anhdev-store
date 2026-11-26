@@ -283,10 +283,13 @@
     return prefix + Math.random().toString(36).slice(2,8).toUpperCase();
   }
 
-  /* ================= THEME (mac dinh TOI; luu lua chon vao localStorage) ================= */
+  /* ================= THEME (mac dinh theo he thong; luu lua chon tay vao localStorage) ================= */
   var THEME_KEY = "anhdev_theme";
   function readSavedTheme(){
     try { var t = localStorage.getItem(THEME_KEY); return (t === "light" || t === "dark") ? t : null; } catch (e) { return null; }
+  }
+  function systemTheme(){
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
   }
   function applyThemeButtons(){
     var dark = document.documentElement.getAttribute("data-theme") !== "light";
@@ -300,8 +303,21 @@
   }
   (function initTheme(){
     var saved = readSavedTheme();
-    document.documentElement.setAttribute("data-theme", saved || "dark");
+    document.documentElement.setAttribute("data-theme", saved || systemTheme());
     applyThemeButtons();
+    /* He thong doi sang/toi thi doi theo, CHI khi chua co lua chon tay da luu
+       (da bam chon tay thi lua chon do thang he thong, khong bi de). */
+    if (!saved && window.matchMedia){
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      var onSys = function(){
+        if (!readSavedTheme()){
+          document.documentElement.setAttribute("data-theme", systemTheme());
+          applyThemeButtons();
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener("change", onSys);
+      else if (mq.addListener) mq.addListener(onSys);
+    }
   })();
   $("#themeLight").addEventListener("click", function(){ setTheme("light"); });
   $("#themeDark").addEventListener("click", function(){ setTheme("dark"); });

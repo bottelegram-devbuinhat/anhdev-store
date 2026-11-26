@@ -326,6 +326,84 @@ function pageCodes(w){
     check("c. " + p[0] + " = " + r.toFixed(2) + ":1", r >= 4.5);
   });
 
+  /* ================= D. Theme mac dinh theo he thong + placeholder ========= */
+  console.log("== D. Theme mac dinh theo he thong (2026-11-26) + placeholder ==");
+  /* --- D1. Tinh --- */
+  const htmlTag = (html.match(/<html[^>]*>/) || [""])[0];
+  check("d1. the <html> khong con data-theme hardcode",
+    htmlTag.indexOf("data-theme") === -1, htmlTag);
+  check("d2. CSS co @media (prefers-color-scheme: light) voi palette Light",
+    /@media\s*\(\s*prefers-color-scheme:\s*light\s*\)[\s\S]*?:root\s*\{[\s\S]*?--bg:#F6F4EE/.test(html),
+    "thieu khoi media light hoac --bg Light");
+  check("d3. initTheme khong con 'saved || \"dark\"', co dung matchMedia he thong",
+    appJs.indexOf('saved || "dark"') === -1
+    && appJs.indexOf('matchMedia("(prefers-color-scheme: dark)")') !== -1);
+  check("d4. initTheme co listener doi theme theo he thong khi chua luu tay",
+    appJs.indexOf('addEventListener("change"') !== -1);
+  const maskRule = (uivCss.match(/\.uiv-glow-input-mask\s*\{[^}]*\}/) || [""])[0];
+  check("d5. .uiv-glow-input-mask bi an han (display: none)",
+    /display\s*:\s*none/.test(maskRule), maskRule);
+  check("d6. placeholder 'Tim ten san pham...' con nguyen",
+    html.indexOf('placeholder="Tìm tên sản phẩm..."') !== -1);
+  /* --- D2. Runtime: theme theo he thong / luu tay thang --- */
+  async function makeThemePage(sysDark, saved){
+    const appSrc = appJs.replace(/var API_BASE_URL = "[^"]*";/,
+      'var API_BASE_URL = "' + API_URL + '";');
+    const dom = new JSDOM(html, { url: "https://bottelegram-devbuinhat.github.io/anhdev-store/",
+      runScripts: "outside-only", pretendToBeVisual: true });
+    const w = dom.window;
+    const mq = { matches: !!sysDark, media: "(prefers-color-scheme: dark)", _h: [],
+      addEventListener: function(ev, fn){ if (ev === "change") this._h.push(fn); },
+      addListener: function(fn){ this._h.push(fn); },
+      removeEventListener: function(){}, removeListener: function(){},
+      fire: function(m){ this.matches = !!m; var self = this;
+        this._h.forEach(function(fn){ fn.call(self); }); } };
+    w.matchMedia = function(q){
+      if (String(q).indexOf("prefers-color-scheme") !== -1) return mq;
+      return { matches: false, media: q,
+        addEventListener: function(){}, removeEventListener: function(){},
+        addListener: function(){}, removeListener: function(){} };
+    };
+    w.HTMLCanvasElement.prototype.getContext = function(){ return null; };
+    w.fetch = fakeFetch;
+    if (saved) w.localStorage.setItem("anhdev_theme", saved);
+    dom.window.eval(animJs);
+    dom.window.eval(appSrc);
+    return { dom: dom, w: w, mq: mq };
+  }
+  function themeOf(w){ return w.document.documentElement.getAttribute("data-theme"); }
+  let tp = await makeThemePage(true, null);
+  check("d7. chua luu + he TOI -> theme dark", themeOf(tp.w) === "dark", themeOf(tp.w));
+  tp = await makeThemePage(false, null);
+  check("d8. chua luu + he SANG -> theme light", themeOf(tp.w) === "light", themeOf(tp.w));
+  tp = await makeThemePage(true, "light");
+  check("d9. da luu light + he TOI -> giu light (luu tay thang)", themeOf(tp.w) === "light", themeOf(tp.w));
+  tp = await makeThemePage(false, "dark");
+  check("d10. da luu dark + he SANG -> giu dark (luu tay thang)", themeOf(tp.w) === "dark", themeOf(tp.w));
+  tp = await makeThemePage(true, null);
+  tp.mq.fire(false);
+  check("d11. chua luu + he doi TOI->SANG -> theme doi sang light", themeOf(tp.w) === "light", themeOf(tp.w));
+  tp = await makeThemePage(true, "light");
+  tp.mq.fire(false);
+  check("d12. da luu light + he doi -> theme van light (khong bi he de)", themeOf(tp.w) === "light", themeOf(tp.w));
+  tp = await makeThemePage(false, null);
+  tp.w.document.querySelector("#themeDark").click();
+  check("d13. bam chon tay dark -> theme dark + luu localStorage",
+    themeOf(tp.w) === "dark" && tp.w.localStorage.getItem("anhdev_theme") === "dark",
+    themeOf(tp.w) + "/" + tp.w.localStorage.getItem("anhdev_theme"));
+  tp.w.document.querySelector("#themeLight").click();
+  check("d14. bam chon tay light -> theme light + luu localStorage",
+    themeOf(tp.w) === "light" && tp.w.localStorage.getItem("anhdev_theme") === "light",
+    themeOf(tp.w) + "/" + tp.w.localStorage.getItem("anhdev_theme"));
+  tp = await makeThemePage(false, null);
+  const maskEl = tp.w.document.querySelector("#uivInputMask");
+  check("d15. element mask #uivInputMask van trong DOM (chi an bang CSS, khong xoa)",
+    !!maskEl);
+  const searchInp = tp.w.document.querySelector("#searchInput");
+  check("d16. input tim kiem con placeholder + khong bi lop phu de (mask display none)",
+    !!searchInp && searchInp.getAttribute("placeholder") === "Tìm tên sản phẩm..."
+    && /display\s*:\s*none/.test(maskRule));
+
   console.log("\n" + pass + " PASS, " + fail + " FAIL");
   if (failures.length) console.log("FAILURES: " + failures.join(" | "));
   process.exit(fail ? 1 : 0);
