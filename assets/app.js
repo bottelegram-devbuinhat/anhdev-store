@@ -42,6 +42,7 @@
   var CATS = {
     "random-tele": { title:"Acc Random", sub:"Kho Telegram" },
     "detail":      { title:"Acc sẵn thông tin", sub:"Kho Telegram" },
+    "white":       { title:"Acc trắng thông tin", sub:"Kho Telegram" },
     "random-lq":   { title:"Random Tài Khoản Liên Quân", sub:"" },
     "products":    { title:"Sản phẩm số", sub:"Kho bot" }
   };
@@ -104,7 +105,7 @@
     depositTimer: null,    // bộ đếm poll trạng thái lệnh nạp
     orders: [],            // {code, productName, price, time, user, pass}
     invoices: [],          // {code, amount, method, time}
-    filter: { cat:"all", q:"", sort:"default", onlyStock:false, page:1 },
+    filter: { cat:"all", q:"", sort:"shuffle", onlyStock:false, page:1 },
     pendingTopup: null,    // (giữ tương thích)
     currentPay: null,      // hoá đơn ngân hàng đang mở ở trang thanh toán
     checkin: null,         // số tiền đã điểm danh trong phiên (null = chưa điểm danh)
@@ -502,6 +503,17 @@
   }
 
   /* ================= PRODUCTS ================= */
+  /* Xáo trộn thứ tự hiển thị (Fisher-Yates) — acc random + sẵn thông tin +
+     trắng không còn xếp theo mã/giá cố định, lúc nào cũng có acc khác lên
+     đầu trang. Thứ tự đã xáo được giữ nguyên trong phiên (phân trang ổn
+     định); chỉ xáo lại khi kho tải lại hoặc khi chọn kiểu sắp xếp "shuffle". */
+  function shuffleArray(arr){
+    for (var i = arr.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
   function visibleProducts(){
     var f = state.filter;
     var list = PRODUCTS.filter(function(p){
@@ -520,6 +532,9 @@
       }
       return true;
     });
+    /* sort "shuffle"/"default": giữ nguyên thứ tự gốc của PRODUCTS — thứ tự
+       này đã được xáo trộn lúc kho tải về (xem useLiveStock/useDemoStock),
+       nên lưới mặc định là xáo trộn, không xếp theo mã hay giá. */
     if (f.sort === "price-asc") list.sort(function(a,b){ return a.price - b.price; });
     if (f.sort === "price-desc") list.sort(function(a,b){ return b.price - a.price; });
     if (f.sort === "stock-desc") list.sort(function(a,b){ return b.stock - a.stock; });
@@ -555,6 +570,7 @@
   var CATS_EN = {
     "random-tele": { title:"Random Accounts", sub:"Telegram Warehouse" },
     "detail":      { title:"Ready-info Accounts", sub:"Telegram Warehouse" },
+    "white":       { title:"White Accounts", sub:"Telegram Warehouse" },
     "random-lq":   { title:"Random Arena of Valor Accounts", sub:"" },
     "products":    { title:"Digital Products", sub:"Bot Warehouse" }
   };
@@ -1015,6 +1031,20 @@
         price: a.price, stock: 1, img: img, warranty_days: a.warranty_days
       };
     }
+    if (a.kind === "white"){
+      // Acc trắng thông tin: tách riêng thành mục "white", KHÔNG gộp chung
+      // với acc sẵn thông tin nữa. Chỉ hiện nhãn trắng + rank/level, không
+      // kèm mô tả gốc (trong đó có ghi "acc ban" gây hiểu lầm cho khách).
+      var wparts = ["Acc trắng thông tin"];
+      if (a.rank) wparts.push("Rank " + a.rank);
+      if (a.level) wparts.push("Lv " + a.level);
+      return {
+        id:"api-" + a.code, code:a.code, api:true,
+        cat:"white",
+        kind:"acc", name:"Acc " + a.code, desc:wparts.join(" · "),
+        price: a.price, stock: 1, img: img, warranty_days: a.warranty_days
+      };
+    }
     var parts = [];
     if (a.rank) parts.push("Rank " + a.rank);
     if (a.level) parts.push("Lv " + a.level);
@@ -1065,6 +1095,11 @@
     // Kho ve lai tu stock.json tinh: loc het acc da ban tren web (biet
     // qua SOLD_CODES) de chung khong hien lai sau moi lan sync.
     PRODUCTS = accs.concat(prods).filter(function(p){ return !isSoldCode(p.code); });
+    // Xáo trộn thứ tự hiển thị ngay khi kho về — acc random + sẵn thông tin
+    // (+ trắng) không còn xếp theo mã cố định; thứ tự này giữ nguyên trong
+    // phiên nên phân trang ổn định, chỉ xáo lại khi kho tải lại hoặc khi
+    // người dùng chọn kiểu sắp xếp "shuffle".
+    shuffleArray(PRODUCTS);
     state.filter.page = 1;
     SYNC.updatedAt = data.updated_at || null;
     /* Kho về lại đúng bản đã index (cache + mạng trùng nhau) thì chỉ chuẩn hoá
@@ -1081,7 +1116,8 @@
     renderProducts(); renderStats();
   }
   function useDemoStock(){
-    PRODUCTS = DEMO_PRODUCTS;
+    PRODUCTS = DEMO_PRODUCTS.slice();
+    shuffleArray(PRODUCTS);
     buildSearchIndex();
     state.filter.page = 1;
     setSyncStatus("demo", "Không kết nối được kho thật — đang hiển thị catalog mẫu (không phải kho thật). Mua acc thật qua bot Telegram @devbn_bot.");
@@ -1391,7 +1427,12 @@
     var pending = state.invoices.filter(function(iv){ return iv.remote && iv.status === "pending"; })[0];
     if (pending) startDepositPoll(pending);
   }
-  $("#sortSelect").addEventListener("change", function(e){ state.filter.sort = e.target.value; state.filter.page = 1; renderProducts(); });
+  $("#sortSelect").addEventListener("change", function(e){
+    state.filter.sort = e.target.value; state.filter.page = 1;
+    // Chọn "Xáo trộn ngẫu nhiên": xáo lại toàn bộ kho để lưới đổi thứ tự mới.
+    if (state.filter.sort === "shuffle") shuffleArray(PRODUCTS);
+    renderProducts();
+  });
   $("#stockToggle").addEventListener("click", function(){
     state.filter.onlyStock = !state.filter.onlyStock;
     this.classList.toggle("on", state.filter.onlyStock);
@@ -2543,8 +2584,8 @@
     step2T:"Top up your wallet", step2P:"Scan the VietQR code and transfer with the exact note — SePay credits your wallet automatically, no receipt needed.",
     step3T:"Pick an account & Buy now", step3P:"Filter by account type and price, then hit Buy now. If your wallet covers it, stock is deducted instantly.",
     step4T:"Receive your account", step4P:"Username + password appear right in My Orders.",
-    prodTitle:"Products in warehouse", sortDefault:"Default", sortAsc:"Price low → high", sortDesc:"Price high → low", sortStock:"Most in stock", stockOnly:"In stock",
-    chipAll:"All", chipRandom:"Random Accounts", chipDetail:"Ready-info Accounts", chipRandomLq:"Random AoV",
+    prodTitle:"Products in warehouse", sortDefault:"Default", sortShuffle:"Shuffle", sortAsc:"Price low → high", sortDesc:"Price high → low", sortStock:"Most in stock", stockOnly:"In stock",
+    chipAll:"All", chipRandom:"Random Accounts", chipDetail:"Ready-info Accounts", chipWhite:"White Accounts", chipRandomLq:"Random AoV",
     "ph:searchPh":"Search product names...",
     topupTitle:"Top up wallet", topupSub:"Bank transfer via VietQR — SePay matches your transfer note automatically and credits your wallet as soon as the bank confirms.",
     tabQr:"VietQR · Scan code", tabCard:"Prepaid card",
