@@ -24,7 +24,7 @@
 @keyframes brandShine{ 0%,60%{ transform:translateX(-130%); } 90%,100%{ transform:translateX(130%); } }
 @media (hover:hover) and (pointer:fine){
   .brand:hover .brand-mark{
-    box-shadow:0 0 0 2px var(--gold-soft), 0 0 18px rgba(176,141,46,.55);
+    box-shadow:0 0 0 2px var(--gold-soft), 0 0 18px rgba(251,191,36,.55);
   }
 }
 
@@ -38,7 +38,7 @@
   padding:1.5px;
   background:conic-gradient(from var(--beam-angle),
     transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
-    transparent 180deg, var(--accent-primary, var(--wine)) 225deg, transparent 270deg);
+    transparent 180deg, var(--accent-pink, #EC4899) 210deg, var(--accent-cyan, #22D3EE) 240deg, transparent 270deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor; mask-composite:exclude;
   animation:beamRotate 3.2s linear infinite;
@@ -53,7 +53,7 @@
   padding:1.5px;
   background:conic-gradient(from var(--beam-angle),
     transparent 0deg, var(--accent-gold, var(--gold)) 40deg, transparent 90deg,
-    transparent 180deg, var(--accent-primary, var(--wine)) 225deg, transparent 270deg);
+    transparent 180deg, var(--accent-pink, #EC4899) 210deg, var(--accent-cyan, #22D3EE) 240deg, transparent 270deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor; mask-composite:exclude;
   animation:beamRotate 3.2s linear infinite;
@@ -61,8 +61,8 @@
 
 /* ---------- 3. Diem danh: pulse + hat confetti + so bay ---------- */
 @keyframes checkinPulse{
-  0%{ box-shadow:0 0 0 0 rgba(13,59,46,.45); }
-  100%{ box-shadow:0 0 0 16px rgba(13,59,46,0); }
+  0%{ box-shadow:0 0 0 0 rgba(139,92,246,.45); }
+  100%{ box-shadow:0 0 0 16px rgba(139,92,246,0); }
 }
 .checkin-pulse{ animation:checkinPulse .8s ease-out 2; }
 .confetti-piece{
@@ -122,7 +122,7 @@
 .topbar{ transition:background .3s ease, box-shadow .3s ease, backdrop-filter .3s ease; }
 .topbar.scrolled{
   background:color-mix(in srgb, var(--surface) 82%, transparent);
-  box-shadow:0 8px 28px rgba(11,31,24,.14);
+  box-shadow:0 8px 28px rgba(139,92,246,.18);
 }
 @supports not (background: color-mix(in srgb, red 50%, blue)){
   .topbar.scrolled{ background:var(--surface); }
@@ -194,19 +194,19 @@ html.gsap-on .hero img.bg{ animation:none; }
   #productArea .card{ transition:transform .28s cubic-bezier(.16,1,.3,1), box-shadow .28s ease, border-color .28s ease; }
   #productArea .card:hover{
     transform:perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-4px);
-    box-shadow:0 14px 30px rgba(11,31,24,.16);
+    box-shadow:0 14px 30px rgba(139,92,246,.28);
   }
-  #productArea .card[data-cat="random-tele"]:hover{ border-color:rgba(176,141,46,.55); box-shadow:0 14px 30px rgba(176,141,46,.22); }
-  #productArea .card[data-cat="detail"]:hover{ border-color:rgba(13,59,46,.45); box-shadow:0 14px 30px rgba(13,59,46,.20); }
-  #productArea .card[data-cat="random-lq"]:hover{ border-color:rgba(23,114,69,.5); box-shadow:0 14px 30px rgba(23,114,69,.20); }
-  #productArea .card[data-cat="products"]:hover{ border-color:rgba(176,141,46,.55); box-shadow:0 14px 30px rgba(176,141,46,.20); }
+  #productArea .card[data-cat="random-tele"]:hover{ border-color:rgba(236,72,153,.6); box-shadow:0 14px 30px rgba(236,72,153,.25); }
+  #productArea .card[data-cat="detail"]:hover{ border-color:rgba(139,92,246,.6); box-shadow:0 14px 30px rgba(139,92,246,.25); }
+  #productArea .card[data-cat="random-lq"]:hover{ border-color:rgba(34,211,238,.55); box-shadow:0 14px 30px rgba(34,211,238,.22); }
+  #productArea .card[data-cat="products"]:hover{ border-color:rgba(245,158,11,.6); box-shadow:0 14px 30px rgba(245,158,11,.22); }
   .card .card-cover img{ transition:transform .5s cubic-bezier(.16,1,.3,1); }
   #productArea .card:hover .card-cover img{ transform:scale(1.05); }
 }
 
 /* ---------- 8. Switcher (ngon ngu / tien te) + gia crossfade ---------- */
 #langSelect, #curSelect{ transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
-#langSelect:focus, #curSelect:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(176,141,46,.22); outline:none; }
+#langSelect:focus, #curSelect:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(251,191,36,.25); outline:none; }
 /* Gia doi tien: JS them class .flip cho #productArea khi doi #curSelect;
    gia trong card flip nhe len (card dong thoi fade-in theo stagger). */
 #productArea.flip .price{ animation:priceFlip .35s ease; }
@@ -369,7 +369,11 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
   .toast-item, .toast-bar, .toast-container, .modal-wrap.open .modal .field,
   .modal-wrap.open .modal .btn, .modal-wrap.open .modal .tab-bar,
   .hero-actions .btn::after, #topLoginBtn::after,
-  #productArea .card .card-cover::after, #productArea.flip .price{
+  #productArea .card .card-cover::after, #productArea.flip .price,
+  /* [VIBRANT 2026-11-26] tat ca hieu ung xoay/doi mau moi */
+  #productArea .card::before, .uiv-shine-btn::after, .hero::after,
+  .uiv-glow-layer::before, .uiv-glow-border::before, .uiv-glow-white::before,
+  .uiv-glow-dark-border::before, .uiv-glow-pink-mask, .uiv-glow-filter-border::before{
     animation:none !important;
   }
   .toast-item, .toast-container, .sidebar, .nav-sub, .nav-indicator, .topbar,

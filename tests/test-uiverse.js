@@ -300,15 +300,18 @@ function pageCodes(w){
   /* ================= C. Tuong phan (WCAG, tinh toan) ======================== */
   console.log("== C. Tuong phan chu/nen (WCAG AA >= 4.5:1) ==");
   const contrastPairs = [
-    ["shine: trang tren xanh #006BB3 (rgb 0 107 179)", "#ffffff", "#006BB3"],
+    /* [VIBRANT 2026-11-26] Cap nhat theo palette Neon Aurora moi:
+       shine gio la gradient tim-hong (stop dam nhat #7C3AED);
+       loader Light/Dark theo --ink + --surface moi. */
+    ["shine: trang tren tim #7C3AED (gradient tim-hong, stop dam nhat)", "#ffffff", "#7C3AED"],
     ["ripple mac dinh: #1D9AF2 tren #292D3E", "#1D9AF2", "#292D3E"],
     ["ripple hover: trang tren #0d6fb8", "#ffffff", "#0d6fb8"],
     ["glow input: trang tren #010201", "#ffffff", "#010201"],
     ["glow placeholder: #c0b9c0 tren #010201", "#c0b9c0", "#010201"],
     ["glitch label: #00f2ea tren #0d0d0d", "#00f2ea", "#0d0d0d"],
     ["glitch input: #e5e5e5 tren #0d0d0d", "#e5e5e5", "#0d0d0d"],
-    ["loader Light: var(--ink) #111C18 tren #FFFFFF", "#111C18", "#FFFFFF"],
-    ["loader Dark: var(--ink) #F1F5F3 tren #101917", "#F1F5F3", "#101917"]
+    ["loader Light: var(--ink) #1B1533 tren #FFFFFF", "#1B1533", "#FFFFFF"],
+    ["loader Dark: var(--ink) #F4F2FF tren #171733", "#F4F2FF", "#171733"]
   ];
   contrastPairs.forEach(function(p){
     const r = ratio(p[1], p[2]);

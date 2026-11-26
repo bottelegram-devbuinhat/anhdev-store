@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <!-- Content Security Policy: chi cho phep tai nguyen trang thuc su dung.
@@ -14,7 +14,7 @@
          se bi Mixed Content / bi chan. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://anhdev-store-backend.onrender.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" href="data:," />
     <title>AnhDev Store — Kho tài khoản Liên Quân</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,72 +27,71 @@
          qrcodejs da go (khong cho nao dung QRCode — QR VietQR la <img> tu img.vietqr.io). -->
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <style>
+      /* ===== VIBRANT MODERN — Neon Aurora (mac dinh TOI) =====
+         Palette moi 2026-11-26: nen tim-den, violet/hong/cyan/lime/vang
+         ruc ro, dong bo toan trang qua var(--...). Chu dam bao tuong phan
+         AA (>=4.5:1) — da kiem tra bang script tinh WCAG. */
       :root{
-        --bg:#F7F5F0; --bg-soft:#EFECE4; --surface:#FFFFFF; --surface-2:#FAF8F3;
-        --ink:#111C18; --ink-2:#5B6B64; --muted:#5B6B64; --line:#E5E0D5;
-        --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E4EFE8;
-        --gold:#C68B2C; --gold-soft:#F6ECD4;
-        --head-tint:#E6EDEB; --ok:#177245; --ok-soft:#E2F2E7;
-        --danger:#DC2626; --danger-soft:#FBE9E7; --crimson:#DC2626;
-        --shadow:0 10px 30px rgba(12,74,59,.08);
-        --shadow-lg:0 24px 60px rgba(10,32,24,.22);
+        --bg:#0B0B1A; --bg-soft:#12122A; --surface:#171733; --surface-2:#1E1E42;
+        --ink:#F4F2FF; --ink-2:#B9B3E6; --muted:#8B86C2; --line:rgba(139,92,246,.30);
+        --wine:#A78BFA; --wine-deep:#7C3AED; --wine-soft:#241B4D;
+        --gold:#FBBF24; --gold-soft:#3A2E12;
+        --head-tint:#1A1440; --ok:#34D399; --ok-soft:#0F2E25;
+        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185;
+        --shadow:0 10px 30px rgba(0,0,0,.45);
+        --shadow-lg:0 24px 60px rgba(0,0,0,.60);
         --radius:18px;
         /* Z-index thang chung: noi dung < topbar < goi y tim kiem < drawer/scrim < modal < toast < confetti */
         --z-topbar:30; --z-suggest:32; --z-scrim:35; --z-sidebar:40; --z-bottomnav:45;
         --z-modal:80; --z-toast:120; --z-confetti:200;
-        /* Nen nut wine + chu tren nen wine (dark mode: wine sang nen chu phai dam, tranh trang tren xanh nhat) */
-        --wine-btn:#0C4A3B; --on-wine:#fff;
-        /* Semantic aliases — PART 2 luxury palette (Light: Warm Ivory & Deep Emerald) */
-        --bg-main:#F7F5F0; --bg-surface:#FFFFFF; --bg-subtle:#EFECE4; --border-subtle:#E5E0D5;
-        --bg-glass:rgba(247,245,240,.82);
-        --accent-primary:#0C4A3B; --accent-gold:#C68B2C; --accent-crimson:#DC2626;
-        --text-primary:#111C18; --text-secondary:#5B6B64;
-      }
-      @media (prefers-color-scheme: dark){
-        :root{
-          --bg:#080C0B; --bg-soft:#0E1512; --surface:#101917; --surface-2:#17211D;
-          --ink:#F1F5F3; --ink-2:#94A8A0; --muted:#8BA093; --line:rgba(52,211,153,.14);
-          --wine:#10B981; --wine-deep:#34D399; --wine-soft:#12261F;
-          --gold:#F5B942; --gold-soft:#3A3018;
-          --head-tint:#14201B; --ok:#4CC084; --ok-soft:#1D3325;
-          --danger:#F43F5E; --danger-soft:#3D1A20; --crimson:#F43F5E;
-          --shadow:0 10px 30px rgba(0,0,0,.35);
-          --shadow-lg:0 24px 60px rgba(0,0,0,.55);
-          --wine-btn:#10B981; --on-wine:#082A20;
-          /* Semantic aliases — PART 2 luxury palette (Dark: Obsidian Emerald & Burnished Gold) */
-          --bg-main:#080C0B; --bg-surface:#101917; --bg-subtle:#0E1512; --border-subtle:rgba(52,211,153,.14);
-          --bg-glass:rgba(16,25,23,.78);
-          --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#F43F5E;
-          --text-primary:#F1F5F3; --text-secondary:#94A8A0;
-        }
+        /* Nut CTA: gradient tim-hong (chu trang tren stop dam nhat #7C3AED = 5.70:1, #DB2777 = 4.60:1) */
+        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
+        /* Semantic aliases — Neon Aurora (Dark) */
+        --bg-main:#0B0B1A; --bg-surface:#171733; --bg-subtle:#12122A; --border-subtle:rgba(139,92,246,.30);
+        --bg-glass:rgba(11,11,26,.78);
+        --accent-primary:#8B5CF6; --accent-gold:#FBBF24; --accent-crimson:#FB7185;
+        --text-primary:#F4F2FF; --text-secondary:#B9B3E6;
+        /* Accent phu (neon) + cau vong xoay */
+        --accent-pink:#EC4899; --accent-cyan:#22D3EE; --accent-lime:#A3E635;
+        --accent-orange:#FB923C; --accent-violet:#8B5CF6;
+        --rainbow:conic-gradient(from var(--beam-angle,0deg), #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
+        --bg-input:#0D0D22;
       }
       html[data-theme="light"]{
-        --bg:#F7F5F0; --bg-soft:#EFECE4; --surface:#FFFFFF; --surface-2:#FAF8F3;
-        --ink:#111C18; --ink-2:#5B6B64; --muted:#5B6B64; --line:#E5E0D5;
-        --wine:#0C4A3B; --wine-deep:#08352A; --wine-soft:#E4EFE8;
-        --gold:#C68B2C; --gold-soft:#F6ECD4;
-        --head-tint:#E6EDEB; --ok:#177245; --ok-soft:#E2F2E7;
-        --danger:#DC2626; --danger-soft:#FBE9E7; --crimson:#DC2626;
-        --shadow:0 10px 30px rgba(12,74,59,.08); --shadow-lg:0 24px 60px rgba(10,32,24,.22);
-        --wine-btn:#0C4A3B; --on-wine:#fff;
-        --bg-main:#F7F5F0; --bg-surface:#FFFFFF; --bg-subtle:#EFECE4; --border-subtle:#E5E0D5;
-        --bg-glass:rgba(247,245,240,.82);
-        --accent-primary:#0C4A3B; --accent-gold:#C68B2C; --accent-crimson:#DC2626;
-        --text-primary:#111C18; --text-secondary:#5B6B64;
+        --bg:#F3F0FF; --bg-soft:#E9E4FF; --surface:#FFFFFF; --surface-2:#F7F5FF;
+        --ink:#1B1533; --ink-2:#5B5480; --muted:#6B6390; --line:#DDD6F5;
+        --wine:#7C3AED; --wine-deep:#6D28D9; --wine-soft:#EDE9FE;
+        --gold:#B45309; --gold-soft:#FEF3C7;
+        --head-tint:#EDE9FE; --ok:#047857; --ok-soft:#D1FAE5;
+        --danger:#BE123C; --danger-soft:#FFE4E6; --crimson:#BE123C;
+        --shadow:0 10px 30px rgba(124,58,237,.10); --shadow-lg:0 24px 60px rgba(124,58,237,.18);
+        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
+        --bg-main:#F3F0FF; --bg-surface:#FFFFFF; --bg-subtle:#E9E4FF; --border-subtle:#DDD6F5;
+        --bg-glass:rgba(243,240,255,.82);
+        --accent-primary:#7C3AED; --accent-gold:#B45309; --accent-crimson:#BE123C;
+        --text-primary:#1B1533; --text-secondary:#5B5480;
+        --accent-pink:#DB2777; --accent-cyan:#0E7490; --accent-lime:#4D7C0F;
+        --accent-orange:#EA580C; --accent-violet:#7C3AED;
+        --rainbow:conic-gradient(from var(--beam-angle,0deg), #7C3AED, #DB2777, #F59E0B, #65A30D, #0891B2, #7C3AED);
+        --bg-input:#F7F5FF;
       }
       html[data-theme="dark"]{
-        --bg:#080C0B; --bg-soft:#0E1512; --surface:#101917; --surface-2:#17211D;
-        --ink:#F1F5F3; --ink-2:#94A8A0; --muted:#8BA093; --line:rgba(52,211,153,.14);
-        --wine:#10B981; --wine-deep:#34D399; --wine-soft:#12261F;
-        --gold:#F5B942; --gold-soft:#3A3018;
-        --head-tint:#14201B; --ok:#4CC084; --ok-soft:#1D3325;
-        --danger:#F43F5E; --danger-soft:#3D1A20; --crimson:#F43F5E;
-        --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 24px 60px rgba(0,0,0,.55);
-        --wine-btn:#10B981; --on-wine:#082A20;
-        --bg-main:#080C0B; --bg-surface:#101917; --bg-subtle:#0E1512; --border-subtle:rgba(52,211,153,.14);
-        --bg-glass:rgba(16,25,23,.78);
-        --accent-primary:#10B981; --accent-gold:#F5B942; --accent-crimson:#F43F5E;
-        --text-primary:#F1F5F3; --text-secondary:#94A8A0;
+        --bg:#0B0B1A; --bg-soft:#12122A; --surface:#171733; --surface-2:#1E1E42;
+        --ink:#F4F2FF; --ink-2:#B9B3E6; --muted:#8B86C2; --line:rgba(139,92,246,.30);
+        --wine:#A78BFA; --wine-deep:#7C3AED; --wine-soft:#241B4D;
+        --gold:#FBBF24; --gold-soft:#3A2E12;
+        --head-tint:#1A1440; --ok:#34D399; --ok-soft:#0F2E25;
+        --danger:#FB7185; --danger-soft:#3D1520; --crimson:#FB7185;
+        --shadow:0 10px 30px rgba(0,0,0,.45); --shadow-lg:0 24px 60px rgba(0,0,0,.60);
+        --wine-btn:linear-gradient(135deg,#7C3AED,#DB2777); --on-wine:#FFFFFF;
+        --bg-main:#0B0B1A; --bg-surface:#171733; --bg-subtle:#12122A; --border-subtle:rgba(139,92,246,.30);
+        --bg-glass:rgba(11,11,26,.78);
+        --accent-primary:#8B5CF6; --accent-gold:#FBBF24; --accent-crimson:#FB7185;
+        --text-primary:#F4F2FF; --text-secondary:#B9B3E6;
+        --accent-pink:#EC4899; --accent-cyan:#22D3EE; --accent-lime:#A3E635;
+        --accent-orange:#FB923C; --accent-violet:#8B5CF6;
+        --rainbow:conic-gradient(from var(--beam-angle,0deg), #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
+        --bg-input:#0D0D22;
       }
       *{box-sizing:border-box}
       html,body{overflow-x:clip} /* chan tran ngang (360-430px); clip (khac hidden) khong pha position:sticky */
@@ -126,7 +125,7 @@
       .balance-card .lbl b{color:var(--wine);font-weight:700}
       .balance-card .val{font-size:20px;font-weight:800;margin-top:2px}
       .balance-card .topup-link{margin-top:8px;width:100%;border:1px solid var(--wine);background:transparent;color:var(--wine);border-radius:10px;font-weight:700;font-size:13px;padding:6px 10px}
-      .balance-card .topup-link:hover{background:var(--wine);color:#fff}
+      .balance-card .topup-link:hover{background:var(--wine-btn);color:var(--on-wine)}
       .balance-card .sync-note{margin-top:6px;font-size:11px;font-weight:700;color:var(--ok)}
       .balance-card .sync-note.warn{color:var(--danger)}
       .nav-group h4{margin:14px 8px 6px;font-size:10.5px;letter-spacing:.12em;color:var(--muted);font-weight:700;text-transform:uppercase}
@@ -151,7 +150,7 @@
       .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-weight:700;font-size:14px;padding:9px 18px;min-height:42px;text-decoration:none;transition:background .15s,transform .1s}
       .btn:active{transform:scale(.98)}
       .btn-wine{background:var(--wine-btn);color:var(--on-wine)}
-      .btn-wine:hover{background:var(--wine-deep)}
+      .btn-wine:hover{filter:brightness(1.15)}
       .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
       .btn-ghost:hover{border-color:var(--wine);color:var(--wine)}
       .btn[disabled]{opacity:.55;cursor:not-allowed}
@@ -168,17 +167,18 @@
       .view.active{display:block;animation:fadein .25s ease}
       @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-      /* ---------- Hero ---------- */
-      .hero{position:relative;border-radius:24px;overflow:hidden;background:#0a1f18;color:#fff;min-height:340px;display:flex;align-items:stretch;box-shadow:var(--shadow)}
+      /* ---------- Hero (Neon Aurora): lop phu tim-hong dao mau lien tuc ---------- */
+      .hero{position:relative;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#1E1748,#3B0764 55%,#831843);color:#fff;min-height:340px;display:flex;align-items:stretch;box-shadow:var(--shadow)}
       .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center right}
-      .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,20,15,.93) 22%,rgba(6,20,15,.72) 48%,rgba(6,20,15,.08) 78%)}
+      .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,11,26,.94) 22%,rgba(11,11,26,.78) 48%,rgba(139,92,246,.22) 78%);animation:uiv-hero-hue 14s linear infinite}
+      @keyframes uiv-hero-hue{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
       .hero-inner{position:relative;z-index:2;padding:44px 46px;max-width:620px;display:flex;flex-direction:column;justify-content:center}
-      .hero .kicker{color:#e6c87a;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+      .hero .kicker{color:#F0ABFC;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
       .hero h1{font-size:clamp(34px,4.6vw,54px);line-height:1.06;font-weight:900;margin:12px 0 12px;letter-spacing:-.015em}
-      .hero p{color:#d8e6dc;font-size:15.5px;margin:0 0 24px;max-width:44ch}
+      .hero p{color:#D8D3F5;font-size:15.5px;margin:0 0 24px;max-width:44ch}
       .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
-      .btn-light{background:#fff;color:#33101f}
-      .btn-light:hover{background:#f3e3ea}
+      .btn-light{background:linear-gradient(135deg,#fff,#EDE9FE);color:#5B21B6}
+      .btn-light:hover{background:#fff}
       .btn-outline-w{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.45);color:#fff}
       .btn-outline-w:hover{background:rgba(255,255,255,.18)}
 
@@ -201,7 +201,7 @@
       .dist h5{margin:2px 0 12px;font-size:13px;color:var(--ink-2)}
       .dist-row{display:grid;grid-template-columns:118px 1fr 30px;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:9px}
       .dist-bar{height:8px;border-radius:99px;background:var(--bg-soft);overflow:hidden}
-      .dist-bar i{display:block;height:100%;background:var(--wine);border-radius:99px}
+      .dist-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-violet),var(--accent-pink),var(--accent-cyan));border-radius:99px}
       .dist-row b{color:var(--ink);text-align:right}
 
       /* ---------- Steps ---------- */
@@ -242,9 +242,14 @@
       .pg-num.on{background:var(--wine-btn);border-color:var(--wine-btn);color:var(--on-wine)}
       .pg-info{font-size:12.8px;color:var(--muted)}
       .pg-dots{color:var(--muted)}
-      .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);content-visibility:auto;contain-intrinsic-size:auto 340px}
+      .card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);content-visibility:auto;contain-intrinsic-size:auto 340px}
+      /* Vien cau vong XOAY + DOI MAU lien tuc quanh moi the acc (chi trang tri:
+         lop ::before nam duoi noi dung, chi 1.5px o ria, chu/gia/nut dung yen).
+         Dung co che @property --beam-angle san co (animations.css) — gradient
+         cau vong chay vong quanh vien. The VIP (.card.beam) giu beam rieng. */
+      .card::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:1.5px;background:var(--rainbow);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:beamRotate 7s linear infinite}
       .card:hover{border-color:color-mix(in srgb,var(--wine) 45%,var(--line))}
-      .card-head{background:var(--head-tint);padding:16px 18px 14px;min-height:96px}
+      .card-head{background:linear-gradient(135deg,var(--head-tint),color-mix(in srgb,var(--accent-pink) 16%,var(--head-tint)));padding:16px 18px 14px;min-height:96px}
       .card-head .game{font-size:10.5px;letter-spacing:.1em;color:var(--muted);font-weight:700;text-transform:uppercase}
       .card-head .ttl{font-size:21px;font-weight:800;margin-top:4px;letter-spacing:-.01em}
       .card-cover{height:158px;overflow:hidden;background:var(--head-tint)}
@@ -262,7 +267,7 @@
       .price-box .price{font-size:20px;font-weight:800;display:block;line-height:1.15}
       .price-box .per{font-size:11px;color:var(--muted)}
       .buy-btn{margin-top:11px;width:100%;background:var(--wine-btn);color:var(--on-wine);border:0;border-radius:11px;font-weight:700;font-size:14px;padding:12px;min-height:46px}
-      .buy-btn:hover{background:var(--wine-deep)}
+      .buy-btn:hover{filter:brightness(1.15)}
       .buy-btn.out{background:var(--head-tint);color:var(--muted);cursor:not-allowed}
       .empty-box{background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:38px 20px;text-align:center;color:var(--muted)}
       .empty-box b{color:var(--ink);display:block;font-size:16px;margin-bottom:5px}
@@ -687,7 +692,7 @@
                         <svg preserveAspectRatio="none" height="27" width="27" viewBox="4.8 4.56 14.832 15.408" fill="none" aria-hidden="true"><path d="M8.16 6.65002H15.83C16.47 6.65002 16.99 7.17002 16.99 7.81002V9.09002C16.99 9.56002 16.7 10.14 16.41 10.43L13.91 12.64C13.56 12.93 13.33 13.51 13.33 13.98V16.48C13.33 16.83 13.1 17.29 12.81 17.47L12 17.98C11.24 18.45 10.2 17.92 10.2 16.99V13.91C10.2 13.5 9.97 12.98 9.73 12.69L7.52 10.36C7.23 10.08 7 9.55002 7 9.20002V7.87002C7 7.17002 7.52 6.65002 8.16 6.65002Z" stroke="#d6d6e6" stroke-width="1" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                       </button>
                       <span class="uiv-glow-search-icon" id="uivSearchIcon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" height="24" fill="none"><circle stroke="url(#uivSearchGrad)" r="8" cy="11" cx="11"></circle><line stroke="url(#uivSearchGradL)" y2="16.65" y1="22" x2="16.65" x1="22"></line><defs><linearGradient gradientTransform="rotate(50)" id="uivSearchGrad"><stop stop-color="#f8e7f8" offset="0%"></stop><stop stop-color="#b6a9b7" offset="50%"></stop></linearGradient><linearGradient id="uivSearchGradL"><stop stop-color="#b6a9b7" offset="0%"></stop><stop stop-color="#837484" offset="50%"></stop></linearGradient></defs></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" height="24" fill="none"><circle stroke="url(#uivSearchGrad)" r="8" cy="11" cx="11"></circle><line stroke="url(#uivSearchGradL)" y2="16.65" y1="22" x2="16.65" x1="22"></line><defs><linearGradient gradientTransform="rotate(50)" id="uivSearchGrad"><stop stop-color="#F0ABFC" offset="0%"></stop><stop stop-color="#A78BFA" offset="50%"></stop></linearGradient><linearGradient id="uivSearchGradL"><stop stop-color="#22D3EE" offset="0%"></stop><stop stop-color="#8B5CF6" offset="50%"></stop></linearGradient></defs></svg>
                       </span>
                     </div>
                   </div>

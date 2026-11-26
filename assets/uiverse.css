@@ -11,6 +11,8 @@
      #makeQrBtn, #cardSubmit) va o <=760px (tran card tren mobile).
    - 02 loader: chu loading dung var(--ink) theo theme — ban goc chu trang
      #ffffff tren nen sang Light mode chi 1.09:1 (khong doc duoc).
+     [VIBRANT 2026-11-26] Light: #1B1533 tren #FFFFFF = 17.48:1,
+     Dark: #F4F2FF tren #171733 = 15.74:1.
      Gradient cua loader giu nguyen.
    - 03 glow search: bo comment `//` sai chuan, go block #poda:hover trung
      lap, bo width co dinh (input 301px -> width:100%), wrapper co
@@ -38,7 +40,9 @@
   padding-block: 0.5rem;
   padding-inline: 1.25rem;
   min-height: 44px; /* [VA 2026-11-26] nut bam >=44px (goc .btn chi 42px) */
-  background-color: rgb(0 107 179);
+  /* [VIBRANT 2026-11-26] gradient tim-hong (chu trang tren stop dam nhat
+     #7C3AED = 5.70:1, #DB2777 = 4.60:1) thay xanh duong #006BB3. */
+  background: linear-gradient(135deg, var(--accent-violet, #8B5CF6), var(--accent-pink, #EC4899));
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -52,6 +56,23 @@
   font-size: 15px;
   cursor: pointer;
 }
+/* [VIBRANT 2026-11-26] Vien cau vong XOAY quanh nut CTA (chi trang tri:
+   ::after nam tren cung nhung chi 2px o ria, chu dung yen). Dung co che
+   @property --beam-angle (animations.css) — gradient chay vong quanh vien. */
+.uiv-shine-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(from var(--beam-angle, 0deg),
+    #8B5CF6, #EC4899, #F59E0B, #A3E635, #22D3EE, #8B5CF6);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: beamRotate 5s linear infinite;
+}
 .uiv-shine-btn .uiv-shine-icon {
   width: 24px;
   height: 24px;
@@ -60,7 +81,7 @@
 .uiv-shine-btn:hover {
   transform: scale(1.05);
   border-color: #fff9;
-  background-color: rgb(0 107 179);
+  filter: brightness(1.12);
 }
 .uiv-shine-btn:hover .uiv-shine-icon {
   transform: translate(4px);
@@ -140,7 +161,8 @@
 }
 /* FIX (worker check Desktop): ban goc chu trang #ffffff — tren nen sang
    Light mode chi 1.09:1 (khong doc duoc). Dung var(--ink) theo theme:
-   Light #111C18 tren #FFFFFF = 17.45:1, Dark #F1F5F3 tren #101917 = 16.27:1.
+   [VIBRANT 2026-11-26] Light #1B1533 tren #FFFFFF = 17.48:1,
+   Dark #F4F2FF tren #171733 = 15.74:1.
    Gradient cua loader giu nguyen. */
 .uiv-loading-text {
   color: var(--ink);
@@ -259,7 +281,13 @@
   left: 5px;
   filter: blur(20px);
   opacity: 0.8;
-  transition: all 2s;
+  transition: opacity 2s;
+  /* [VIBRANT 2026-11-26] Cham hong dao mau lien tuc (hue-rotate). */
+  animation: uiv-pink-hue 5s linear infinite;
+}
+@keyframes uiv-pink-hue {
+  from { filter: blur(20px) hue-rotate(0deg); }
+  to { filter: blur(20px) hue-rotate(360deg); }
 }
 .uiv-glow-main:hover > .uiv-glow-pink-mask {
   opacity: 0;
@@ -283,13 +311,16 @@
   filter: brightness(1.4);
   background-image: conic-gradient(
     rgba(0, 0, 0, 0) 0%,
-    #a099d8,
+    var(--accent-violet, #8B5CF6),
     rgba(0, 0, 0, 0) 8%,
     rgba(0, 0, 0, 0) 50%,
-    #dfa2da,
+    var(--accent-pink, #EC4899),
     rgba(0, 0, 0, 0) 58%
   );
-  transition: all 2s;
+  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC ngay ca khi khong bam
+     (khong chi luc hover/focus). */
+  --uiv-rot: 83deg;
+  animation: uiv-glow-spin 9s linear infinite;
 }
 .uiv-glow-border {
   border-radius: 11px;
@@ -309,14 +340,16 @@
   background-repeat: no-repeat;
   background-position: 0 0;
   background-image: conic-gradient(
-    #1c191c,
-    #402fb5 5%,
-    #1c191c 14%,
-    #1c191c 50%,
-    #cf30aa 60%,
-    #1c191c 64%
+    var(--bg-input, #0D0D22),
+    var(--accent-violet, #8B5CF6) 5%,
+    var(--bg-input, #0D0D22) 14%,
+    var(--bg-input, #0D0D22) 50%,
+    var(--accent-pink, #EC4899) 60%,
+    var(--bg-input, #0D0D22) 64%
   );
-  transition: all 2s;
+  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  --uiv-rot: 70deg;
+  animation: uiv-glow-spin 7s linear infinite reverse;
 }
 .uiv-glow-dark-border::before {
   content: "";
@@ -332,41 +365,28 @@
   background-position: 0 0;
   background-image: conic-gradient(
     rgba(0, 0, 0, 0),
-    #18116a,
+    var(--accent-cyan, #22D3EE),
     rgba(0, 0, 0, 0) 10%,
     rgba(0, 0, 0, 0) 50%,
-    #6e1b60,
+    var(--accent-pink, #EC4899),
     rgba(0, 0, 0, 0) 60%
   );
-  transition: all 2s;
+  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  --uiv-rot: 82deg;
+  animation: uiv-glow-spin 8s linear infinite;
 }
-.uiv-glow-search:hover > .uiv-glow-dark-border::before {
-  transform: translate(-50%, -50%) rotate(-98deg);
-}
-.uiv-glow-search:hover > .uiv-glow-layer::before {
-  transform: translate(-50%, -50%) rotate(-120deg);
-}
-.uiv-glow-search:hover > .uiv-glow-white::before {
-  transform: translate(-50%, -50%) rotate(-97deg);
-}
+.uiv-glow-search:hover > .uiv-glow-dark-border::before,
+.uiv-glow-search:hover > .uiv-glow-layer::before,
+.uiv-glow-search:hover > .uiv-glow-white::before,
 .uiv-glow-search:hover > .uiv-glow-border::before {
-  transform: translate(-50%, -50%) rotate(-110deg);
+  /* [VIBRANT 2026-11-26] Xoay da chay lien tuc nen hover chi tang sang. */
+  filter: brightness(1.6);
 }
-.uiv-glow-search:focus-within > .uiv-glow-dark-border::before {
-  transform: translate(-50%, -50%) rotate(442deg);
-  transition: all 4s;
-}
-.uiv-glow-search:focus-within > .uiv-glow-layer::before {
-  transform: translate(-50%, -50%) rotate(420deg);
-  transition: all 4s;
-}
-.uiv-glow-search:focus-within > .uiv-glow-white::before {
-  transform: translate(-50%, -50%) rotate(443deg);
-  transition: all 4s;
-}
+.uiv-glow-search:focus-within > .uiv-glow-dark-border::before,
+.uiv-glow-search:focus-within > .uiv-glow-layer::before,
+.uiv-glow-search:focus-within > .uiv-glow-white::before,
 .uiv-glow-search:focus-within > .uiv-glow-border::before {
-  transform: translate(-50%, -50%) rotate(430deg);
-  transition: all 4s;
+  filter: brightness(1.9);
 }
 .uiv-glow-layer {
   overflow: hidden;
@@ -387,13 +407,21 @@
   background-position: 0 0;
   background-image: conic-gradient(
     #000,
-    #402fb5 5%,
+    var(--accent-violet, #8B5CF6) 5%,
     #000 38%,
     #000 50%,
-    #cf30aa 60%,
+    var(--accent-pink, #EC4899) 60%,
     #000 87%
   );
-  transition: all 2s;
+  /* [VIBRANT 2026-11-26] XOAY + DOI MAU LIEN TUC. */
+  --uiv-rot: 60deg;
+  animation: uiv-glow-spin 6s linear infinite reverse;
+}
+/* [VIBRANT 2026-11-26] Xoay lien tuc cho cac lop glow cua thanh tim kiem:
+   giu nguyen goc xuat phat (--uiv-rot) cua tung lop, quay them 360 do. */
+@keyframes uiv-glow-spin {
+  from { transform: translate(-50%, -50%) rotate(var(--uiv-rot, 0deg)); }
+  to { transform: translate(-50%, -50%) rotate(calc(var(--uiv-rot, 0deg) + 360deg)); }
 }
 @keyframes uiv-rotate {
   100% {
@@ -415,7 +443,7 @@
   isolation: isolate;
   overflow: hidden;
   border-radius: 10px;
-  background: linear-gradient(180deg, #161329, black, #1d1b4b);
+  background: linear-gradient(180deg, #1E1E42, #0B0B1A, #241B4D);
   border: 1px solid transparent;
   padding: 0;
   cursor: pointer;
@@ -450,10 +478,10 @@
   filter: brightness(1.35);
   background-image: conic-gradient(
     rgba(0, 0, 0, 0),
-    #3d3a4f,
+    var(--accent-violet, #8B5CF6),
     rgba(0, 0, 0, 0) 50%,
     rgba(0, 0, 0, 0) 50%,
-    #3d3a4f,
+    var(--accent-cyan, #22D3EE),
     rgba(0, 0, 0, 0) 100%
   );
   animation: uiv-rotate 4s linear infinite;

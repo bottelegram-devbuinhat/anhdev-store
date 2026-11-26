@@ -283,16 +283,28 @@
     return prefix + Math.random().toString(36).slice(2,8).toUpperCase();
   }
 
-  /* ================= THEME ================= */
+  /* ================= THEME (mac dinh TOI; luu lua chon vao localStorage) ================= */
+  var THEME_KEY = "anhdev_theme";
+  function readSavedTheme(){
+    try { var t = localStorage.getItem(THEME_KEY); return (t === "light" || t === "dark") ? t : null; } catch (e) { return null; }
+  }
   function applyThemeButtons(){
-    var dark = document.documentElement.getAttribute("data-theme") === "dark" ||
-      (!document.documentElement.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var dark = document.documentElement.getAttribute("data-theme") !== "light";
     $("#themeDark").classList.toggle("on", dark);
     $("#themeLight").classList.toggle("on", !dark);
   }
-  $("#themeLight").addEventListener("click", function(){ document.documentElement.setAttribute("data-theme","light"); applyThemeButtons(); });
-  $("#themeDark").addEventListener("click", function(){ document.documentElement.setAttribute("data-theme","dark"); applyThemeButtons(); });
-  applyThemeButtons();
+  function setTheme(t){
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* trinh duyet chan localStorage */ }
+    applyThemeButtons();
+  }
+  (function initTheme(){
+    var saved = readSavedTheme();
+    document.documentElement.setAttribute("data-theme", saved || "dark");
+    applyThemeButtons();
+  })();
+  $("#themeLight").addEventListener("click", function(){ setTheme("light"); });
+  $("#themeDark").addEventListener("click", function(){ setTheme("dark"); });
 
   /* ================= NAV / VIEWS ================= */
   /* ============ NAV: 1 NGUỒN SỰ THẬT DUY NHẤT CHO MỤC ĐANG ACTIVE ============
