@@ -25,7 +25,7 @@
         (stub trả 403) -> toast "Không có quyền Admin" + toggle tự tắt.
      f. hồi quy tìm kiếm cũ: "nakroth ki" = 9, "murad" = 162, "sss" không ra
         acc Random nào (anti-leak).
-     g. đăng ký vẫn chặn mật khẩu < 6 ký tự; đăng nhập chấp nhận mật khẩu "1".
+     g. đăng ký vẫn chặn mật khẩu < 6 ký tự; đăng nhập chấp nhận mật khẩu 1 ký tự.
      h. tải lại trang với token admin đã lưu -> module tự nạp (restore session).
    ============================================================================ */
 const fs = require("fs");
@@ -39,7 +39,7 @@ const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
-  "/home/hatch/workspace/goals/hostvn-telegram-shop-bot/files/anhdev-store-push/stock.json", "utf8"));
+  (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
 const API_URL = "https://api.test.local";
 
 /* ---------- nạp module admin THẬT (strip từ khóa `export` để Node chạy) --- */
@@ -54,13 +54,15 @@ function loadAdminModuleReal(){
 }
 const adminModuleReal = loadAdminModuleReal();
 
-/* ---------- fake backend (dữ liệu test tự bịa) ---------------------------- */
+/* ---------- fake backend (dữ liệu test tự bịa — KHÔNG phải mật khẩu thật.
+   Backend giả lập chạy local; mật khẩu ở đây chỉ là fixture để test
+   luồng đăng nhập, không trùng mật khẩu acc test thật trên backend. -- */
 const USERS = {
-  nhatdeptrai: { password: "123456", role: "user" },
-  nhatdz:      { password: "123456", role: "user" },
-  muaacc:      { password: "123456", role: "user" },
-  colonmahup:  { password: "123456", role: "user" },
-  admin2:      { password: "1",      role: "admin" }
+  nhatdeptrai: { password: "test123456", role: "user" },
+  nhatdz:      { password: "test123456", role: "user" },
+  muaacc:      { password: "test123456", role: "user" },
+  colonmahup:  { password: "test123456", role: "user" },
+  admin2:      { password: "x",          role: "admin" }  // 1 ký tự: test login không min-6
 };
 const FAKE_RANDOM = [
   { code: "LQ9001", price: 24000, rank: "Cao Thủ", level: 30, heroes: 12, skins: 5,
@@ -217,7 +219,7 @@ async function logout(w){
   adminCalls = [];
   const p1 = await makePage({});
   check("a1. kho thật đã tải (12126 acc)", prodCount(p1.w).indexOf("12126") !== -1, prodCount(p1.w));
-  await login(p1.w, "nhatdeptrai", "123456");
+  await login(p1.w, "nhatdeptrai", "test123456");
   check("a2. đăng nhập thường thành công, số dư 250.000đ",
     (p1.w.document.querySelector("[data-balance]") || {}).textContent === "250.000đ",
     (p1.w.document.querySelector("[data-balance]") || {}).textContent);
@@ -238,8 +240,8 @@ async function logout(w){
 
   console.log("== b. admin2 (role=admin) ==");
   await logout(p1.w);
-  await login(p1.w, "admin2", "1"); // mật khẩu "1" — đăng nhập phải chấp nhận
-  check("b1. admin2 đăng nhập được với mật khẩu '1', số dư 250.000đ",
+  await login(p1.w, "admin2", "x"); // mật khẩu 1 ký tự — đăng nhập phải chấp nhận (không min-6)
+  check("b1. admin2 đăng nhập được với mật khẩu 1 ký tự, số dư 250.000đ",
     (p1.w.document.querySelector("[data-balance]") || {}).textContent === "250.000đ",
     (p1.w.document.querySelector("[data-balance]") || {}).textContent);
   check("b2. module admin được import (lazy-load)", p1.loaderCalls() === 1, "loader=" + p1.loaderCalls());
@@ -312,7 +314,7 @@ async function logout(w){
   console.log("== d. API_BASE_URL trống ==");
   adminCalls = [];
   const p2 = await makePage({ apiBase: "" });
-  await login(p2.w, "admin2", "1");
+  await login(p2.w, "admin2", "x");
   check("d1. backend chưa cấu hình: form báo lỗi rõ, không đăng nhập được",
     p2.w.document.querySelector("#authErr").textContent.indexOf("Chưa cấu hình backend") !== -1,
     p2.w.document.querySelector("#authErr").textContent);

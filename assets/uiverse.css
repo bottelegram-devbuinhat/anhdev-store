@@ -1,0 +1,765 @@
+/* ============================================================================
+   Uiverse UI pack — AnhDev Store (Phase 1)
+   ----------------------------------------------------------------------------
+   5 component goc tu uiverse.io, da DOI SCOPE tuyet doi sang tien to `.uiv-`
+   de khong de class/ID chung (.button, .input, .grid, #poda, #main, .white,
+   .border, .card-header, .submit-btn, ...) ra global scope va khong pha
+   Sidebar / Toast / Modal / the Acc cua store.
+
+   Cac sua doi so voi ban goc (theo PROMPT_TONG.md + worker check):
+   - 01 shine: hover scale(1.05) TAT tren nut full-width (.buy-btn,
+     #makeQrBtn, #cardSubmit) va o <=760px (tran card tren mobile).
+   - 02 loader: chu loading dung var(--ink) theo theme — ban goc chu trang
+     #ffffff tren nen sang Light mode chi 1.09:1 (khong doc duoc).
+     Gradient cua loader giu nguyen.
+   - 03 glow search: bo comment `//` sai chuan, go block #poda:hover trung
+     lap, bo width co dinh (input 301px -> width:100%), wrapper co
+     position:relative + isolation (lop glow z-index:-1 truoc day can theo
+     viewport vi #poda khong co position), an nut xoa native cua
+     input[type=search] (dung nut × tuy chinh), nut filter la <button> that.
+     Dropdown autocomplete (#searchSuggest, z-index 32) la SIBLING cua
+     wrapper (khong nam trong wrapper) nen luon noi tren cac lop glow.
+   - 04 glitch login: ap len modal hien co (khong thay form), margin:0 khi
+     long trong .modal (ban goc margin:1rem tran ~32px o 390px).
+   - 05 ripple: min-height 36px -> 44px (chuan cham); hover #47a7f5
+     (trang tren do chi 2.59:1) -> #0d6fb8 (trang tren do 5.27:1, dat AA).
+     Trang thai mac dinh #1D9AF2 tren #292D3E (4.52:1) GIU NGUYEN.
+   - .grid o index.html:236 la product grid cua store, KHONG phai leak.
+   - Toast container (z-index:9999 literal) de nguyen, khong dung.
+   ============================================================================ */
+
+/* ================= 01. Shine pill button (.uiv-shine-btn) =================
+   From Uiverse.io by satyamchaudharydev -
+   https://uiverse.io/satyamchaudharydev/rude-wolverine-24 */
+.uiv-shine-btn {
+  position: relative;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+  padding-block: 0.5rem;
+  padding-inline: 1.25rem;
+  min-height: 44px; /* [VA 2026-11-26] nut bam >=44px (goc .btn chi 42px) */
+  background-color: rgb(0 107 179);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  gap: 10px;
+  font-weight: bold;
+  border: 3px solid #ffffff4d;
+  outline: none;
+  overflow: hidden;
+  font-size: 15px;
+  cursor: pointer;
+}
+.uiv-shine-btn .uiv-shine-icon {
+  width: 24px;
+  height: 24px;
+  transition: all 0.3s ease-in-out;
+}
+.uiv-shine-btn:hover {
+  transform: scale(1.05);
+  border-color: #fff9;
+  background-color: rgb(0 107 179);
+}
+.uiv-shine-btn:hover .uiv-shine-icon {
+  transform: translate(4px);
+}
+.uiv-shine-btn:hover::before {
+  animation: uiv-shine 1.5s ease-out infinite;
+}
+.uiv-shine-btn::before {
+  content: "";
+  position: absolute;
+  width: 100px;
+  height: 100%;
+  background-image: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0) 70%
+  );
+  top: 0;
+  left: -100px;
+  opacity: 0.6;
+}
+@keyframes uiv-shine {
+  0% { left: -100px; }
+  60% { left: 100%; }
+  to { left: 100%; }
+}
+/* FIX (worker check Mobile): nut full-width ma scale(1.05) khi hover se tran
+   khoi card ~5% moi ben — tat scale tren cac nut full-width va o <=760px. */
+.buy-btn.uiv-shine-btn:hover,
+#makeQrBtn.uiv-shine-btn:hover,
+#cardSubmit.uiv-shine-btn:hover {
+  transform: none;
+}
+@media (max-width: 760px) {
+  .uiv-shine-btn:hover {
+    transform: none;
+  }
+}
+
+/* ================= 02. Liquid loader (.uiv-liquid-loader) =================
+   From Uiverse.io by ShaikhWahid99 -
+   https://uiverse.io/ShaikhWahid99/warm-emu-89
+   MIT License, Copyright (c) ShaikhWahid99 */
+.uiv-liquid-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 20px;
+  font-family: system-ui, sans-serif;
+}
+.uiv-loader-track {
+  position: relative;
+  width: 180px;
+  height: 32px;
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 3px rgba(255, 255, 255, 0.1);
+}
+.uiv-liquid-fill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  height: calc(100% - 4px);
+  background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899, #f59e0b);
+  border-radius: 14px;
+  animation:
+    uiv-fill-progress 4s ease-out infinite,
+    uiv-color-shift 3s linear infinite;
+  box-shadow:
+    0 0 12px rgba(124, 58, 237, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+/* FIX (worker check Desktop): ban goc chu trang #ffffff — tren nen sang
+   Light mode chi 1.09:1 (khong doc duoc). Dung var(--ink) theo theme:
+   Light #111C18 tren #FFFFFF = 17.45:1, Dark #F1F5F3 tren #101917 = 16.27:1.
+   Gradient cua loader giu nguyen. */
+.uiv-loading-text {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  animation: uiv-text-glow 1s ease-in-out infinite;
+}
+.uiv-dot {
+  margin-left: 3px;
+  animation: uiv-blink 1.5s infinite;
+}
+.uiv-dot:nth-of-type(1) { animation-delay: 0s; }
+.uiv-dot:nth-of-type(2) { animation-delay: 0.3s; }
+.uiv-dot:nth-of-type(3) { animation-delay: 0.6s; }
+@keyframes uiv-fill-progress {
+  0% { width: 4px; }
+  25% { width: 25%; }
+  50% { width: 50%; }
+  75% { width: 75%; }
+  100% { width: calc(100% - 4px); }
+}
+@keyframes uiv-color-shift {
+  0% { filter: hue-rotate(0deg) brightness(1); }
+  33% { filter: hue-rotate(120deg) brightness(1.1); }
+  66% { filter: hue-rotate(240deg) brightness(0.9); }
+  100% { filter: hue-rotate(360deg) brightness(1); }
+}
+@keyframes uiv-text-glow {
+  0%, 100% { opacity: 0.7; text-shadow: 0 0 8px rgba(139, 92, 246, 0.3); }
+  50% { opacity: 1; text-shadow: 0 0 16px rgba(139, 92, 246, 0.6); }
+}
+@keyframes uiv-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+/* Loader long trong banner #syncStatus: gon lai cho vua banner. */
+.sync-status .uiv-liquid-loader {
+  padding: 6px 0 2px;
+}
+
+/* ================= 03. Glow search input (.uiv-glow-search) =================
+   From Uiverse.io by Lakshay-art -
+   https://uiverse.io/Lakshay-art/curvy-earwig-22
+   MIT License, Copyright (c) Lakshay-art (Lakshay Gupta)
+   Da sua so voi ban goc: xoa comment `//` sai chuan CSS, go block hover
+   trung lap, bo width co dinh (input 301px -> width:100% responsive),
+   KHONG co .grid 800px trong ban goc (chi co width co dinh o input va cac
+   ::before 600px/999px — cac ::before nay nam trong lop co overflow:hidden
+   nen khong tran trang). */
+.uiv-glow-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  isolation: isolate;
+  z-index: 0;
+}
+.uiv-glow-layer,
+.uiv-glow-dark-border,
+.uiv-glow-white,
+.uiv-glow-border {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  border-radius: 12px;
+  filter: blur(3px);
+}
+.uiv-glow-input {
+  background-color: #010201;
+  border: none;
+  width: 100%;
+  height: 56px;
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 0 104px 0 59px; /* [VA 2026-11-26] phai 104px: clear ket thuc 96px + 8px dem */
+  font-size: 18px;
+}
+.uiv-glow-input::placeholder {
+  color: #c0b9c0;
+}
+.uiv-glow-input:focus {
+  outline: none;
+}
+/* An nut xoa native cua input[type=search] — store dung nut × tuy chinh
+   (#uivSearchClear) de khong bi icon filter de len. */
+.uiv-glow-input::-webkit-search-cancel-button,
+.uiv-glow-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+.uiv-glow-main:focus-within > .uiv-glow-input-mask {
+  display: none;
+}
+.uiv-glow-input-mask {
+  pointer-events: none;
+  width: 100px;
+  height: 20px;
+  position: absolute;
+  background: linear-gradient(90deg, transparent, black);
+  top: 18px;
+  left: 70px;
+}
+.uiv-glow-pink-mask {
+  pointer-events: none;
+  width: 30px;
+  height: 20px;
+  position: absolute;
+  background: #cf30aa;
+  top: 10px;
+  left: 5px;
+  filter: blur(20px);
+  opacity: 0.8;
+  transition: all 2s;
+}
+.uiv-glow-main:hover > .uiv-glow-pink-mask {
+  opacity: 0;
+}
+.uiv-glow-white {
+  border-radius: 10px;
+  filter: blur(2px);
+}
+.uiv-glow-white::before {
+  content: "";
+  z-index: -2;
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(83deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  filter: brightness(1.4);
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0) 0%,
+    #a099d8,
+    rgba(0, 0, 0, 0) 8%,
+    rgba(0, 0, 0, 0) 50%,
+    #dfa2da,
+    rgba(0, 0, 0, 0) 58%
+  );
+  transition: all 2s;
+}
+.uiv-glow-border {
+  border-radius: 11px;
+  filter: blur(0.5px);
+}
+.uiv-glow-border::before {
+  content: "";
+  z-index: -2;
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(70deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  filter: brightness(1.3);
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-image: conic-gradient(
+    #1c191c,
+    #402fb5 5%,
+    #1c191c 14%,
+    #1c191c 50%,
+    #cf30aa 60%,
+    #1c191c 64%
+  );
+  transition: all 2s;
+}
+.uiv-glow-dark-border::before {
+  content: "";
+  z-index: -2;
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(82deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0),
+    #18116a,
+    rgba(0, 0, 0, 0) 10%,
+    rgba(0, 0, 0, 0) 50%,
+    #6e1b60,
+    rgba(0, 0, 0, 0) 60%
+  );
+  transition: all 2s;
+}
+.uiv-glow-search:hover > .uiv-glow-dark-border::before {
+  transform: translate(-50%, -50%) rotate(-98deg);
+}
+.uiv-glow-search:hover > .uiv-glow-layer::before {
+  transform: translate(-50%, -50%) rotate(-120deg);
+}
+.uiv-glow-search:hover > .uiv-glow-white::before {
+  transform: translate(-50%, -50%) rotate(-97deg);
+}
+.uiv-glow-search:hover > .uiv-glow-border::before {
+  transform: translate(-50%, -50%) rotate(-110deg);
+}
+.uiv-glow-search:focus-within > .uiv-glow-dark-border::before {
+  transform: translate(-50%, -50%) rotate(442deg);
+  transition: all 4s;
+}
+.uiv-glow-search:focus-within > .uiv-glow-layer::before {
+  transform: translate(-50%, -50%) rotate(420deg);
+  transition: all 4s;
+}
+.uiv-glow-search:focus-within > .uiv-glow-white::before {
+  transform: translate(-50%, -50%) rotate(443deg);
+  transition: all 4s;
+}
+.uiv-glow-search:focus-within > .uiv-glow-border::before {
+  transform: translate(-50%, -50%) rotate(430deg);
+  transition: all 4s;
+}
+.uiv-glow-layer {
+  overflow: hidden;
+  filter: blur(30px);
+  opacity: 0.4;
+}
+.uiv-glow-layer::before {
+  content: "";
+  z-index: -2;
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(60deg);
+  position: absolute;
+  width: 999px;
+  height: 999px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-image: conic-gradient(
+    #000,
+    #402fb5 5%,
+    #000 38%,
+    #000 50%,
+    #cf30aa 60%,
+    #000 87%
+  );
+  transition: all 2s;
+}
+@keyframes uiv-rotate {
+  100% {
+    transform: translate(-50%, -50%) rotate(450deg);
+  }
+}
+/* Nut filter: <button> that (ban goc chi la <div id="filter-icon">).
+   Bat/tat nhanh loc "Chi xem con hang" (dong bo voi #stockToggle). */
+.uiv-glow-filter {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  height: 40px;
+  width: 44px; /* [VA 2026-11-26] du 44px chuan cham (truoc 38px) */
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #161329, black, #1d1b4b);
+  border: 1px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.uiv-glow-filter:hover {
+  border-color: rgba(0, 242, 234, 0.55);
+}
+.uiv-glow-filter.on {
+  border-color: #00f2ea;
+  box-shadow: 0 0 10px rgba(0, 242, 234, 0.55);
+}
+.uiv-glow-filter-border {
+  height: 42px;
+  width: 46px; /* [VA 2026-11-26] = filter 44px + 2px vien */
+  position: absolute;
+  overflow: hidden;
+  top: 7px;
+  right: 7px;
+  border-radius: 10px;
+}
+.uiv-glow-filter-border::before {
+  content: "";
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  filter: brightness(1.35);
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0),
+    #3d3a4f,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0) 50%,
+    #3d3a4f,
+    rgba(0, 0, 0, 0) 100%
+  );
+  animation: uiv-rotate 4s linear infinite;
+}
+.uiv-glow-main {
+  position: relative;
+  width: 100%;
+}
+.uiv-glow-search-icon {
+  position: absolute;
+  left: 20px;
+  top: 15px;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+}
+/* Nut × xoa tuy chinh: nam BEN TRAI icon filter, tach ro rang (cach 6px),
+   khong de len nut xoa native (da an) hay icon filter. */
+.uiv-glow-clear {
+  position: absolute;
+  top: 8px;
+  right: 56px; /* [VA 2026-11-26] lui ra 4px vi filter rong len 44px */
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #c0b9c0;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.uiv-glow-clear:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.uiv-glow-clear[hidden] {
+  display: none;
+}
+
+/* ================= 04. Cyberpunk glitch login (.uiv-glitch-auth) =================
+   From Uiverse.io by pharmacist-sabot -
+   https://uiverse.io/pharmacist-sabot/funny-gecko-48
+   MIT License, Copyright (c) pharmacist-sabot (Suradet P150)
+   Ap len modal hien co (#authModal): giu nguyen #authForm/#authUser/
+   #authPass/#authPass2/#authSubmit/#authTitle/#authErr, 2 tab, nut mat
+   mat khau, nut dong ✕, Esc + bam nen mo de dong, khung Telegram ben duoi.
+   Panel form mau toi #0d0d0d (nhu .glitch-card goc) nen chu cyan/trang doc
+   duoc ca Light lan Dark mode. margin:0 (ban goc margin:1rem tran ~32px
+   khi long trong .modal o 390px). */
+.uiv-glitch-auth #authForm {
+  --uiv-glitch-bg: #0d0d0d;
+  --uiv-glitch-primary: #00f2ea;
+  --uiv-glitch-secondary: #a855f7;
+  --uiv-glitch-text: #e5e5e5;
+  --uiv-glitch-anim-duration: 0.5s;
+  background-color: var(--uiv-glitch-bg);
+  border: 1px solid rgba(0, 242, 234, 0.2);
+  box-shadow:
+    0 0 20px rgba(0, 242, 234, 0.1),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  margin: 0;
+  padding: 1.25rem;
+  font-family: "Fira Code", Consolas, "Courier New", Courier, monospace;
+}
+.uiv-glitch-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.5em 0.75em;
+  border-bottom: 1px solid rgba(0, 242, 234, 0.2);
+  margin: -1.25rem -1.25rem 1.25rem;
+}
+.uiv-glitch-title {
+  color: var(--uiv-glitch-primary, #00f2ea);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.uiv-glitch-title svg {
+  width: 1.2em;
+  height: 1.2em;
+  stroke: var(--uiv-glitch-primary, #00f2ea);
+}
+.uiv-glitch-dots span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #333;
+  margin-left: 5px;
+}
+.uiv-glitch-auth .auth-tabs {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 242, 234, 0.15);
+}
+.uiv-glitch-auth .auth-tabs button {
+  color: rgba(229, 229, 229, 0.6);
+  font-family: inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+.uiv-glitch-auth .auth-tabs button.on {
+  background: rgba(0, 242, 234, 0.12);
+  color: #00f2ea;
+  border: 1px solid rgba(0, 242, 234, 0.35);
+  box-shadow: none;
+}
+.uiv-glitch-auth #authForm .field label {
+  color: #00f2ea;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+.uiv-glitch-auth #authForm .field:focus-within label {
+  opacity: 1;
+  animation: uiv-glitch-label 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes uiv-glitch-label {
+  0% { transform: translate(0); text-shadow: none; }
+  20% { transform: translate(-2px, 1px); text-shadow: 2px 0 #a855f7, -2px 0 #00f2ea; }
+  40% { transform: translate(2px, -1px); text-shadow: -2px 0 #a855f7, 2px 0 #00f2ea; }
+  60% { transform: translate(-1px, 1px); text-shadow: 2px 0 #a855f7, -2px 0 #00f2ea; }
+  100% { transform: translate(0); text-shadow: none; }
+}
+.uiv-glitch-auth #authForm .field input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 2px solid rgba(0, 242, 234, 0.3);
+  border-radius: 0;
+  padding: 0.75em 0;
+  font-size: 1rem;
+  color: #e5e5e5;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+.uiv-glitch-auth #authForm .field .pw-input {
+  padding-right: 44px;
+}
+.uiv-glitch-auth #authForm .field input:focus {
+  border-bottom-color: #00f2ea;
+  outline: none;
+}
+.uiv-glitch-auth #authForm .field .hint {
+  color: #8a9a94;
+}
+.uiv-glitch-auth #authForm .pw-eye {
+  color: rgba(0, 242, 234, 0.7);
+}
+.uiv-glitch-auth #authForm .pw-eye:hover {
+  color: #ffffff;
+}
+/* Nut submit glitch: data-text doi theo tab (Dang nhap/Dang ky) va VN/EN
+   — app.js ham syncAuthSubmitGlitch() cap nhat attr nay. */
+.uiv-glitch-auth #authSubmit {
+  width: 100%;
+  padding: 0.8em;
+  margin-top: 1rem;
+  background-color: transparent;
+  border: 2px solid #00f2ea;
+  color: #00f2ea;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+.uiv-glitch-auth #authSubmit:hover,
+.uiv-glitch-auth #authSubmit:focus {
+  background-color: #00f2ea;
+  color: #0d0d0d;
+  box-shadow: 0 0 25px rgba(0, 242, 234, 0.6);
+  outline: none;
+}
+.uiv-glitch-auth #authSubmit:active {
+  transform: scale(0.97);
+}
+.uiv-glitch-auth #authSubmit::before,
+.uiv-glitch-auth #authSubmit::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  background-color: #00f2ea;
+  transition: opacity 0.2s ease;
+}
+.uiv-glitch-auth #authSubmit:hover::before,
+.uiv-glitch-auth #authSubmit:focus::before {
+  opacity: 1;
+  color: #a855f7;
+  animation: uiv-glitch-anim 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.uiv-glitch-auth #authSubmit:hover::after,
+.uiv-glitch-auth #authSubmit:focus::after {
+  opacity: 1;
+  color: #0d0d0d;
+  animation: uiv-glitch-anim 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both;
+}
+@keyframes uiv-glitch-anim {
+  0% { transform: translate(0); clip-path: inset(0 0 0 0); }
+  20% { transform: translate(-5px, 3px); clip-path: inset(50% 0 20% 0); }
+  40% { transform: translate(3px, -2px); clip-path: inset(20% 0 60% 0); }
+  60% { transform: translate(-4px, 2px); clip-path: inset(80% 0 5% 0); }
+  80% { transform: translate(4px, -3px); clip-path: inset(30% 0 45% 0); }
+  100% { transform: translate(0); clip-path: inset(0 0 0 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uiv-glitch-auth #authForm .field:focus-within label,
+  .uiv-glitch-auth #authSubmit:hover::before,
+  .uiv-glitch-auth #authSubmit:focus::before,
+  .uiv-glitch-auth #authSubmit:hover::after,
+  .uiv-glitch-auth #authSubmit:focus::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ================= 05. Ripple button (.uiv-ripple-btn) =================
+   Scoped Ripple Effect Button (da sua: flexbox can giua + min-height 44px
+   theo chuan cham; hover #47a7f5 -> #0d6fb8 de chu trang dat AA 5.27:1;
+   mac dinh #1D9AF2 tren #292D3E = 4.52:1 giu nguyen). */
+.uiv-ripple-btn {
+  color: #1D9AF2;
+  background-color: #292D3E;
+  border: 1px solid #1D9AF2;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 0 4px rgba(29, 154, 242, 0.35);
+  outline: none;
+  background-position: center;
+  transition: background 0.8s, color 0.2s;
+}
+.uiv-ripple-btn:hover {
+  background: #0d6fb8 radial-gradient(circle, transparent 1%, #0d6fb8 1%) center/15000%;
+  color: white;
+}
+/* Nut chon menh gia (.amount-btn): khoi phuc kich thuoc + mau goc cua store
+   (48px, padding 13px 6px, nen var(--surface-2), chu var(--ink)) — ripple
+   chi giu hieu ung hover/active. [VA 2026-11-26] Truoc day ripple ghi de
+   xuong 44px + nen xanh navy #292D3E o ca Light mode. */
+.amount-btn.uiv-ripple-btn {
+  min-height: 48px;
+  padding: 13px 6px;
+  background-color: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--line);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: none;
+}
+.uiv-ripple-btn:active {
+  background-color: #292d3e;
+  background-size: 100%;
+  transition: background 0s;
+}
+/* Nut amount: hover chi doi vien wine (giong goc store), active khong
+   nhay navy — ghi de :hover/:active cua ripple (rule amount o tren dat
+   sau :hover nen vo hieu hoa hover; :active dat sau rule amount nen
+   nhay navy khi nhan). [VA 2026-11-26, sau S10] */
+.amount-btn.uiv-ripple-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--wine);
+}
+.amount-btn.uiv-ripple-btn:active {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+/* Nut menh gia dang chon (.amount-btn.on): giu mau wine cua store de chu
+   khong roi xuong xanh #1D9AF2 tren nen sang (chi ~2.6:1). */
+.uiv-ripple-btn.amount-btn.on {
+  background: var(--wine-soft);
+  border-color: var(--wine);
+  color: var(--wine);
+}

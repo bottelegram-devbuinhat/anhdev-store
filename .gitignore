@@ -1,0 +1,16 @@
+# AnhDev Store (public) — chan file nhay cam lot vao repo cong khai.
+# [VA 2026-11-26: S1] Truoc day repo khong co .gitignore — khong co gi
+# bao ve neu ai do vo tinh commit .env / DB. stock.json DUOC GIU LAI
+# (co y track — kho cong khai cua shop).
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+store.db*
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+.DS_Store

@@ -33,7 +33,7 @@ const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
-  "/home/hatch/workspace/goals/hostvn-telegram-shop-bot/files/anhdev-store-push/stock.json", "utf8"));
+  (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
 const API_URL = "https://api.test.local";
 const ACCOUNTS = stock.accounts || [];
 const TOTAL = ACCOUNTS.length; // 12126
@@ -181,10 +181,14 @@ function isNonDecreasing(arr){
     "first=" + ascCodes[0] + " price=" + PRICE[ascCodes[0]]);
   setSort(w2, "shuffle");
   const shufCodes = pageCodes(w2);
-  const shufPrices = shufCodes.map(function(c){ return PRICE[c]; });
-  check("d3. doi lai shuffle: 12 the trang 1 khong con tang theo gia (da xao lai)",
-    shufCodes.length === 12 && !isNonDecreasing(shufPrices),
-    "prices: " + shufPrices.slice(0, 6).join(","));
+  const shufIdx = shufCodes.map(function(c){ return IDX[c]; });
+  // [VA 2026-11-26] d3 cu dung gia (!isNonDecreasing): 92.3% acc gia 3000d
+  // nen 12 the xao ngau nhien thuong toan 3000d -> "khong giam" -> FAIL do
+  // may rui, khong phai loi. Doi sang chi so stock (duy nhat): 12 the xao
+  // hau nhu khong bao gio theo thu tu tang dan cua stock.json.
+  check("d3. doi lai shuffle: 12 the trang 1 khong con theo thu tu cu (da xao lai)",
+    shufCodes.length === 12 && !isAscending(shufIdx),
+    "idx: " + shufIdx.join(","));
   check("d4. doi lai shuffle: thu tu the doi khac luc price-asc",
     shufCodes.join(",") !== ascCodes.join(","));
 

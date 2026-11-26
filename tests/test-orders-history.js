@@ -44,7 +44,7 @@ const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
-  "/home/hatch/workspace/goals/hostvn-telegram-shop-bot/files/anhdev-store-push/stock.json", "utf8"));
+  (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
 const API_URL = "https://api.test.local";
 
 /* ---------- fake backend -------------------------------------------------- */

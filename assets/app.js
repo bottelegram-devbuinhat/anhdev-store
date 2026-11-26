@@ -60,7 +60,7 @@
     {id:"d3", cat:"detail", kind:"acc", name:"Acc #01600", desc:"Acc thông tin xấu", price:5000, stock:1, img:"assets/cover-3.webp"},
     {id:"d4", cat:"detail", kind:"acc", name:"Acc #01596", desc:"Acc thông tin xấu", price:2500, stock:1, img:"assets/banner-hero.webp"},
     {id:"d5", cat:"detail", kind:"acc", name:"Acc #01593", desc:"Acc thông tin xấu", price:3000, stock:1, img:"assets/cover-2.webp"},
-    {id:"d6", cat:"detail", kind:"acc", name:"Acc #01590", desc:"Acc trắng thông tin", price:10000, stock:1, img:"assets/cover-1.webp"},
+    {id:"d6", cat:"white", kind:"acc", name:"Acc #01590", desc:"Acc trắng thông tin", price:10000, stock:1, img:"assets/cover-1.webp"},
     {id:"d7", cat:"detail", kind:"acc", name:"Acc #01587", desc:"Acc thông tin xấu", price:5000, stock:1, img:"assets/cover-3.webp"},
     {id:"d8", cat:"detail", kind:"acc", name:"Acc #01584", desc:"Acc thông tin xấu", price:10000, stock:1, img:"assets/banner-hero.webp"},
     {id:"d9", cat:"detail", kind:"acc", name:"Acc #01583", desc:"Acc thông tin xấu", price:4000, stock:1, img:"assets/cover-1.webp"},
@@ -194,6 +194,10 @@
     authErrPassEmpty:{ vi:"Mật khẩu không được để trống.", en:"Password must not be empty." },
     authPassPhLogin:{ vi:"Mật khẩu", en:"Password" },
     authPassPhReg:{ vi:"Mật khẩu (từ 6 ký tự)", en:"Password (6+ characters)" },
+    /* Uiverse Phase 1: chu loader + nhan nut tim kiem (doi theo VN/EN) */
+    loadingStock:{ vi:"Đang đồng bộ kho thật…", en:"Syncing the real warehouse…" },
+    filterOnlyStock:{ vi:"Chỉ xem còn hàng", en:"In stock only" },
+    clearSearch:{ vi:"Xoá tìm kiếm", en:"Clear search" },
     /* Admin — soi skin Acc Random (chỉ role=admin; xem mục ADMIN trong app.js) */
     adminToggle:{ vi:"Soi skin Acc Random", en:"Inspect Random skins" },
     adminSearchPh:{ vi:"Tìm skin Acc Random: nakroth ki, florentino, sss...", en:"Search Random skins: nakroth ki, florentino, sss..." },
@@ -561,7 +565,7 @@
       head = '<div class="card-head"><div class="game">AnhDev Store · Liên Quân</div><div class="ttl">LIÊN QUÂN</div></div>';
     }
     var btn = p.stock > 0
-      ? '<button class="buy-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>'
+      ? '<button class="buy-btn uiv-shine-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>'
       : '<button class="buy-btn out" disabled>' + L("soldOut") + '</button>';
     return '<article class="card" data-cat="' + esc(p.cat) + '">' + head +
       '<div class="card-body"><div class="name">' + esc(p.name) + '</div><div class="desc">' + esc(p.desc) + '</div>' +
@@ -935,6 +939,7 @@
   function applySuggestion(label){
     if (!sugInput) return;
     sugInput.value = label;
+    syncUivClearBtn();
     state.filter.q = label.trim();
     state.filter.page = 1;
     closeSuggest();
@@ -949,11 +954,47 @@
     var q = sugInput.value;
     renderSuggest(searchSuggestions(q), q);
   }
+  /* ================= UIVERSE — GLOW SEARCH: nut × + nut filter (Phase 1) ====
+     Nut × tuy chinh (#uivSearchClear): hien khi o co chu, bam thi xoa + chay
+     lai luong reset cua su kien "search" hien co. Nut filter (#uivFilterBtn):
+     <button> that, bat/tat loc "Chi xem con hang" bang cach bam lai
+     #stockToggle (1 nguon su that) roi dong bo trang thai hien thi. */
+  function syncUivClearBtn(){
+    var b = $("#uivSearchClear");
+    if (!b || !sugInput) return;
+    b.hidden = !sugInput.value.trim();
+  }
+  function syncUivFilterBtn(){
+    var b = $("#uivFilterBtn");
+    if (!b) return;
+    var on = !!state.filter.onlyStock;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
   function initSearch(){
     sugBox = $("#searchSuggest");
     sugInput = $("#searchInput");
     if (!sugBox || !sugInput) return;
+    /* Nut × tuy chinh: xoa o tim kiem + reset luong loc nhu su kien "search". */
+    var uivClearBtn = $("#uivSearchClear");
+    if (uivClearBtn) uivClearBtn.addEventListener("click", function(){
+      if (!sugInput) return;
+      sugInput.value = "";
+      syncUivClearBtn();
+      sugInput.focus();
+      sugInput.dispatchEvent(new Event("search"));
+    });
+    /* Nut filter that: bat/tat loc "Chi xem con hang" (dung lai #stockToggle). */
+    var uivFilterBtn = $("#uivFilterBtn");
+    if (uivFilterBtn) uivFilterBtn.addEventListener("click", function(){
+      var st = $("#stockToggle");
+      if (st) st.click();
+      syncUivFilterBtn();
+    });
+    syncUivClearBtn();
+    syncUivFilterBtn();
     sugInput.addEventListener("input", function(){
+      syncUivClearBtn();
       if (sugTimer) clearTimeout(sugTimer);
       sugTimer = setTimeout(function(){
         /* Chế độ soi skin admin đang BẬT: query đi qua module admin (API
@@ -970,6 +1011,7 @@
     });
     /* Nút × mặc định của input[type=search]: reset ngay, không chờ debounce. */
     sugInput.addEventListener("search", function(){
+      syncUivClearBtn();
       if (sugTimer) clearTimeout(sugTimer);
       if (adminSearchMode && adminQueryHandler){
         adminQueryHandler("");
@@ -981,6 +1023,7 @@
       updateSuggest();
     });
     sugInput.addEventListener("focus", function(){
+      syncUivClearBtn();
       if (!sugInput.value.trim()) updateSuggest(); /* focus ô trống -> từ khoá phổ biến */
     });
     sugInput.addEventListener("keydown", function(e){
@@ -1077,12 +1120,26 @@
     };
   }
   /* ==APIPRODUCT-END== */
+  /* ================= UIVERSE — LIQUID LOADER (Phase 1) =================
+     Loader hien trong banner #syncStatus khi dang dong bo kho va trong modal
+     mua khi dang cho backend. Chu loader lay qua L() + data-uiv-loading nen
+     doi VN/EN theo he thong i18n hien co (syncUivLoaderText() goi trong
+     applyLang). Mau chu dung var(--ink) theo theme (xem uiverse.css). */
+  function uivLoaderHtml(key){
+    return '<div class="uiv-liquid-loader" role="status"><div class="uiv-loading-text"><span data-uiv-loading="' + key + '">' + esc(L(key)) + '</span><span class="uiv-dot">.</span><span class="uiv-dot">.</span><span class="uiv-dot">.</span></div><div class="uiv-loader-track"><div class="uiv-liquid-fill"></div></div></div>';
+  }
+  function syncUivLoaderText(){
+    $$("[data-uiv-loading]").forEach(function(el){ el.textContent = L(el.getAttribute("data-uiv-loading")); });
+  }
   function setSyncStatus(mode, text){
     SYNC.mode = mode;
     var el = $("#syncStatus");
     if (el){
       el.className = "sync-status " + mode;
-      el.textContent = text;
+      /* Dang dong bo: hien liquid loader (chu theo ngon ngu hien tai) thay
+         cho dong chu don. Cac mode khac giu chu nhu cu. */
+      if (mode === "syncing") el.innerHTML = uivLoaderHtml("loadingStock");
+      else el.textContent = text;
       /* Banner cảnh báo kho mẫu đã gỡ: kho thật đang live nên không hiện banner
          đỏ "catalog mẫu" nữa. Khi stock.json lại mới, banner kho thật tự hiện lại. */
       el.hidden = (mode === "demo");
@@ -1439,6 +1496,7 @@
     this.setAttribute("aria-pressed", state.filter.onlyStock);
     state.filter.page = 1;
     renderProducts();
+    syncUivFilterBtn(); /* dong bo nut filter glow-search */
   });
   $("#catChips").addEventListener("click", function(e){
     var chip = e.target.closest(".chip"); if (!chip) return;
@@ -1475,6 +1533,13 @@
      ("Sai tên đăng nhập hoặc mật khẩu") để tránh dò tài khoản. */
   var authMode = "login";
   var authBusy = false;
+  /* Uiverse glitch submit (Phase 1): ::before/::after cua nut submit dung
+     attr(data-text) lam chu glitch khi hover — dong bo attr nay theo tab
+     (Dang nhap/Dang ky), trang thai dang gui va VN/EN. */
+  function syncAuthSubmitGlitch(){
+    var btn = $("#authSubmit"); if (!btn) return;
+    btn.setAttribute("data-text", authBusy ? L("sending") : (authMode === "register" ? L("submitRegister") : L("submitLogin")));
+  }
   function setAuthMode(mode){
     authMode = mode;
     $("#tabLogin").classList.toggle("on", mode === "login");
@@ -1483,6 +1548,7 @@
     $("#authSubmit").textContent = mode === "register" ? L("submitRegister") : L("submitLogin");
     $("#authErr").classList.remove("show");
     syncAuthPassPlaceholder();
+    syncAuthSubmitGlitch();
   }
   $("#tabLogin").addEventListener("click", function(){ setAuthMode("login"); });
   $("#tabRegister").addEventListener("click", function(){ setAuthMode("register"); });
@@ -1490,7 +1556,8 @@
   function normalizeUsername(v){ return String(v || "").trim().toLowerCase(); }
   function validateAuth(username, pass, pass2){
     if (!/^[a-z0-9_]{4,24}$/.test(username)) return L("authErrUser");
-    /* Đăng nhập: chỉ cần mật khẩu không trống (acc admin2 dùng mật khẩu "1").
+    /* Đăng nhập: chỉ cần mật khẩu không trống (KHÔNG giới hạn độ dài tối
+       thiểu — acc admin có mật khẩu 1 ký tự vẫn đăng nhập được).
        Đăng ký (pass2 != null): vẫn giữ tối thiểu 6 ký tự. */
     if (!pass) return L("authErrPassEmpty");
     if (pass2 != null && pass.length < 6) return L("authErrPass");
@@ -1509,6 +1576,7 @@
     var btn = $("#authSubmit");
     btn.disabled = b;
     btn.textContent = b ? L("sending") : (authMode === "register" ? L("submitRegister") : L("submitLogin"));
+    syncAuthSubmitGlitch();
   }
   /* Nút con mắt hiện/ẩn mật khẩu (cả 2 ô, dùng chung 1 listener trên form). */
   $("#authForm").addEventListener("click", function(e){
@@ -1808,7 +1876,7 @@
       '<div class="sum-row"><span>' + L("buyBal") + '</span><b>' + fmt(state.balance) + '</b></div>';
     if (state.balance >= p.price){
       body.innerHTML = rows + '<div class="sum-row total"><span>' + L("buyAfter") + '</span><b>' + fmt(state.balance - p.price) + '</b></div>';
-      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine" data-buy-confirm>Xác nhận mua</button>';
+      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine uiv-shine-btn" data-buy-confirm>Xác nhận mua</button>';
     } else {
       var short = p.price - state.balance;
       body.innerHTML = rows +
@@ -1827,7 +1895,7 @@
       '<div class="sum-row"><span>' + L("buyBal") + '</span><b>' + fmt(state.balance) + '</b></div>';
     if (state.balance >= p.price){
       body.innerHTML = rows + '<div class="sum-row total"><span>' + L("buyAfter") + '</span><b>' + fmt(state.balance - p.price) + '</b></div>';
-      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine" data-buy-confirm>Xác nhận mua</button>';
+      actions.innerHTML = '<button class="btn btn-ghost" data-buy-cancel>Hủy</button><button class="btn btn-wine uiv-shine-btn" data-buy-confirm>Xác nhận mua</button>';
     } else {
       var short = p.price - state.balance;
       body.innerHTML = rows +
@@ -1839,7 +1907,7 @@
   function completeWebBuy(p){
     /* Nut "Xác nhận mua" da bi disable o handler click (chong double-click).
        Trong luc cho backend: hien trang thai dang xu ly, khong cho bam lai. */
-    $("#buyBody").innerHTML = '<div class="empty-box"><b>' + L("buyWebProcessing") + '</b></div>';
+    $("#buyBody").innerHTML = uivLoaderHtml("buyWebProcessing");
     $("#buyActions").innerHTML = "";
     backendFetch("/api/shop/buy", { method:"POST", body:{ code: p.code } })
       .then(function(d){
@@ -2225,6 +2293,13 @@
       })
       .then(function(){ btn.disabled = false; });
   });
+  /* Anh QR VietQR: an khi chua co src (chua tao hoa don) — bao ve khi co
+     code nao do gan src="" ma quen an lai, hoac khi renderPayment bi goi
+     voi hoa don khong co URL QR. */
+  function syncPayQrVisibility(){
+    var img = $("#payQrImg"); if (!img) return;
+    if (!img.getAttribute("src")) img.hidden = true;
+  }
   function renderPayment(){
     var iv = state.currentPay; if (!iv) return;
     var bank = iv.bank || BANK;
@@ -2240,10 +2315,11 @@
     $("#payNoteCopy").setAttribute("data-copy", iv.code);
     var img = $("#payQrImg");
     $("#payQrFallback").hidden = true;
-    img.hidden = false;
     img.src = iv.qr_url ? iv.qr_url
       : "https://img.vietqr.io/image/" + (bank.code || BANK.code) + "-" + (bank.account || BANK.account) + "-qr_only.png?amount=" + iv.amount +
         "&addInfo=" + encodeURIComponent(iv.code) + "&accountName=" + encodeURIComponent(bank.holder || BANK.holder);
+    /* Chi bo hidden khi that su co src — tranh anh trong (src="") hien khung vo. */
+    img.hidden = !img.getAttribute("src");
     updatePayStatus();
     if (iv.remote && iv.status === "pending") startDepositPoll(iv);
   }
@@ -2640,6 +2716,13 @@
       if (v != null) el.setAttribute("placeholder", v);
     });
     syncAuthPassPlaceholder(); // placeholder mật khẩu theo tab đăng nhập/đăng ký
+    syncUivLoaderText(); // chu loader (sync kho / mua hang) theo ngon ngu moi
+    syncAuthSubmitGlitch(); // data-text glitch cua nut submit theo tab + VN/EN
+    /* Nhan aria cua nut × va nut filter tren o tim kiem glow theo ngon ngu. */
+    var uivFb = $("#uivFilterBtn");
+    if (uivFb){ uivFb.setAttribute("aria-label", L("filterOnlyStock")); uivFb.title = L("filterOnlyStock"); }
+    var uivCb = $("#uivSearchClear");
+    if (uivCb) uivCb.setAttribute("aria-label", L("clearSearch"));
     /* Đổi ngôn ngữ vẽ lại placeholder ô tìm kiếm -> module admin vẽ lại
        placeholder chế độ soi skin nếu toggle đang bật. */
     if (adminModule && typeof adminModule.syncAdminPlaceholder === "function") adminModule.syncAdminPlaceholder();
@@ -2716,6 +2799,8 @@
   /* ================= INIT ================= */
   rotateHero();
   captureVi();
+  syncPayQrVisibility(); /* QR VietQR an khi chua co src (chua tao hoa don) */
+  syncAuthSubmitGlitch(); /* data-text glitch nut submit theo tab mac dinh */
   setSyncStatus("syncing", "Đang đồng bộ kho thật...");
   buildSearchIndex(); // index trên catalog mẫu trước, syncStock() build lại khi kho thật về
   initSearch();

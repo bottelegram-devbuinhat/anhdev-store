@@ -908,8 +908,9 @@ remote hosts.
   `"user"` hoặc `"admin"`, JWT ký kèm role); `GET /api/admin/random-search`
   và `GET /api/admin/random-index` chỉ cho role=admin (không JWT / role=user
   → 403). 5 acc test đã có trong backend, mỗi acc 250.000đ: `nhatdeptrai`,
-  `nhatdz`, `muaacc`, `colonmahup` (role=user, mật khẩu `123456`) và `admin2`
-  (role=admin, mật khẩu `1`).
+  `nhatdz`, `muaacc`, `colonmahup` (role=user) và `admin2` (role=admin).
+  (Mật khẩu acc test KHÔNG ghi trong repo công khai — xem seed.py ở repo
+  backend riêng tư.)
 - Phần này CHỈ làm frontend trong `files/store-upgrade/`. Không push, không
   sửa backend, không sửa file ngoài thư mục này.
 
@@ -917,7 +918,7 @@ remote hosts.
 - `assets/app.js` — `validateAuth(username, pass, pass2)`: tab Đăng nhập
   (`pass2 == null`) chỉ yêu cầu mật khẩu không trống (thông báo mới
   `authErrPassEmpty`); tab Đăng ký (`pass2 != null`) vẫn giữ tối thiểu 6 ký
-  tự + nhập lại khớp. Acc `admin2` (mật khẩu `1`) đăng nhập được.
+  tự + nhập lại khớp. Acc `admin2` (mật khẩu 1 ký tự) đăng nhập được.
 - Placeholder ô mật khẩu đổi theo tab (`syncAuthPassPlaceholder()` trong
   `setAuthMode()` + cuối `applyLang()`): đăng nhập → "Mật khẩu", đăng ký →
   "Mật khẩu (từ 6 ký tự)". Placeholder tĩnh trong `index.html` và dict EN
@@ -1004,7 +1005,7 @@ thật của kho. Module admin thật được nạp bằng cách strip từ kh�
   - (a) acc thường `nhatdeptrai`: module KHÔNG import (loader=0), 0 request
     `/api/admin`, không badge/toggle trong DOM, tìm "nakroth ki" ra đúng 9 acc
     sẵn thông tin (0 random).
-  - (b) `admin2` (mật khẩu `1`): đăng nhập OK, số dư 250.000đ, module import
+  - (b) `admin2` (mật khẩu 1 ký tự): đăng nhập OK, số dư 250.000đ, module import
     1 lần, badge + toggle hiện; bật toggle → placeholder đổi; gõ "nakroth" →
     gọi đúng `/api/admin/random-search?q=nakroth` kèm `Bearer jwt-admin2`;
     kết quả hiện mã LQ9001 + skin thật + bậc SSS + giá 24.000đ, là acc Random
