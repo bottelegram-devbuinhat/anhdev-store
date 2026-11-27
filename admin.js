@@ -452,6 +452,139 @@ async function loadUsers(quiet){
   }
 }
 
+/* ---------- Thêm tài khoản (bulk-add) ---------- */
+
+function parseChatLines(x){
+  let a = [], g = [];
+  String(x == null ? "" : x).split(/\r\n|\r|\n/).forEach(function(s, i){
+    let t = s.trim();
+    if (!t || t.charAt(0) === "#") return;
+    let p = t.split("|").map(function(v){ return v.trim(); });
+    let u = p[0] || "", w = p[1] || "";
+    if (!u || !w) { g.push({ index: i, code: null, reason: "Dòng " + (i + 1) + ": thiếu username hoặc password." }); return; }
+    let r = { username: u, password: w, price: 0, kind: "random" };
+    if (p[2] != null && p[2] !== "") {
+      let n = Number(p[2]);
+      if (!Number.isInteger(n) || n < 0) { g.push({ index: i, code: null, reason: "Dòng " + (i + 1) + ": giá phải là số nguyên không âm." }); return; }
+      r.price = n;
+    }
+    if (p[3] != null && p[3] !== "") {
+      let k = p[3].toLowerCase();
+      if (k !== "random" && k !== "info" && k !== "white") { g.push({ index: i, code: null, reason: "Dòng " + (i + 1) + ": kind phải là random, info hoặc white." }); return; }
+      r.kind = k;
+    }
+    if (p[4] != null && p[4] !== "") r.rank = p[4];
+    a.push(r);
+  });
+  return { accounts: a, errors: g };
+}
+
+function parseJsonText(x){
+  let d;
+  try { d = JSON.parse(x); }
+  catch (e) { return { accounts: [], errors: [{ index: -1, code: null, reason: "JSON không hợp lệ: " + e.message }] }; }
+  if (!Array.isArray(d)) return { accounts: [], errors: [{ index: -1, code: null, reason: "JSON phải là một mảng các account." }] };
+  let a = [], g = [];
+  d.forEach(function(v, i){
+    if (!v || typeof v !== "object" || Array.isArray(v)) { g.push({ index: i, code: null, reason: "Mục " + (i + 1) + ": không phải object account." }); return; }
+    let u = typeof v.username === "string" ? v.username.trim() : "";
+    let w = typeof v.password === "string" ? v.password.trim() : "";
+    let c = v.code != null && v.code !== "" ? String(v.code).trim() : null;
+    if (!u || !w) { g.push({ index: i, code: c, reason: "Mục " + (i + 1) + ": thiếu username hoặc password." }); return; }
+    let r = { username: u, password: w, price: 0, kind: "random" };
+    if (c) r.code = c;
+    if (v.price != null && v.price !== "") {
+      let n = Number(v.price);
+      if (!Number.isInteger(n) || n < 0) { g.push({ index: i, code: c, reason: "Mục " + (i + 1) + ": price phải là số nguyên không âm." }); return; }
+      r.price = n;
+    }
+    if (v.kind != null && v.kind !== "") {
+      let k = String(v.kind).trim().toLowerCase();
+      if (k !== "random" && k !== "info" && k !== "white") { g.push({ index: i, code: c, reason: "Mục " + (i + 1) + ": kind phải là random, info hoặc white." }); return; }
+      r.kind = k;
+    }
+    if (v.rank != null && v.rank !== "") r.rank = String(v.rank);
+    if (v.rare_skins != null && v.rare_skins !== "") r.rare_skins = String(v.rare_skins);
+    if (v.description != null && v.description !== "") r.description = String(v.description);
+    a.push(r);
+  });
+  return { accounts: a, errors: g };
+}
+
+function setBulkTab(m){
+  [["chat", "bulkTabChat", "bulkChatPane"], ["json", "bulkTabJson", "bulkJsonPane"], ["txt", "bulkTabTxt", "bulkTxtPane"]].forEach(function(z){
+    el(z[1]).classList.toggle("active", z[0] === m);
+    el(z[1]).setAttribute("aria-selected", z[0] === m ? "true" : "false");
+    el(z[2]).classList.toggle("hidden", z[0] !== m);
+  });
+}
+
+async function loadBulkFile(i, t){
+  let f = i.files && i.files[0];
+  if (!f) return;
+  let x = "";
+  try {
+    if (typeof f.text === "function") x = await f.text();
+    else x = await new Promise(function(res, rej){
+      let r = new FileReader();
+      r.onload = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error || new Error("Không đọc được file.")); };
+      r.readAsText(f);
+    });
+  } catch (e) { err("bulkErr", "Không đọc được file: " + e.message); return; }
+  t.value = x;
+  toast("Đã load file " + f.name + ".", true);
+}
+
+async function doBulkAdd(a, g, b){
+  err("bulkErr", "");
+  let o = el("bulkOut");
+  if (!a.length) { err("bulkErr", "Không có acc hợp lệ để gửi. Kiểm tra lại định dạng mỗi dòng."); return; }
+  lock(b, true);
+  try {
+    let d = await api("/api/admin/shop/stock/bulk-add", { method: "POST", body: { accounts: a } });
+    clr(o);
+    let s = ce("p", "note mb-3");
+    s.appendChild(document.createTextNode("Đã thêm "));
+    s.appendChild(ce("b", "mono", fmt(d.added || 0)));
+    s.appendChild(document.createTextNode(" • Bỏ qua "));
+    s.appendChild(ce("b", "mono", fmt(d.skipped || 0)));
+    let y = (d.errors || []).concat(g || []);
+    s.appendChild(document.createTextNode(" • Lỗi "));
+    s.appendChild(ce("b", "mono", fmt(y.length)));
+    s.appendChild(document.createTextNode("."));
+    o.appendChild(s);
+    if (Array.isArray(d.codes) && d.codes.length) {
+      let c = ce("p", "note");
+      c.textContent = "Mã đã thêm: " + d.codes.slice(0, 20).join(", ") + (d.codes.length > 20 ? " … (+" + (d.codes.length - 20) + " mã)" : "");
+      o.appendChild(c);
+    }
+    if (y.length) {
+      let r = y.map(function(v){
+        return [{ t: v.code || "—", c: "code" }, { t: v.reason || "" }];
+      });
+      o.appendChild(tbl([{ t: "Mã" }, { t: "Lý do" }], r));
+    }
+    toast("Đã thêm " + fmt(d.added || 0) + " acc vào kho.", true);
+    loadDash();
+  } catch (e) {
+    err("bulkErr", "Lỗi: " + e.message);
+  } finally { lock(b, false); }
+}
+
+function sendBulkChat(){
+  let r = parseChatLines(el("bulkChat").value);
+  doBulkAdd(r.accounts, r.errors, el("bulkChatBtn"));
+}
+function sendBulkJson(){
+  let r = parseJsonText(el("bulkJson").value);
+  doBulkAdd(r.accounts, r.errors, el("bulkJsonBtn"));
+}
+function sendBulkTxt(){
+  let r = parseChatLines(el("bulkTxt").value);
+  doBulkAdd(r.accounts, r.errors, el("bulkTxtBtn"));
+}
+
 el("loginForm").addEventListener("submit", doLogin);
 el("logoutBtn").addEventListener("click", doLogout);
 el("searchBtn").addEventListener("click", doSearch);
@@ -463,6 +596,14 @@ el("addBalBtn").addEventListener("click", function(){ doBal("add"); });
 el("checkBalBtn").addEventListener("click", doCheck);
 el("usersBtn").addEventListener("click", function(){ loadUsers(false); });
 el("pwBtn").addEventListener("click", doChangePassword);
+el("bulkTabChat").addEventListener("click", function(){ setBulkTab("chat"); });
+el("bulkTabJson").addEventListener("click", function(){ setBulkTab("json"); });
+el("bulkTabTxt").addEventListener("click", function(){ setBulkTab("txt"); });
+el("bulkChatBtn").addEventListener("click", sendBulkChat);
+el("bulkJsonBtn").addEventListener("click", sendBulkJson);
+el("bulkTxtBtn").addEventListener("click", sendBulkTxt);
+el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJsonFile"), el("bulkJson")); });
+el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile"), el("bulkTxt")); });
 window.addEventListener("pagehide", clearToken);
 checkSession();
 
@@ -479,4 +620,9 @@ checkSession();
    h = headers · o = tùy chọn gọi API / phần tử đích · m = thông báo
    t0 = thời điểm bắt đầu đo · ms = mili giây · c = mã acc · k = khóa
    a = mảng (icon, hàng) / thead · v = 1 bản ghi · x = nút / lỗi · w = khung chứa
-   t = phần tử bảng · y = tbody · b = hàng tiêu đề · q = 1 hàng dữ liệu · g = nút Xóa */
+   t = phần tử bảng · y = tbody · b = hàng tiêu đề · q = 1 hàng dữ liệu · g = nút Xóa
+   parseChatLines = parse dòng chat thành accounts + lỗi · parseJsonText = parse mảng JSON thành accounts + lỗi
+   doBulkAdd = gửi bulk-add (POST /api/admin/shop/stock/bulk-add) · setBulkTab = đổi tab chế độ nhập
+   loadBulkFile = đọc file .json/.txt vào textarea · sendBulkChat/Json/Txt = gửi theo từng chế độ
+   g = lỗi parse client · m = chế độ tab (chat/json/txt) · z = bộ 3 [chế độ, id tab, id pane] · i = ô file input
+   f = file đã chọn · x = nội dung file/text · y = tổng lỗi (server + parse) · c = dòng mã đã thêm */

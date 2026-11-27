@@ -103,6 +103,47 @@
     </section>
 
     <section class="card section-gap">
+      <h3>Thêm tài khoản</h3>
+      <p class="sub">Thêm nhiều acc vào kho cùng lúc. Chế độ Nhập nhanh và TXT dùng 1 acc mỗi dòng, dạng username|password hoặc username|password|price|kind|rank. Dòng trống và dòng bắt đầu bằng # được bỏ qua. Kind là random, info hoặc white (mặc định random).</p>
+      <div class="tab-row" role="tablist" aria-label="Chế độ nhập tài khoản">
+        <button class="btn btn-secondary tab-btn active" id="bulkTabChat" type="button" role="tab" aria-selected="true">Nhập nhanh</button>
+        <button class="btn btn-secondary tab-btn" id="bulkTabJson" type="button" role="tab" aria-selected="false">JSON</button>
+        <button class="btn btn-secondary tab-btn" id="bulkTabTxt" type="button" role="tab" aria-selected="false">TXT</button>
+      </div>
+      <div id="bulkChatPane" class="tab-pane">
+        <div class="field">
+          <label for="bulkChat">Danh sách acc — mỗi dòng 1 acc</label>
+          <textarea class="input bulk-ta" id="bulkChat" rows="8" placeholder="fakeuser123|fakepass123&#10;fakeuser456|fakepass456|18000|info|Cao Thủ"></textarea>
+        </div>
+        <button class="btn btn-primary" id="bulkChatBtn" type="button">Gửi</button>
+      </div>
+      <div id="bulkJsonPane" class="tab-pane hidden">
+        <div class="field">
+          <label for="bulkJsonFile">File .json — mảng các account</label>
+          <input class="file-input" id="bulkJsonFile" type="file" accept=".json,application/json">
+        </div>
+        <div class="field">
+          <label for="bulkJson">Mảng JSON các account</label>
+          <textarea class="input bulk-ta" id="bulkJson" rows="8" placeholder='[{"username":"fakeuser123","password":"fakepass123","price":18000,"kind":"random"}]'></textarea>
+        </div>
+        <button class="btn btn-primary" id="bulkJsonBtn" type="button">Gửi</button>
+      </div>
+      <div id="bulkTxtPane" class="tab-pane hidden">
+        <div class="field">
+          <label for="bulkTxtFile">File .txt — mỗi dòng 1 acc (cùng format như Nhập nhanh)</label>
+          <input class="file-input" id="bulkTxtFile" type="file" accept=".txt,text/plain">
+        </div>
+        <div class="field">
+          <label for="bulkTxt">Nội dung file đã load</label>
+          <textarea class="input bulk-ta" id="bulkTxt" rows="8" readonly></textarea>
+        </div>
+        <button class="btn btn-primary" id="bulkTxtBtn" type="button">Gửi</button>
+      </div>
+      <p class="err" id="bulkErr" role="alert"></p>
+      <div id="bulkOut" class="out-block"></div>
+    </section>
+
+    <section class="card section-gap">
       <h3>Đơn đã bán qua web</h3>
       <p class="sub">Danh sách mã acc đã bán qua web, mới nhất ở trên.</p>
       <div id="soldOut"></div>
