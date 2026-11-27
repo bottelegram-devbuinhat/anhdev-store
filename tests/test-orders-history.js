@@ -27,18 +27,20 @@
      a. don backend hien trong lich su ngay sau khi dang nhap (bug goc):
         GET /api/shop/orders tra 1 don -> mo Don hang thay don do, khong
         thay "Chua co don hang nao", co nhan "da hien thi 1 lan".
-     b. mua web xong luu localStorage + tai lai trang khoi phuc kem tk|mk:
-        mua 1 acc -> localStorage co don + testuser123 -> mo trang moi
-        (seed token + don da luu) -> lich su van thay don kem tk|mk,
-        khong trung lap voi don backend cung ma.
+     b. mua web xong luu localStorage (CHI metadata, KHONG tk|mk) + tai lai
+        trang khoi phuc metadata: mua 1 acc -> localStorage co don (code +
+        ten + gia, KHONG co testuser123) -> mo trang moi (seed token + don
+        da luu) -> lich su van thay don nhung phai bam "Xem lai tai khoan"
+        de goi API lay tk|mk ve RAM, khong trung lap voi don backend cung ma.
      c. GET /api/shop/orders loi mang: lich su khong vo, van hien trang
         thai trong / don local, trang van chay binh thuong.
      d. dang xuat: don bien khoi bo nho, mo Don hang chi con man hinh
         dang nhap, khong thay don cu.
    e. xem lai tk|mk don khong co ban local (nut "Xem lại tài khoản"):
         bam nut -> GET /api/shop/orders/<code>/credentials -> tk|mk
-        hien dang che + nut mat nhu don mua trong phien, tk|mk duoc luu
-        xuong localStorage; don da co tk|mk local thi KHONG co nut nay.
+        hien dang che + nut mat nhu don mua trong phien, tk|mk CHI nam
+        trong RAM (KHONG luu xuong localStorage — lan sau phai bam Xem lai
+        de goi API lai); don da co tk|mk local thi KHONG co nut nay.
    f. GET /credentials loi (403): toast loi, fallback + nut Xem lai
         nguyen ven, khong luu tk|mk.
    g. bam nut 2 lan lien tiep trong luc dang goi: chi goi backend 1 lan
@@ -56,7 +58,6 @@ const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
-const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const API_URL = "https://api.test.local";
 
 /* ---------- fake backend -------------------------------------------------- */
@@ -165,7 +166,7 @@ async function makePage(opts){
   for (let i = 0; i < 40; i++){
     await sleep(150);
     const pc = w.document.querySelector("#prodCount");
-    if (pc && pc.textContent.indexOf(String(TOTAL)) !== -1) break;
+    if (pc && pc.textContent.indexOf("12126") !== -1) break;
   }
   return { dom: dom, w: w };
 }
@@ -236,8 +237,9 @@ function firstRealBuyBtn(w){
   p2.w.document.querySelector("[data-buy-confirm]").click();
   await sleep(700);
   const storedRaw = p2.w.localStorage.getItem("anhdev_web_orders_webbuyer") || "";
-  check("b2. don vua mua duoc luu xuong localStorage kem tk|mk fake",
-    storedRaw.indexOf(code2) !== -1 && storedRaw.indexOf("testuser123") !== -1,
+  check("b2. don vua mua duoc luu xuong localStorage CHI metadata (co code, KHONG co tk|mk fake)",
+    storedRaw.indexOf(code2) !== -1 && storedRaw.indexOf("testuser123") === -1 &&
+    storedRaw.indexOf("testpass123") === -1 && storedRaw.indexOf("testpass") === -1,
     storedRaw.slice(0, 200));
   await openOrders(p2.w);
   const eye2 = p2.w.document.querySelector(".ord-eye-btn");
@@ -255,17 +257,26 @@ function firstRealBuyBtn(w){
   check("b4. khong trung lap don (local + backend cung ma chi 1 dong)",
     ordersRows(p2.w) === 1, "rows=" + ordersRows(p2.w));
   // "Tai lai trang": trang moi, seed token + don da luu truoc khi eval app.js.
+  // Don da luu gio CHI co metadata (khong tk|mk) -> lich su phai hien nut
+  // "Xem lai tai khoan" thay vi nut mat; bam nut moi goi API lay tk|mk ve RAM.
   const p2b = await makePage({ seedLocalStorage: {
     "anhdev_web_token": "jwt-webbuyer",
     "anhdev_web_orders_webbuyer": storedRaw } });
   await sleep(900); // doi restoreWebSession (/me) + refreshBackendOrders
   await openOrders(p2b.w);
+  const rv2b = p2b.w.document.querySelector(".ord-reveal-btn");
+  check("b5a. sau khi tai lai trang, don chi co metadata nen hien nut 'Xem lại tài khoản', khong co nut mat, khong lo tk|mk",
+    !!rv2b && rv2b.getAttribute("data-reveal") === code2 && !p2b.w.document.querySelector(".ord-eye-btn") &&
+    ordersText(p2b.w).indexOf(code2) !== -1 && ordersText(p2b.w).indexOf("testuser123") === -1,
+    ordersText(p2b.w).slice(0, 200));
+  if (rv2b) rv2b.click();
+  await sleep(600);
   const eye2b = p2b.w.document.querySelector(".ord-eye-btn");
-  check("b5a. sau khi tai lai trang, tk/mk van bi che mac dinh",
-    !!eye2b && ordersText(p2b.w).indexOf(code2) !== -1 && ordersText(p2b.w).indexOf("••••••••") !== -1 && ordersText(p2b.w).indexOf("testuser123") === -1,
+  check("b5b. sau khi tai lai trang, bam Xem lai thi goi API lay tk|mk ve RAM: tk/mk bi che mac dinh + co nut mat, khong con nut Xem lai",
+    !!eye2b && !p2b.w.document.querySelector(".ord-reveal-btn") && ordersText(p2b.w).indexOf("••••••••") !== -1 && ordersText(p2b.w).indexOf("testuser123") === -1,
     ordersText(p2b.w).slice(0, 200));
   if (eye2b) eye2b.click();
-  check("b5b. sau khi tai lai trang, bam mat thi hien tk/mk",
+  check("b5c. sau khi tai lai trang, bam mat thi hien tk|mk vua lay ve",
     ordersText(p2b.w).indexOf("testuser123") !== -1 && ordersText(p2b.w).indexOf("testpass123") !== -1,
     ordersText(p2b.w).slice(0, 200));
   check("b6. sau khi tai lai trang, khong trung lap don",
@@ -333,8 +344,9 @@ function firstRealBuyBtn(w){
     ordersText(p5.w).indexOf("testuser123") !== -1 && ordersText(p5.w).indexOf("testpass123") !== -1,
     ordersText(p5.w).slice(0, 200));
   const stored5 = p5.w.localStorage.getItem("anhdev_web_orders_webbuyer") || "";
-  check("e6. tk/mk vua lay ve duoc luu xuong localStorage de lan sau khoi can goi lai",
-    stored5.indexOf("LQ9002") !== -1 && stored5.indexOf("testuser123") !== -1,
+  check("e6. tk/mk vua lay ve KHONG duoc luu xuong localStorage (chi metadata, tk|mk chi trong RAM)",
+    stored5.indexOf("LQ9002") !== -1 && stored5.indexOf("testuser123") === -1 &&
+    stored5.indexOf("testpass123") === -1,
     stored5.slice(0, 200));
   check("e7. don da co tk|mk local thi KHONG hien nut Xem lai (chi co nut mat)",
     !p2.w.document.querySelector(".ord-reveal-btn") && !!p2.w.document.querySelector(".ord-eye-btn"));
@@ -381,6 +393,26 @@ function firstRealBuyBtn(w){
   check("g4. sau khi goi xong: tk/mk bi che + co nut mat",
     !!p7.w.document.querySelector(".ord-eye-btn") && ordersText(p7.w).indexOf("••••••••") !== -1,
     ordersText(p7.w).slice(0, 200));
+
+  console.log("== h. du lieu cu con tk|mk trong localStorage: tu chua khi tai trang (P1 migration) ==");
+  ordersMode = "one"; revealMode = "ok"; revealCalls = [];
+  BACKEND_ORDERS = [{ id: 7, code: "LQ9002", price: 3000,
+    status: "delivered", created_at: "2026-11-25 14:03:29" }];
+  const oldRaw = JSON.stringify([{ code: "LQ9002", productName: "Acc LQ9002", price: 3000,
+    time: "14:03 · 25/11/2026", user: "testuser123", pass: "testpass123" }]);
+  const p8 = await makePage({ seedLocalStorage: {
+    "anhdev_web_token": "jwt-webbuyer",
+    "anhdev_web_orders_webbuyer": oldRaw } });
+  await sleep(900); // doi restoreWebSession (/me) + loadWebOrders (migration) + refreshBackendOrders
+  await openOrders(p8.w);
+  const stored8 = p8.w.localStorage.getItem("anhdev_web_orders_webbuyer") || "";
+  check("h1. ban luu cu con tk|mk duoc ghi de bang ban sach chi metadata (khong con testuser123/testpass123)",
+    stored8.indexOf("LQ9002") !== -1 && stored8.indexOf("testuser123") === -1 &&
+    stored8.indexOf("testpass123") === -1,
+    stored8.slice(0, 200));
+  check("h2. sau migration, don hien nut 'Xem lại tài khoản' (khong con nut mat doc tk|mk tu cache)",
+    !!p8.w.document.querySelector(".ord-reveal-btn") && !p8.w.document.querySelector(".ord-eye-btn"),
+    ordersText(p8.w).slice(0, 200));
 
   console.log("\nKET QUA: " + pass + " PASS, " + fail + " FAIL");
   if (failures.length) console.log("FAILURES: " + failures.join(" | "));

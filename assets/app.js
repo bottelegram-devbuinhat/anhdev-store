@@ -141,6 +141,7 @@
     payDone:{ vi:"Đã chuyển khoản", en:"Transferred" },
     payCancelled:{ vi:"Đã huỷ hoá đơn", en:"Invoice cancelled" },
     payViewInv:{ vi:"Xem hoá đơn", en:"View invoices" },
+    payLocalNoCredit:{ vi:"Hoá đơn này chưa đồng bộ với hệ thống nên không cộng số dư tại trình duyệt — đăng nhập lại hoặc kiểm tra mạng rồi tạo lại hoá đơn, số dư thật sẽ cập nhật sau khi giao dịch được xác nhận.", en:"This invoice is not synced with the system, so no balance is added in the browser — log in again or check your connection and create a new invoice; your real balance updates once the payment is confirmed." },
     ciBtn:{ vi:"Điểm danh ngay", en:"Check in now" },
     ciDoneA:{ vi:"Hôm nay bạn đã điểm danh: +", en:"You checked in today: +" },
     ciDoneB:{ vi:" đã cộng vào ví.", en:" added to your wallet." },
@@ -489,24 +490,48 @@
     if (typeof renderCardDiscount === "function") renderCardDiscount();
     if (typeof updateCardExpected === "function") updateCardExpected();
   }
-  /* Đăng nhập Telegram THẬT — lưu phiên vào localStorage để tải lại trang vẫn còn đăng nhập.
-     Bản demo trước đây chỉ giữ user trong bộ nhớ (tải lại trang là mất) nên chưa có key cũ;
-     key mới là "anhdev_user". Chỉ lưu user Telegram thật (có telegram_id). */
+  /* Đăng nhập Telegram THẬT — phiên chỉ sống trong tab hiện tại: ghi vào
+     sessionStorage (+ biến RAM state.user / state.tgLoginData), KHÔNG ghi
+     localStorage (localStorage tồn tại qua nhiều phiên, XSS đọc được là
+     kẻ xấu dùng lại được login_data đã ký). Đọc lần đầu vẫn chấp nhận bản
+     localStorage cũ (do bản trước / trang login ghi) để migrate một lần
+     sang sessionStorage rồi xoá bản cũ — người dùng cũ không bị văng. */
   var USER_KEY = "anhdev_user";
-  function saveUser(u){
+  function readSessionOrMigrate(key){
+    var ss = null, ls = null, v = null;
+    try { ss = window.sessionStorage; } catch (e) { ss = null; }
+    try { ls = window.localStorage; } catch (e) { ls = null; }
+    try { v = ss && ss.getItem(key); } catch (e) { v = null; }
+    if (v) return v;
+    try { v = ls && ls.getItem(key); } catch (e) { v = null; }
+    if (v){
+      try { if (ss) ss.setItem(key, v); } catch (e) { /* sessionStorage bị chặn */ }
+      try { if (ls) ls.removeItem(key); } catch (e) { /* localStorage bị chặn */ }
+    }
+    return v || null;
+  }
+  function writeSessionOnly(key, value){
     try {
-      if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
-      else localStorage.removeItem(USER_KEY);
-    } catch (e) { /* trình duyệt chặn localStorage thì phiên chỉ còn trong bộ nhớ */ }
+      var ss = window.sessionStorage;
+      if (value) ss.setItem(key, value);
+      else ss.removeItem(key);
+    } catch (e) { /* sessionStorage bị chặn: phiên chỉ còn trong RAM */ }
+    try { window.localStorage.removeItem(key); } catch (e) { /* localStorage bị chặn */ }
+  }
+  function saveUser(u){
+    writeSessionOnly(USER_KEY, u ? JSON.stringify(u) : null);
   }
   function loadSavedUser(){
+    var raw = readSessionOrMigrate(USER_KEY);
+    if (!raw) return null;
     try {
-      var raw = localStorage.getItem(USER_KEY);
-      if (!raw) return null;
       var u = JSON.parse(raw);
       if (!u || typeof u !== "object" || !u.telegram_id) return null;
       return u;
-    } catch (e) { return null; }
+    } catch (e) {
+      writeSessionOnly(USER_KEY, null);
+      return null;
+    }
   }
   function setUser(u){
     stopDepositPoll();
@@ -527,7 +552,7 @@
       /* Đổi tài khoản sang acc thường khi module admin đang nạp: gỡ admin ngay. */
       if (u.role && u.role !== "admin") teardownAdminModule();
       saveUser(null); // phiên web thắng: xoá phiên Telegram đã lưu để lần mở sau không nhảy lại
-      loadWebOrders(); refreshBackendOrders(); // đơn web: khôi phục từ localStorage + đồng bộ từ backend
+      loadWebOrders(); refreshBackendOrders(); // đơn web: khôi phục metadata từ localStorage + đồng bộ từ backend (tk|mk chỉ nằm trong RAM)
     } else {
       state.discount = 0; // tài khoản Telegram: mức giảm giá lấy từ bot, không dùng discount web
       clearWebToken(false); // phiên Telegram thắng: xoá token web đã lưu (không gọi logout backend)
@@ -632,7 +657,7 @@
     var btn = p.stock > 0
       ? (whiteLocked
         ? '<button class="buy-btn out" disabled>' + L("buyNow") + '</button>'
-        : '<button class="buy-btn uiv-shine-btn" data-buy="' + p.id + '">' + L("buyNow") + '</button>')
+        : '<button class="buy-btn uiv-shine-btn" data-buy="' + esc(p.id) + '">' + L("buyNow") + '</button>')
       : '<button class="buy-btn out" disabled>' + L("soldOut") + '</button>';
     var whiteNote = whiteLocked
       ? '<div class="white-lock-note" style="margin-top:8px;font-size:12px;line-height:1.5;color:var(--muted)">' + esc(L("whiteOnlyAdmin")) + '</div>'
@@ -1438,14 +1463,20 @@
     renderProducts(); renderStockBar();
   }
   function saveWebToken(t){
+    /* JWT chỉ sống trong tab hiện tại: sessionStorage + RAM (state.webToken).
+       KHÔNG ghi localStorage nữa — token cũ trong localStorage (do bản trước
+       / trang login ghi khi "ghi nhớ") được xoá luôn ở đây để không còn
+       bản sao dài hạn nào. Đăng xuất / token hết hạn gọi saveWebToken(null)
+       nên cả hai kho đều sạch. */
     state.webToken = t || null;
-    try {
-      if (t) localStorage.setItem(WEB_TOKEN_KEY, t);
-      else localStorage.removeItem(WEB_TOKEN_KEY);
-    } catch (e) { /* trình duyệt chặn localStorage */ }
+    writeSessionOnly(WEB_TOKEN_KEY, t || null);
   }
   function loadWebToken(){
-    try { return localStorage.getItem(WEB_TOKEN_KEY) || null; } catch (e) { return null; }
+    /* Đọc sessionStorage trước; chưa có thì migrate một lần bản localStorage
+       cũ sang sessionStorage rồi xoá bản cũ (trang login vẫn ghi token vào
+       localStorage khi người dùng tick "ghi nhớ", nên lần mở index đầu tiên
+       sau khi đăng nhập phải đọc được bản đó). */
+    return readSessionOrMigrate(WEB_TOKEN_KEY);
   }
   function clearWebToken(notifyBackend){
     var had = !!state.webToken;
@@ -1620,7 +1651,7 @@
   /* ================= AUTH — TÀI KHOẢN WEB (TK/MK qua backend VPS) =================
      Tab "Đăng nhập" / "Tạo tài khoản" gọi backend VPS (API_BASE_URL).
      Backend băm mật khẩu bằng bcrypt, cấp JWT + HttpOnly cookie (session);
-     frontend chỉ giữ token trong bộ nhớ + localStorage để gửi kèm header
+     frontend chỉ giữ token trong sessionStorage + bộ nhớ để gửi kèm header
      Bearer. Chưa cấu hình API_BASE_URL thì form báo rõ, không tạo
      tài khoản ảo. Lỗi đăng nhập backend trả về luôn là thông báo chung
      ("Sai tên đăng nhập hoặc mật khẩu") để tránh dò tài khoản. */
@@ -1929,7 +1960,7 @@
     }
   }
   /* Khôi phục phiên tài khoản web (đã đăng nhập bằng TK/MK trước đó).
-     Token lưu ở localStorage; /api/auth/me xác thực lại và lấy số dư thật.
+     Token lưu ở sessionStorage; /api/auth/me xác thực lại và lấy số dư thật.
      CHAY BAT KE da co user Telegram hay chua: truoc day khoi nay bi chan
      boi `if (!state.user)` nen cu co phien Telegram (Mini App tu dang
      nhap / user Telegram da luu) la token web bi bo qua — user tuong minh
@@ -2040,7 +2071,7 @@
           price: order.price, time: nowStr(),
           user: acc.username, pass: acc.password
         });
-        saveWebOrders(); // lưu đơn + tk|mk xuống localStorage để Lịch sử còn sau khi tải lại trang
+        saveWebOrders(); // chỉ lưu metadata đơn xuống localStorage — tk|mk chỉ giữ trong RAM (state.orders) của phiên này
         refreshUserUI(); renderProducts(); renderStockBar();
         $("#buySub").textContent = "Mua thành công · Mã đơn " + order.code;
         $("#buyBody").innerHTML =
@@ -2163,7 +2194,7 @@
           '<div class="cred-row" style="margin-top:8px"><button type="button" class="btn btn-ghost ord-reveal-btn" data-reveal="' + esc(o.code) + '" data-idx="' + i + '">' + L("ordReveal") + '</button></div></div>';
       }
       return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span>' + eyeBtn + '</div>' +
-        '<div class="meta">Mã đơn ' + o.code + ' · ' + o.time + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
+        '<div class="meta">Mã đơn ' + esc(o.code) + ' · ' + esc(o.time) + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
     }).join("");
     /* Gắn eye-toggle cho từng đơn: bấm mắt đổi textContent của 2 ô tk/mk
        trong chính đơn đó (hiện = đọc data-copy của nút Copy kề bên). */
@@ -2183,10 +2214,12 @@
       });
     });
     /* Xem lai tk|mk cho don khong co ban local: GET /api/shop/orders/<code>/
-       credentials (JWT, chi chu don) -> luu tk|mk vao state.orders +
-       localStorage (saveWebOrders) roi render lai de hien dang che + nut
-       mat nhu don mua trong phien. Khoa nut trong luc goi de khong goi
-       trung 2 lan; loi thi toast + giu nguyen fallback. */
+       credentials (JWT, chi chu don) -> luu tk|mk vao state.orders (CHỈ
+       TRONG RAM, không ghi localStorage) roi render lai de hien dang che +
+       nut mat nhu don mua trong phien. saveWebOrders() chỉ lưu metadata
+       nên lần tải lại trang sau vẫn phải bấm Xem lại để gọi API lấy lại.
+       Khoa nut trong luc goi de khong goi trung 2 lan; loi thi toast +
+       giu nguyen fallback. */
     $$(".ord-reveal-btn", box).forEach(function(btn){
       btn.addEventListener("click", function(){
         if (btn.disabled) return;
@@ -2251,7 +2284,7 @@
         ? '<div style="margin-top:11px"><button class="btn btn-wine" data-pay-invoice="' + esc(iv.code) + '" style="padding:7px 15px;min-height:38px;font-size:13px">' + L("payInvoiceBtn") + ' · ' + esc(iv.code) + '</button></div>'
         : '';
       return '<div class="order"><div class="order-top">' + amountHtml + invoiceBadge(iv) + '</div>' +
-        '<div class="meta">Mã nạp ' + esc(iv.code) + ' · ' + esc(iv.method) + ' · ' + iv.time + '</div>' + detail + payBtn + '</div>';
+        '<div class="meta">Mã nạp ' + esc(iv.code) + ' · ' + esc(iv.method) + ' · ' + esc(iv.time) + '</div>' + detail + payBtn + '</div>';
     }).join("");
   }
   function renderAccount(){
@@ -2277,39 +2310,85 @@
     $("#accLogout").addEventListener("click", function(){ setUser(null); state.balance = 0; refreshUserUI(); toast("Đã đăng xuất.", "info"); showView("home"); });
   }
 
-  /* ĐƠN MUA ACC — lưu localStorage + đồng bộ từ backend.
+  /* ĐƠN MUA ACC — cache metadata ở localStorage + đồng bộ từ backend.
      NGUYÊN NHÂN GỐC CỦA BUG "lịch sử không lưu được gì": state.orders trước
      đây chỉ được thêm trong bộ nhớ khi mua ngay trong phiên (completeWebBuy /
      completePurchase) — app KHÔNG BAO GIỜ gọi GET /api/shop/orders và KHÔNG
      lưu đơn xuống localStorage. Tải lại trang là state.orders = [] nên
      renderOrders() hiện "Chưa có đơn hàng nào" dù backend đã lưu đơn trong
-     shop_orders. Sửa: (a) loadWebOrders() khôi phục đơn web đã mua (kèm
-     tk|mk) từ localStorage theo từng tài khoản web; (b)
-     refreshBackendOrders() lấy đơn thật từ GET /api/shop/orders rồi gộp
-     (đơn local có tk|mk thắng khi trùng mã); (c) completeWebBuy() lưu đơn
-     mới xuống localStorage ngay sau khi mua. tk|mk chỉ nằm trong trình
-     duyệt của chính người mua (để xem lại trong Lịch sử) — không gửi lên
-     server, không lưu trong shop_orders; đăng xuất thì xoá khỏi bộ nhớ. */
+     shop_orders. Sửa: (a) loadWebOrders() khôi phục metadata đơn web đã mua
+     từ localStorage theo từng tài khoản web; (b) refreshBackendOrders() lấy
+     đơn thật từ GET /api/shop/orders rồi gộp (đơn local có tk|mk trong RAM
+     thắng khi trùng mã); (c) completeWebBuy() lưu metadata đơn mới xuống
+     localStorage ngay sau khi mua.
+     BẢO MẬT (P1): tk|mk CHỈ nằm trong RAM của phiên mua (state.orders) —
+     KHÔNG BAO GIỜ ghi xuống localStorage. localStorage chỉ giữ metadata
+     không nhạy cảm {code, productId, productName, price, time, cat} để
+     Lịch sử còn hiện sau khi tải lại trang; muốn xem lại tk|mk thì bấm
+     "Xem lại tài khoản" để gọi GET /api/shop/orders/<code>/credentials.
+     loadWebOrders() tự chữa dữ liệu cũ: gặp bản lưu cũ còn user/pass thì
+     xoá các trường đó rồi lưu lại bản sạch; JSON hỏng thì về danh sách
+     rỗng, không throw. Đăng xuất thì xoá đơn khỏi bộ nhớ. */
   var WEB_ORDERS_KEY_PREFIX = "anhdev_web_orders_";
   function webOrdersKey(){
     var u = state.user;
     return (u && u.web && u.username) ? WEB_ORDERS_KEY_PREFIX + u.username : null;
   }
+  function sanitizeWebOrder(o){
+    /* Allowlist metadata đơn — mọi trường khác (user/pass/password/...) đều
+       bị vứt, kể cả khi object đầu vào là bản lưu cũ còn dính tk|mk. */
+    if (!o || typeof o !== "object" || !o.code) return null;
+    var clean = { code: String(o.code) };
+    if (o.productId != null) clean.productId = o.productId;
+    clean.productName = o.productName || productNameForCode(o.code);
+    clean.price = (typeof o.price === "number") ? o.price : 0;
+    clean.time = o.time || "";
+    if (o.cat) clean.cat = o.cat;
+    return clean;
+  }
   function loadWebOrders(){
     var key = webOrdersKey();
     if (!key) return;
-    try {
-      var raw = localStorage.getItem(key);
-      var list = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(list)) state.orders = list.filter(function(x){ return x && x.code && !x.demo; }).slice(0, 50);
-    } catch (e) { /* bỏ qua */ }
+    var raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) { state.orders = []; return; }
+    if (!raw){ state.orders = []; return; }
+    var list;
+    try { list = JSON.parse(raw); } catch (e) {
+      state.orders = [];
+      try { localStorage.removeItem(key); } catch (e2) { /* bỏ qua */ }
+      return;
+    }
+    if (!Array.isArray(list)){
+      state.orders = [];
+      try { localStorage.removeItem(key); } catch (e) { /* bỏ qua */ }
+      return;
+    }
+    var cleaned = [];
+    var dirty = false;
+    list.forEach(function(x){
+      if (!x || typeof x !== "object" || !x.code || x.demo) return;
+      if (x.user != null || x.pass != null || x.password != null) dirty = true;
+      var c = sanitizeWebOrder(x);
+      if (c) cleaned.push(c);
+    });
+    if (dirty || cleaned.length !== list.length){
+      /* Bản lưu cũ còn tk|mk (hoặc có mục rác/demo): ghi đè bằng bản sạch
+         chỉ còn metadata, để lần sau không còn gì nhạy cảm trong kho. */
+      try { localStorage.setItem(key, JSON.stringify(cleaned.slice(0, 50))); } catch (e) { /* bỏ qua */ }
+    }
+    state.orders = cleaned.slice(0, 50);
   }
   function saveWebOrders(){
     var key = webOrdersKey();
     if (!key) return;
     try {
-      var creds = state.orders.filter(function(x){ return x && x.code && !x.demo && x.user && x.pass; }).slice(0, 50);
-      localStorage.setItem(key, JSON.stringify(creds));
+      var metas = [];
+      state.orders.forEach(function(x){
+        if (!x || !x.code || x.demo) return;
+        var c = sanitizeWebOrder(x);
+        if (c) metas.push(c);
+      });
+      localStorage.setItem(key, JSON.stringify(metas.slice(0, 50)));
     } catch (e) { /* trình duyệt chặn localStorage */ }
   }
   function productNameForCode(code){
@@ -2329,7 +2408,9 @@
   }
   /* Đồng bộ ĐƠN MUA ACC từ backend (GET /api/shop/orders — đơn thật đã lưu
      trong shop_orders). Chỉ chạy cho tài khoản web; đơn backend thắng khi
-     trùng mã, trừ đơn local đã có tk|mk (giữ lại để hiện trong Lịch sử). */
+     trùng mã, trừ đơn local đã có tk|mk trong RAM (giữ lại để hiện trong
+     Lịch sử). Đơn local sau khi tải lại trang chỉ còn metadata nên sẽ
+     nhận bản backend (không tk|mk) và hiện nút "Xem lại tài khoản". */
   function refreshBackendOrders(){
     if (!state.user || !state.user.web || !backendReady()) return;
     backendFetch("/api/shop/orders")
@@ -2344,7 +2425,7 @@
           if (!bo || !bo.code) return;
           var local = byCode[bo.code];
           if (local && local.user && local.pass){
-            merged.push(local); // giữ tk|mk đã mua trong phiên này
+            merged.push(local); // giữ tk|mk đã mua trong phiên này (chỉ trong RAM)
           } else {
             merged.push({
               code: bo.code, demo: false,
@@ -2493,7 +2574,7 @@
       })
       .catch(function(err){
         var why = (err && err.message) ? err.message : "lỗi mạng";
-        createLocal("Không gọi được API (" + why + ") — hoá đơn demo, chưa đồng bộ bot.");
+        createLocal("Không gọi được API nạp tiền (" + why + ") — kiểm tra lại mạng hoặc đăng nhập lại rồi tạo lại hoá đơn; hoá đơn demo này chưa đồng bộ nên số dư sẽ không tự cộng.");
       })
       .then(function(){ btn.disabled = false; });
   });
@@ -2586,13 +2667,14 @@
       checkDeposit(iv, true);
       return;
     }
-    iv.status = "success";
-    iv.credited = iv.amount;
-    iv.detail = "Demo cục bộ · chưa đồng bộ bot";
-    state.balance += iv.amount;
-    markBalanceUnsynced();
-    saveInvoices(); renderInvoices(); updatePayStatus();
-    toast("Đã cộng " + fmt(iv.amount) + " vào số dư demo (chưa đồng bộ bot).");
+    /* Hoá đơn demo (remote:false): API nạp tiền không gọi được nên lệnh này
+       CHƯA đồng bộ với hệ thống — KHÔNG BAO GIỜ tự cộng số dư trên trình
+       duyệt (bản cũ cộng local khiến khách tưởng nạp thành công trong khi
+       bot chưa nhận được tiền). Giữ hoá đơn ở "pending", báo rõ lý do và
+       lấy lại số dư thật từ máy chủ để màn hình không hiện số dư ảo. */
+    toast(L("payLocalNoCredit"), "warning");
+    refreshWebBalance();
+    return;
   });
   $("#payBackBtn").addEventListener("click", function(){
     var iv = state.currentPay;

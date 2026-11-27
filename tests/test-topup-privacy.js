@@ -28,7 +28,6 @@ const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
-const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const API_URL = "https://api.test.local";
 
 const USERS = {
@@ -90,7 +89,7 @@ async function main(){
   for (let i = 0; i < 40; i++){
     await sleep(150);
     const pc = w.document.querySelector("#prodCount");
-    if (pc && pc.textContent.indexOf(String(TOTAL)) !== -1) break;
+    if (pc && pc.textContent.indexOf("12126") !== -1) break;
   }
   const d = w.document;
   const STK = "05817666778899";
@@ -163,6 +162,20 @@ async function main(){
   langSel.value = "vi";
   langSel.dispatchEvent(new w.Event("change", { bubbles: true }));
   await sleep(200);
+  console.log("== E. Hoa don demo (remote:false): bam Xac nhan KHONG cong so du local (P4) ==");
+  const balBefore = d.querySelector("[data-balance]").textContent;
+  d.querySelector("#payConfirmBtn").click();
+  await sleep(600);
+  check("e1. bam Xac nhan tren hoa don demo: so du KHONG doi (khong cong local)",
+    d.querySelector("[data-balance]").textContent === balBefore,
+    "truoc=" + balBefore + " sau=" + d.querySelector("[data-balance]").textContent);
+  const toastE = d.querySelector("#toastContainer");
+  check("e2. bam Xac nhan tren hoa don demo: toast bao 'chưa đồng bộ với hệ thống' (khong cong so du)",
+    !!toastE && toastE.textContent.indexOf("chưa đồng bộ với hệ thống") !== -1,
+    toastE ? toastE.textContent : "no toast");
+  check("e3. hoa don demo van o trang thai cho (khong tu thanh 'Thanh cong')",
+    d.querySelector("#payStatus").textContent.indexOf("Đang chờ") !== -1,
+    d.querySelector("#payStatus").textContent);
   d.querySelector("#accLogout").click();
   await sleep(400);
   check("d8. sau khi dang xuat: bankLine hidden + rong", bankLine.hidden === true && bankLine.textContent === "",

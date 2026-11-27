@@ -6,13 +6,21 @@
          style-src giu 'unsafe-inline' vi trang co <style> noi tuyen + nhieu style="..."
          (doi het sang file rieng la refactor lon, de vo giao dien). script-src KHONG co
          'unsafe-inline' vi script chinh da doi sang assets/app.js.
+         script-src CO 'unsafe-eval' vi Telegram Login Widget (telegram-widget.js)
+         bien chuoi data-onauth="onTelegramAuth(user)" thanh ham bang eval()
+         (ham __parseFunction trong file widget) — khong co 'unsafe-eval' thi
+         widget nem Uncaught EvalError ngay khi tai trang va nut dang nhap
+         Telegram khong bao gio hien. Khong co code nao khac cua store dung
+         eval (da grep: app.js / animations.js / admin-random-search.js = 0).
+         frame-ancestors KHONG de trong <meta> vi trinh duyet bo qua directive
+         nay o meta (chi co tac dung qua HTTP header) va log warning console.
          [DOI-DOMAIN-BACKEND] Khi da dien API_BASE_URL trong assets/app.js
          (vd "https://api.anhdev.store"), DOI domain do trong connect-src o
          duoi — thay "https://api.anhdev.store" thanh domain that cua ban
          (vd domain Cloudflare Tunnel). Neu khong trinh duyet se chan fetch
          toi backend. API phai la https:// (khong dung http://) neu khong
          se bi Mixed Content / bi chan. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://anhdev-store-backend.onrender.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org https://telegram.org; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://anhdev-store-backend.onrender.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <link rel="icon" href="data:," />
@@ -984,9 +992,9 @@
 
     <!-- GSAP 3 + Lenis + canvas-confetti (CDN, pinned, crossorigin) — PART 3.
          Da whitelist https://cdn.jsdelivr.net trong CSP (script-src) o tren. -->
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" crossorigin="anonymous" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" crossorigin="anonymous" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" integrity="sha384-O55L/6rhHr9CFvrxqv5luxOCcmVaBmETbZbJDP+Do8T0pztTACsFBD/IXCNkj7DV" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" integrity="sha384-sPwMflxqfAN+Q5mvlkLmHiX3PORGbZSXHiSGPTXT9VHCD/AB+b+r+vJWsqprv+7k" crossorigin="anonymous" defer></script>
     <script src="assets/app.js" defer></script>
     <script src="assets/animations.js" defer></script>
   </body>
