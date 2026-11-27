@@ -819,3 +819,356 @@
   border-color: var(--wine);
   color: var(--wine);
 }
+
+/* ============================================================================
+   PHASE 1 — UI/UX POLISH (2026-11-27)
+   ----------------------------------------------------------------------------
+   CSS-only polish pass. No ID / class hook / data-* attribute is renamed;
+   every rule below styles hooks that already exist in index.html / app.js.
+   Contrast numbers quoted here were computed with the WCAG relative
+   luminance formula on 2026-11-27 (full table in the Phase 1 report).
+   ============================================================================ */
+
+/* ---------- P1-0. WCAG AA colour sync ----------
+   Audit results (text needs 4.5:1, UI boundaries 3:1):
+   - Light --line #E2DDD0: 1.23:1 vs #F6F4EE, 1.36:1 vs #FFFFFF -> FAIL.
+     Fixed to #857C6B: 3.75:1 vs #F6F4EE, 4.12:1 vs #FFFFFF, 3.65:1 vs
+     #F4F1E8, 3.37:1 vs #ECE8DF.
+   - Dark --line rgba(16,185,129,.16): blended 1.30:1 vs #111917, 1.26:1
+     vs #090D0C -> FAIL. Fixed to rgba(52,211,153,.6): 4.13:1 vs #111917,
+     4.23:1 vs #090D0C, 3.85:1 vs #1A2622, 3.93:1 vs #182320.
+   - Light --muted #5A6963 passed (5.25:1 vs #F6F4EE) but read washed out;
+     darkened to #4E5B55: 6.47:1 vs #F6F4EE, 7.11:1 vs #FFFFFF.
+   - Every other text pair already passes AA in both modes (worst case:
+     Light ok #047857 on ok-soft #D1FAE5 = 4.84:1; Dark on-wine #082A20
+     on wine-btn #10B981 = 6.08:1), so no other variable is changed.
+   - Light shadows get a slightly stronger first layer so cards stop
+     looking washed out on the ivory background. */
+html[data-theme="light"]{
+  --line:#857C6B;
+  --border-subtle:#857C6B;
+  --muted:#4E5B55;
+  --ink-2:#4E5B55;
+  --text-secondary:#4E5B55;
+  --shadow:0 1px 3px rgba(12,74,59,.14), 0 10px 30px rgba(12,74,59,.12);
+  --shadow-lg:0 2px 6px rgba(12,74,59,.14), 0 24px 60px rgba(12,74,59,.20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --line:#857C6B;
+    --border-subtle:#857C6B;
+    --muted:#4E5B55;
+    --ink-2:#4E5B55;
+    --text-secondary:#4E5B55;
+    --shadow:0 1px 3px rgba(12,74,59,.14), 0 10px 30px rgba(12,74,59,.12);
+    --shadow-lg:0 2px 6px rgba(12,74,59,.14), 0 24px 60px rgba(12,74,59,.20);
+  }
+}
+html[data-theme="dark"]{
+  --line:rgba(52,211,153,.6);
+  --border-subtle:rgba(52,211,153,.6);
+}
+
+/* ---------- P1-1. Bottom navigation: glass bar (mobile) / floating dock (desktop) ----------
+   Mobile + portrait tablet (<900px): the 5 tabs stay fixed at the bottom
+   with a 16px-blur glass background; every tab is a >=44px touch target
+   (52px tall buttons) with a clear active state. body padding-bottom
+   matches the bar height so content is never covered.
+   Desktop (>=900px): the bar becomes a compact floating dock — centred,
+   max 560px wide, 20px radius, floating 16px above the bottom edge with
+   a glass background and a large shadow. body padding-bottom (96px)
+   clears the dock (dock height ~60px + 16px gap) plus the content's own
+   bottom padding, so the dock never covers the search bar or products. */
+@media (max-width:899px){
+  body{padding-bottom:calc(72px + env(safe-area-inset-bottom));}
+  .bottom-nav{
+    display:flex;
+    position:fixed; bottom:0; left:0; right:0;
+    z-index:var(--z-bottomnav);
+    background:var(--bg-glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+    box-shadow:0 -8px 24px rgba(0,0,0,.14);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .bottom-nav button{
+    flex:1 1 0; min-width:0; min-height:52px;
+    background:none; border:0; border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    font-size:10.5px; font-weight:700; color:var(--muted);
+    padding:7px 2px;
+  }
+  .bottom-nav button svg{
+    width:21px; height:21px; stroke:currentColor; fill:none;
+    stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+  }
+  .bottom-nav button.active{color:var(--wine); background:var(--wine-soft);}
+  .bottom-nav button:active{transform:scale(.96);}
+}
+@media (min-width:900px){
+  body{padding-bottom:96px;}
+  .bottom-nav{
+    display:flex;
+    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    width:max-content; max-width:min(560px, calc(100vw - 32px));
+    z-index:var(--z-bottomnav);
+    background:var(--bg-glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--line); border-radius:20px;
+    box-shadow:var(--shadow-lg);
+    padding:6px;
+  }
+  .bottom-nav button{
+    flex:1 1 0; min-width:0; min-height:48px;
+    background:none; border:0; border-radius:14px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    font-size:11px; font-weight:700; color:var(--muted);
+    padding:6px 10px; white-space:nowrap;
+  }
+  .bottom-nav button svg{
+    width:21px; height:21px; stroke:currentColor; fill:none;
+    stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+  }
+  .bottom-nav button.active{color:var(--wine); background:var(--wine-soft);}
+  .bottom-nav button:hover{background:var(--bg-soft); color:var(--ink);}
+  .bottom-nav button:active{transform:scale(.96);}
+}
+
+/* ---------- P1-2. Balance pill + brand mark ----------
+   Wallet pill (.wallet-pill in the topbar): wallet icon keeps its
+   spacing, the balance number uses tabular figures so it never jitters
+   when the amount changes, and a small gold "+" chip signals top-up.
+   The "+" chip is fixed gold #F5B942 with dark text #241A05 = 9.72:1
+   in both themes. The sidebar balance (.balance-card .val) gets the
+   same tabular figures.
+   Brand mark (.brand-mark, markup lands in Phase 2): a flex lockup —
+   hexagon badge (SVG, emerald button colour with on-wine strokes) +
+   "ANHDEV" wordmark in ink. The text hides below 380px so the header
+   never crowds on narrow phones. The sidebar .brand-mark (the "A"
+   square) has no svg / .brand-text children, so these rules leave it
+   alone except for the shared flex centring, which keeps the "A"
+   centred exactly as before. */
+.wallet-pill{gap:8px;}
+.wallet-pill svg{flex:0 0 auto;}
+.wallet-pill [data-balance]{font-variant-numeric:tabular-nums; font-weight:800; letter-spacing:.01em;}
+/* Phase 2 (A3): nut "+" nap tien THAT (index.html, class .wallet-topup) thay
+   cho dau "+" gia bang ::after cua Phase 1 — tranh 2 dau "+" chong nhau.
+   Vang #F5B942 / chu #241A05 = 9.72:1 ca 2 theme; 28x28px >= muc tieu
+   WCAG 2.2 AA 24x24px. */
+.wallet-topup{
+  flex:0 0 auto;
+  display:grid; place-items:center;
+  width:28px; height:28px; border-radius:50%;
+  background:#F5B942; color:#241A05;
+  font-size:16px; font-weight:900; line-height:1;
+  border:0; padding:0; cursor:pointer;
+}
+.wallet-topup:hover{filter:brightness(1.08);}
+.wallet-topup:active{transform:scale(.94);}
+.balance-card .val{font-variant-numeric:tabular-nums;}
+.balance-card [data-balance]{font-variant-numeric:tabular-nums;}
+.brand-mark{
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  flex:0 0 auto; min-height:36px;
+}
+/* Phase 2 (A1): lockup topbar la svg+text, KHONG phai o vuong 40px cua sidebar
+   (index.html:156) — tra width/height ve auto, chi ap dung trong .topbar. */
+.topbar .brand-mark{margin-right:2px; width:auto; height:auto;}
+.brand-mark svg{
+  flex:0 0 auto; width:34px; height:34px; padding:7px;
+  color:var(--on-wine); background:var(--wine-btn);
+  clip-path:polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  stroke:currentColor; fill:none; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+.brand-mark .brand-text{
+  font-weight:900; font-size:15px; letter-spacing:.08em; line-height:1;
+  color:var(--ink); text-transform:uppercase; white-space:nowrap;
+}
+@media (max-width:380px){
+  .brand-mark .brand-text{display:none;}
+}
+
+/* ---------- P1-3. Live telemetry status strip ----------
+   .sync-status (the sync banner) and #stockBar (the "12.115 tài khoản ·
+   Giá từ …" line under "Sản phẩm trong kho") share one compact strip:
+   36px minimum height, light glass background, a thin 1px border (the
+   state colour survives on the left edge via the existing
+   .sync-status.live/.saved/.demo/.syncing border-left-color rules).
+   .live-dot is the green pulse dot Phase 2 will prepend; the strip
+   reads correctly with or without it (flex gap handles the spacing).
+   The radar ring animation (liveDotPulse) lives in animations.css.
+   #stockBar carries inline style="margin:2px 0 0;color:var(--muted)" —
+   only !important restyles those two properties from a stylesheet.
+   :not([hidden]) keeps the demo-mode hiding working: setSyncStatus()
+   hides the banner with the hidden attribute, and an author display
+   rule would otherwise override the UA [hidden]{display:none}. */
+.sync-status:not([hidden]),
+#stockBar{
+  display:flex; align-items:center; gap:8px;
+  min-height:36px;
+  margin:0 0 14px;
+  padding:8px 12px;
+  background:var(--bg-glass);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--line);
+  border-left-width:1px;
+  border-radius:10px;
+  font-size:13px; line-height:1.45; color:var(--ink);
+}
+#stockBar{margin:0 0 14px !important; color:var(--ink) !important;}
+.sync-status .uiv-liquid-loader{flex:1 1 auto; min-width:0;}
+.live-dot{
+  flex:0 0 auto; width:8px; height:8px; border-radius:50%;
+  background:#22C55E; position:relative;
+}
+.live-dot::after{
+  content:""; position:absolute; inset:0; border-radius:50%;
+  background:#22C55E; animation:liveDotPulse 1.8s ease-out infinite;
+}
+
+/* ---------- P1-4. Search glow fix + unified 44px filter row ----------
+   Glow fix (Uiverse wrapper .uiv-glow-search): the visible glow is the
+   blur bleed of the conic ring layers behind the opaque input, so the
+   fix unifies the geometry instead of deleting the effect — one shared
+   radius variable (--uiv-search-radius) for the input, every glow
+   layer, the filter button and the clear button; the ring layers keep
+   inset:0 + overflow:hidden + the shared radius, and their blur is
+   tightened (3px -> 1px) so the halo hugs the frame instead of
+   smearing past the rounded corners; the ambient layer's blur is
+   tightened 30px -> 14px; .uiv-glow-main gets overflow:hidden + the
+   shared radius so inner elements cannot spill past the frame; focus
+   gets a crisp two-ring box-shadow that follows the shared radius.
+   Height unification: the glow input was 56px while the sort dropdown
+   and "Còn hàng" toggle are 44px — the input is now 44px and every
+   absolutely positioned inner element is re-centred for 44px
+   (filter 40px at top:2/right:2, clear 40px at top:2/right:50,
+   search icon 24px at left:12/top:10, gold mask centred at top:12).
+   Category / price chips are 44px tall; on mobile the two chip strips
+   scroll horizontally (edge-to-edge inside the 16px content padding)
+   with hidden scrollbars, and the selected chip gets an emerald
+   shadow for prominence (its emerald background + on-wine text is
+   10.20:1 Light / 6.08:1 Dark). */
+.uiv-glow-search{
+  --uiv-search-radius:8px;
+  border-radius:var(--uiv-search-radius);
+}
+.uiv-glow-layer,
+.uiv-glow-dark-border,
+.uiv-glow-white,
+.uiv-glow-border,
+.uiv-glow-input{
+  border-radius:var(--uiv-search-radius);
+}
+.uiv-glow-white{filter:blur(1px);}
+.uiv-glow-dark-border{filter:blur(1px);}
+.uiv-glow-layer{filter:blur(14px); opacity:.35;}
+.uiv-glow-main{overflow:hidden; border-radius:var(--uiv-search-radius);}
+.uiv-glow-search:focus-within{
+  box-shadow:0 0 0 3px rgba(245,185,66,.35), 0 0 0 5px rgba(16,185,129,.18);
+}
+.uiv-glow-input{height:44px; font-size:15px; padding:0 98px 0 46px;}
+.uiv-glow-search-icon{left:12px; top:10px;}
+.uiv-glow-filter{
+  top:2px; right:2px; height:40px; width:44px;
+  border-radius:var(--uiv-search-radius);
+}
+.uiv-glow-filter-border{top:1px; right:1px; width:46px; height:42px;}
+.uiv-glow-clear{
+  top:2px; right:50px; width:40px; height:40px;
+  border-radius:var(--uiv-search-radius);
+}
+.uiv-glow-pink-mask{top:12px;}
+.toolbar{align-items:stretch;}
+.toolbar select{height:44px; max-width:100%;}
+#stockToggle{height:44px;}
+.chip{min-height:44px; display:inline-flex; align-items:center; justify-content:center;}
+@media (max-width:899px){
+  .chips{
+    flex-wrap:nowrap; overflow-x:auto;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+    margin:12px -16px 4px; padding:2px 16px 6px;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chips .chip{flex:0 0 auto;}
+  .chips .chip.on{box-shadow:0 2px 12px rgba(16,185,129,.35);}
+}
+
+/* ---------- P1-5. Product cards ----------
+   Badges: .badge-white / .badge-vip / .badge-random / .badge-detail /
+   .badge-product are the Phase 2 segment modifiers (use as
+   <span class="badge badge-white">). Colours are AA-checked: white =
+   #34D399 on #0A4D3C = 5.11:1 (the task's #10B981 on #0A4D3C is only
+   3.87:1, so the lighter emerald is used); VIP = theme gold on gold-soft,
+   6.37:1 Light / 8.65:1 Dark; random = #EDE9FE on #4C1D95 = 9.23:1 in both
+   themes; detail = theme gold on gold-soft (same treatment as .badge.pend);
+   product = #EDE9FE on #6D28D9 = 5.98:1. .card .badge only sets in-flow
+   layout so Phase 2 can place the badge anywhere in the card without it
+   jumping out of flow.
+   Current cards (no badge markup yet) already read by segment: a 2px
+   inset top accent bar per data-cat (emerald = white, gold = ready-info
+   / products, violet = random) plus a matching tint on the .game
+   eyebrow of pack heads. The accent uses box-shadow inset so it never
+   changes layout and never fights the existing border-color hover.
+   Specs: names and descriptions clamp to 2 lines; every figure (stock
+   count, prices) uses tabular figures so columns line up.
+   Price & buy: price is 22px in ink (17.12:1 Light / 16.39:1 Dark);
+   the buy button lifts 2px on hover and presses to scale(.97) on
+   :active with a fast 180ms transform + opacity transition. The
+   :not(.out):not([disabled]) guard keeps disabled / sold-out buttons
+   perfectly still. */
+.card .badge{
+  position:static; display:inline-flex; align-items:center; gap:4px;
+  align-self:flex-start;
+  font-size:11.5px; font-weight:800; line-height:1; letter-spacing:.02em;
+  border-radius:99px; padding:5px 10px; white-space:nowrap;
+}
+.badge-white{background:#0A4D3C; color:#34D399;}
+.badge-vip{background:var(--gold-soft); color:var(--gold);}
+.badge-random{background:#4C1D95; color:#EDE9FE;}
+/* Phase 2 (A2): 2 modifier moi cho segmentBadge(). detail = vang theme giong
+   .badge.pend/.badge-vip; product = tim #6D28D9 / #EDE9FE = 5.98:1 (AA),
+   khac random #4C1D95. .badge-vip giu lai nhung chua dung — chua co field VIP
+   trong data (xem Q1 trong plan Phase 2). */
+.badge-detail{background:var(--gold-soft); color:var(--gold);}
+.badge-product{background:#6D28D9; color:#EDE9FE;}
+.card[data-cat="white"]{box-shadow:var(--shadow), inset 0 2px 0 var(--ok);}
+.card[data-cat="detail"]{box-shadow:var(--shadow), inset 0 2px 0 var(--gold);}
+.card[data-cat="random-tele"],
+.card[data-cat="random-lq"]{box-shadow:var(--shadow), inset 0 2px 0 #8B5CF6;}
+.card[data-cat="products"]{box-shadow:var(--shadow), inset 0 2px 0 var(--gold);}
+.card[data-cat="white"] .card-head .game{color:var(--ok);}
+.card[data-cat="detail"] .card-head .game{color:var(--gold);}
+.card[data-cat="products"] .card-head .game{color:var(--gold);}
+.card[data-cat="random-tele"] .card-head .game,
+.card[data-cat="random-lq"] .card-head .game{color:#6D28D9;}
+html[data-theme="dark"] .card[data-cat="random-tele"] .card-head .game,
+html[data-theme="dark"] .card[data-cat="random-lq"] .card-head .game{color:#C4B5FD;}
+.card .name{
+  font-variant-numeric:tabular-nums;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  line-clamp:2; overflow:hidden;
+}
+.card .desc{
+  font-variant-numeric:tabular-nums;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  line-clamp:2; overflow:hidden;
+}
+.card-meta{font-variant-numeric:tabular-nums;}
+.price-box{font-variant-numeric:tabular-nums;}
+.price-box .price{font-size:22px; color:var(--ink);}
+.buy-btn{transition:transform .18s ease, opacity .18s ease;}
+.buy-btn:not(.out):not([disabled]):hover{transform:translateY(-2px);}
+.buy-btn:not(.out):not([disabled]):active{transform:scale(.97);}
+
+/* ---------- P1-6. Modal + order-history surfaces ----------
+   The buy modal and the VietQR top-up modal share .modal: a 1px
+   --line border now defines the panel in both modes (the --line fix
+   in P1-0 makes this 3.75:1 Light / 4.13:1 Dark against the panel
+   surface). Order rows and payment figures use tabular figures so
+   amounts and codes line up. */
+.modal{border:1px solid var(--line);}
+.order .meta,
+.transfer-info .row b,
+.pay-val{font-variant-numeric:tabular-nums;}
+

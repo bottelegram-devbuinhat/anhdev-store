@@ -640,6 +640,13 @@
   function isWhiteLockedForUser(p){
     return isWhiteProduct(p) && !!state.user && state.user.role !== "admin";
   }
+  function segmentBadge(p){
+    if (isWhiteProduct(p)) return '<span class="badge badge-white">Acc trắng</span>';
+    if (p.cat === "random-tele" || p.cat === "random-lq") return '<span class="badge badge-random">Acc Random</span>';
+    if (p.cat === "products") return '<span class="badge badge-product">Sản phẩm số</span>';
+    if (p.cat === "detail") return '<span class="badge badge-detail">Acc sẵn thông tin</span>';
+    return "";
+  }
   function cardHtml(p){
     var head = "";
     if (p.kind === "pack" && p.cat === "random-tele"){
@@ -663,7 +670,7 @@
       ? '<div class="white-lock-note" style="margin-top:8px;font-size:12px;line-height:1.5;color:var(--muted)">' + esc(L("whiteOnlyAdmin")) + '</div>'
       : "";
     return '<article class="card" data-cat="' + esc(p.cat) + '">' + head +
-      '<div class="card-body"><div class="name">' + esc(p.name) + '</div><div class="desc">' + esc(p.desc) + '</div>' +
+      '<div class="card-body">' + segmentBadge(p) + '<div class="name">' + esc(p.name) + '</div><div class="desc">' + esc(p.desc) + '</div>' +
       '<div class="card-meta">' + stockHtml(p) + priceHtml(p) + '</div>' + btn + whiteNote + '</div></article>';
   }
   var CATS_EN = {
@@ -1267,13 +1274,22 @@
     if (sameData && SEARCH_INDEX.built) keyProducts(PRODUCTS);
     else buildSearchIndex();
     var when = SYNC.updatedAt ? new Date(SYNC.updatedAt).toLocaleString("vi-VN") : "";
-    var counts = accs.length + " acc · " + prods.length + " sản phẩm";
+    var totalAccounts = accs.length.toLocaleString("vi-VN");
+    var syncedAt = when ? " (" + when + ")" : "";
+    var savedAt = when ? " (bản lưu lúc " + when + ")" : "";
     if (label === "saved"){
-      setSyncStatus("saved", "Kho thật (bản lưu lúc " + when + ") · " + counts + " — có thể chưa mới nhất, mua chắc chắn qua bot @devbn_bot.");
+      setSyncStatus("saved", "Đã đồng bộ kho trực tiếp" + savedAt + " · " + totalAccounts + " tài khoản sẵn có — Giao dịch tự động trên Web hoặc qua @devbn_bot.");
     } else {
-      setSyncStatus("live", "Kho thật đã đồng bộ · " + counts + " đang bán" + (when ? " · cập nhật " + when : "") + ".");
+      setSyncStatus("live", "Đã đồng bộ kho trực tiếp" + syncedAt + " · " + totalAccounts + " tài khoản sẵn có — Giao dịch tự động trên Web hoặc qua @devbn_bot.");
     }
     renderProducts(); renderStockBar();
+    var syncEl = document.getElementById("syncStatus");
+    if (syncEl){
+      var liveDot = document.createElement("span");
+      liveDot.className = "live-dot";
+      liveDot.setAttribute("aria-hidden", "true");
+      syncEl.insertBefore(liveDot, syncEl.firstChild);
+    }
   }
   function useDemoStock(){
     PRODUCTS = DEMO_PRODUCTS.slice();

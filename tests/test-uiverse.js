@@ -182,7 +182,8 @@ function pageCodes(w){
     p.loaderAtBoot && p.loaderTextAtBoot.indexOf("Đang đồng bộ kho thật") !== -1,
     "text=" + JSON.stringify(p.loaderTextAtBoot));
   check("b2. sau khi kho ve: syncStatus bao kho that (loader da tat)",
-    d.querySelector("#syncStatus") && d.querySelector("#syncStatus").textContent.indexOf("Kho thật") !== -1 &&
+    d.querySelector("#syncStatus") && d.querySelector("#syncStatus").textContent.indexOf("Đã đồng bộ kho trực tiếp") !== -1 &&
+    d.querySelector("#syncStatus").textContent.indexOf("tài khoản sẵn có") !== -1 &&
     !d.querySelector("#syncStatus .uiv-liquid-loader"),
     d.querySelector("#syncStatus") && d.querySelector("#syncStatus").textContent.slice(0, 60));
 

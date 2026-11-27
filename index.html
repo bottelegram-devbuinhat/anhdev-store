@@ -623,9 +623,14 @@
           <button class="icon-btn burger" id="burger" aria-label="Mở menu">
             <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.8 20.2,6.4 20.2,17.6 12,22.2 3.8,17.6 3.8,6.4" fill="none" stroke="var(--brand-gold)" stroke-width="1.8" stroke-linejoin="round"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="900" fill="var(--brand-gold)" stroke="none" font-family="inherit">A</text></svg>
+            <span class="brand-text">ANHDEV</span>
+          </div>
           <div class="wallet-pill" title="Số dư ví">
-            <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 1 0-4h14v4"/><path d="M4 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14" r="1.2"/></svg>
-            <span class="wp-lbl" data-i18n="walletLbl">Ví:</span> <span data-balance>0đ</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7H4a2 2 0 0 1 0-4h14v4"/><path d="M4 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14" r="1.2"/></svg>
+            <span class="wp-lbl" data-i18n="walletLbl">Ví:</span> <span class="bal-num" data-balance>0đ</span>
+            <button type="button" class="wallet-topup" data-nav="topup" aria-label="Nạp tiền vào ví">+</button>
           </div>
           <button class="btn btn-ghost uiv-ripple-btn" id="topLoginBtn">Đăng Nhập</button>
           <div class="topbar-right">

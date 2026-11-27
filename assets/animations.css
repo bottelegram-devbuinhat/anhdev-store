@@ -370,6 +370,7 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
   .modal-wrap.open .modal .btn, .modal-wrap.open .modal .tab-bar,
   .hero-actions .btn::after, #topLoginBtn::after,
   #productArea .card .card-cover::after, #productArea.flip .price,
+  .live-dot::after,
   /* [VIBRANT 2026-11-26] tat ca hieu ung xoay/doi mau moi */
   #productArea .card::before, .uiv-shine-btn::after, .hero::after,
   .uiv-glow-layer::before, .uiv-glow-border::before, .uiv-glow-white::before,
@@ -417,4 +418,14 @@ body.modal-lock{ position:fixed; left:0; right:0; overflow:hidden; }
 .admin-more-wrap{display:flex;justify-content:center;margin-top:18px}
 @media (max-width:480px){
   .admin-toggle .admin-toggle-lbl{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+
+/* ============ PHASE 1 — Live dot radar pulse (2026-11-27) ============
+   Radar ring for .live-dot::after (the strip styling lives in
+   uiverse.css §P1-3): the ring scales up from the dot and fades out,
+   then repeats. Transform + opacity only, so it never causes layout
+   shift. The pulse is silenced under prefers-reduced-motion below. */
+@keyframes liveDotPulse{
+  0%{transform:scale(1); opacity:.7;}
+  100%{transform:scale(2.6); opacity:0;}
 }
