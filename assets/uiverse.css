@@ -880,7 +880,7 @@ html[data-theme="dark"]{
    clears the dock (dock height ~60px + 16px gap) plus the content's own
    bottom padding, so the dock never covers the search bar or products. */
 @media (max-width:899px){
-  body{padding-bottom:calc(72px + env(safe-area-inset-bottom));}
+  body{padding-bottom:calc(84px + env(safe-area-inset-bottom));}
   .bottom-nav{
     display:flex;
     position:fixed; bottom:0; left:0; right:0;
@@ -906,7 +906,7 @@ html[data-theme="dark"]{
   .bottom-nav button:active{transform:scale(.96);}
 }
 @media (min-width:900px){
-  body{padding-bottom:96px;}
+  body{padding-bottom:120px;}
   .bottom-nav{
     display:flex;
     position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
@@ -987,6 +987,35 @@ html[data-theme="dark"]{
 }
 @media (max-width:380px){
   .brand-mark .brand-text{display:none;}
+}
+
+/* ---------- Header sizing fix (2026-11-27, theo feedback Anh) ----------
+   Van de: header cu moi control cao 42px (wallet-pill min-height:42,
+   .btn min-height:42, icon-btn 42x42, theme-toggle 42px) nhung nut "+"
+   28px lon hon vung content cua pill (42-16=26px) nen pill bi keo cao,
+   3 khoi (brand / vi / dang nhap) lech chieu cao nhau, header nang 62px.
+   Sua: thong nhat TAT CA control header ve 36px; nut "+" thu ve 22px
+   (chip nho, khong chen pill). Chi doi trong .topbar, khong dong den
+   .btn/.icon-btn o noi khac. */
+.topbar{padding-top:8px;padding-bottom:8px;}
+.topbar .icon-btn{width:36px;height:36px;}
+.topbar .icon-btn svg{width:18px;height:18px;}
+.wallet-pill{min-height:36px;padding:5px 10px;font-size:13px;}
+.wallet-pill svg{width:15px;height:15px;}
+.wallet-topup{width:22px;height:22px;font-size:13px;}
+.topbar .btn{min-height:36px;padding:6px 14px;font-size:13px;}
+.topbar .theme-toggle button{width:36px;height:36px;}
+.topbar .theme-toggle svg{width:16px;height:16px;}
+.brand-mark{gap:8px;}
+.brand-mark svg{width:30px;height:30px;padding:6px;}
+.brand-mark .brand-text{font-size:14px;}
+@media (max-width:900px){
+  .topbar .btn{padding:6px 10px;}
+  .topbar .icon-btn{width:34px;height:34px;}
+}
+@media (max-width:400px){
+  .topbar .btn{padding:6px 8px;font-size:12.5px;}
+  .wallet-pill{padding:5px 8px;}
 }
 
 /* ---------- P1-3. Live telemetry status strip ----------
