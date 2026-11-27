@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AnhDev Admin — Quản lý shop</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+:root{
+  --bg-canvas:#09090B; --bg-surface:#111114; --bg-elevated:#18181C; --bg-active:#222228;
+  --bg-input:#0D0D10; --bg-glass:rgba(17,17,20,0.72);
+  --text-primary:#F4F4F6; --text-secondary:#A1A1AA; --text-muted:#71717A; --text-inverse:#09090B;
+  --accent-primary:#FF5A1F; --accent-hover:#FF7340; --accent-subtle:rgba(255,90,31,0.12);
+  --border-subtle:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.16);
+  --edge-highlight:inset 0 1px 0 0 rgba(255,255,255,0.08);
+  --input-recess:inset 0 2px 4px 0 rgba(0,0,0,0.45);
+  --status-success:#10B981; --status-warning:#F59E0B; --status-danger:#EF4444; --status-info:#38BDF8;
+  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-body:'Be Vietnam Pro',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --radius-xs:4px; --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-full:9999px;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px;
+  --space-8:32px; --space-12:48px; --space-16:64px;
+  --ease-snappy:cubic-bezier(0.2,0,0,1); --ease-out-expo:cubic-bezier(0.16,1,0.3,1);
+  --dur-fast:150ms; --dur-normal:250ms; --dur-slow:420ms;
+  --z-sticky:100; --z-toast:400;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;background-color:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-body);font-size:16px;-webkit-font-smoothing:antialiased}
+body{background-color:var(--bg-canvas);color:var(--text-primary);line-height:1.6;overflow-x:clip;min-height:100vh}
+::selection{background-color:var(--accent-primary);color:var(--text-primary)}
+h1,h2,h3{font-family:var(--font-display);color:var(--text-primary);text-wrap:balance}
+h1{font-size:clamp(2rem,4vw,3.25rem);font-weight:800;line-height:1.12;letter-spacing:-0.03em}
+h2{font-size:clamp(1.5rem,2.5vw,2rem);font-weight:700;line-height:1.2;letter-spacing:-0.02em}
+h3{font-size:1.125rem;font-weight:600;line-height:1.35;letter-spacing:-0.01em}
+p{color:var(--text-secondary);font-size:0.9375rem;max-width:65ch;text-wrap:pretty}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent-primary)}
+.container{width:100%;max-width:1240px;margin:0 auto;padding:0 var(--space-6)}
+.site-header{position:sticky;top:0;height:64px;background:var(--bg-glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border-subtle);z-index:var(--z-sticky);display:flex;align-items:center}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
+.brand{display:flex;align-items:center;gap:var(--space-3);font-family:var(--font-display);font-weight:800;font-size:1.125rem;letter-spacing:-0.01em}
+.brand svg{width:18px;height:18px;stroke:var(--accent-primary);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.user-chip{display:flex;align-items:center;gap:var(--space-3)}
+.user-chip .who{font-family:var(--font-mono);font-size:0.8125rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+main{padding:var(--space-8) 0 var(--space-16)}
+.bento{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--space-4)}
+.col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}
+@media (max-width:768px){.container{padding:0 var(--space-4)}.col-8,.col-6,.col-4,.col-3{grid-column:span 12}}
+.card{position:relative;background-color:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:var(--space-6);box-shadow:var(--edge-highlight);overflow:hidden;transition:transform var(--dur-normal) var(--ease-out-expo),background-color var(--dur-normal) var(--ease-out-expo),border-color var(--dur-normal) var(--ease-out-expo)}
+.card:hover{background-color:var(--bg-elevated);border-color:var(--border-strong)}
+.card h3{margin-bottom:var(--space-2)}
+.card .sub{color:var(--text-secondary);font-size:0.875rem;margin-bottom:var(--space-4)}
+.stat-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:2rem;font-weight:600;line-height:1.2;letter-spacing:-0.02em}
+.stat-label{font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-top:var(--space-1)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:var(--radius-full);margin-right:var(--space-2);vertical-align:middle}
+.dot.ok{background-color:var(--status-success)}.dot.bad{background-color:var(--status-danger)}.dot.warn{background-color:var(--status-warning)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);height:40px;padding:0 var(--space-5);font-family:var(--font-body);font-size:0.875rem;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;border:1px solid transparent;text-decoration:none;transition:transform var(--dur-fast) var(--ease-snappy),background-color var(--dur-fast) var(--ease-snappy),border-color var(--dur-fast) var(--ease-snappy)}
+.btn:active{transform:scale(0.97)}
+.btn:focus-visible,.input:focus-visible{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-subtle)}
+.btn-primary{background-color:var(--accent-primary);color:var(--text-primary);box-shadow:var(--edge-highlight)}
+.btn-primary:hover{background-color:var(--accent-hover);transform:translateY(-1px)}
+.btn-secondary{background-color:var(--bg-elevated);color:var(--text-primary);border-color:var(--border-subtle);box-shadow:var(--edge-highlight)}
+.btn-secondary:hover{background-color:var(--bg-active);border-color:var(--border-strong)}
+.btn:disabled{opacity:0.55;cursor:not-allowed;transform:none}
+.btn .spin{width:14px;height:14px;border:2px solid rgba(255,255,255,0.35);border-top-color:var(--text-primary);border-radius:var(--radius-full);animation:rot 0.8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+@media (pointer:coarse){.btn,.input{min-height:44px}}
+.input{width:100%;height:42px;padding:0 var(--space-3);background-color:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);box-shadow:var(--input-recess);color:var(--text-primary);font-family:var(--font-body);font-size:0.875rem;transition:border-color var(--dur-fast) var(--ease-snappy)}
+.input::placeholder{color:var(--text-muted)}
+label{display:block;font-size:0.8125rem;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-2)}
+.field{margin-bottom:var(--space-4)}
+.table-wrap{overflow-x:auto;border:1px solid var(--border-subtle);border-radius:var(--radius-sm)}
+table{width:100%;border-collapse:collapse;font-size:0.875rem}
+thead th{position:sticky;top:0;background-color:var(--bg-elevated);text-align:left;padding:var(--space-3) var(--space-4);font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-subtle);white-space:nowrap}
+tbody td{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-subtle);color:var(--text-primary);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background-color:var(--bg-elevated)}
+td.num,th.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.code{font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.err{color:var(--status-danger);font-size:0.875rem;margin-top:var(--space-3);min-height:1.25rem}
+.note{color:var(--text-muted);font-size:0.8125rem;margin-top:var(--space-3)}
+.skel{position:relative;overflow:hidden;background-color:var(--bg-elevated);border-radius:var(--radius-xs);height:16px;margin-bottom:var(--space-2)}
+.skel::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:shim 1.4s infinite}
+@keyframes shim{100%{transform:translateX(100%)}}
+.empty{text-align:center;padding:var(--space-8) var(--space-4);color:var(--text-secondary)}
+.empty svg{width:32px;height:32px;stroke:var(--text-muted);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;fill:none;margin-bottom:var(--space-3)}
+.empty p{margin:0 auto var(--space-4)}
+#toast{position:fixed;right:16px;bottom:16px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:var(--space-2);max-width:min(360px,calc(100vw - 32px))}
+.toast-item{background-color:var(--bg-elevated);border:1px solid var(--border-strong);border-left:3px solid var(--accent-primary);border-radius:var(--radius-sm);padding:var(--space-3) var(--space-4);font-size:0.875rem;box-shadow:var(--edge-highlight);animation:tin var(--dur-normal) var(--ease-out-expo)}
+.toast-item.ok{border-left-color:var(--status-success)}
+.toast-item.bad{border-left-color:var(--status-danger)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.login-wrap{max-width:440px;margin:var(--space-16) auto 0}
+.search-row{display:flex;gap:var(--space-3);align-items:flex-end}
+.search-row .field{flex:1;margin-bottom:0}
+.section-gap{margin-top:var(--space-8)}
+.hidden{display:none!important}
+footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:var(--text-muted);font-size:0.8125rem}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M12 22V12"/><path d="M3 7l9 5 9-5"/></svg>
+      <span>AnhDev Admin</span>
+    </div>
+    <div class="user-chip hidden" id="chip">
+      <span class="who" id="who"></span>
+      <button class="btn btn-secondary" id="logoutBtn" type="button">Đăng xuất</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Đăng nhập -->
+  <section id="loginSec" class="login-wrap">
+    <div class="card">
+      <p class="eyebrow">AnhDev Store · Quản trị</p>
+      <h2 style="margin-top:8px">Đăng nhập admin</h2>
+      <p class="sub">Chỉ tài khoản có quyền admin mới vào được. Dùng tài khoản admin2 của shop.</p>
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="loginUser">Tên đăng nhập</label>
+          <input class="input" id="loginUser" type="text" autocomplete="username" placeholder="admin2" required>
+        </div>
+        <div class="field">
+          <label for="loginPass">Mật khẩu</label>
+          <input class="input" id="loginPass" type="password" autocomplete="current-password" placeholder="Mật khẩu admin" required>
+        </div>
+        <button class="btn btn-primary" id="loginBtn" type="submit" style="width:100%">Đăng nhập</button>
+        <p class="err" id="loginErr" role="alert"></p>
+      </form>
+      <p class="note">Lần đầu sau khi backend ngủ, đăng nhập có thể mất khoảng 50 giây (cold start). Trang không lưu mật khẩu, chỉ lưu phiên đăng nhập trên trình duyệt này.</p>
+    </div>
+  </section>
+
+  <!-- Bảng điều khiển -->
+  <section id="dashSec" class="hidden">
+    <div class="bento">
+      <div class="card col-3">
+        <p class="stat-label">Backend</p>
+        <p class="stat-num" id="statHealth" style="font-size:1.25rem">—</p>
+        <p class="note" id="statHealthMs">Chưa kiểm tra</p>
+      </div>
+      <div class="card col-3">
+        <p class="stat-label">Kho Random</p>
+        <p class="stat-num" id="statStock">—</p>
+        <p class="note">acc random còn bán</p>
+      </div>
+      <div class="card col-3">
+        <p class="stat-label">Đơn đã bán</p>
+        <p class="stat-num" id="statSold">—</p>
+        <p class="note">đơn web đã bán</p>
+      </div>
+      <div class="card col-3">
+        <p class="stat-label">Phiên</p>
+        <p class="stat-num" id="statRole" style="font-size:1.25rem">admin</p>
+        <p class="note" id="statUser">—</p>
+      </div>
+    </div>
+
+    <section class="card section-gap">
+      <h3>Tìm tài khoản Random</h3>
+      <p class="sub">Tìm trong kho thật của backend (không phải file công khai). Gõ mã acc, tên tướng hoặc skin.</p>
+      <div class="search-row">
+        <div class="field">
+          <label for="q">Từ khóa</label>
+          <input class="input" id="q" type="text" placeholder="Ví dụ: LQ1052, nakroth, murad" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" id="searchBtn" type="button">Tìm</button>
+        <button class="btn btn-secondary" id="clearBtn" type="button">Xóa</button>
+      </div>
+      <div id="searchOut" style="margin-top:16px"></div>
+    </section>
+
+    <section class="card section-gap">
+      <h3>Đơn đã bán qua web</h3>
+      <p class="sub">Danh sách mã acc đã bán qua web, mới nhất ở trên.</p>
+      <div id="soldOut"></div>
+    </section>
+
+    <section class="card section-gap">
+      <h3>Số dư &amp; tài khoản web</h3>
+      <p class="sub">Đặt lại / cộng tiền và xem danh sách tài khoản vẫn làm trong Telegram bằng lệnh /admin (Set tiền, Cộng tiền, Xem tiền) hoặc /setmoney, /addmoney, /checkweb. Trình duyệt không gửi được token bot qua API nên trang web chưa làm được phần này. Muốn đưa số dư lên web thì cần sửa CORS ở backend.</p>
+    </section>
+  </section>
+</main>
+
+<footer>
+  <div class="container">AnhDev Admin · gọi API backend Render · không hiển thị tài khoản/mật khẩu acc game.</div>
+</footer>
+
+<div id="toast" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* A = API backend Render. T = JWT phiên admin (localStorage). U = user đang đăng nhập. */
+const A = "https://anhdev-store-backend.onrender.com";
+const LS_T = "anhdev_admin_token";
+let T = localStorage.getItem(LS_T) || "";
+let U = null;
+
+function el(i){ return document.getElementById(i); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function fmt(n){ return Number(n).toLocaleString("vi-VN"); }
+
+async function api(p, o){
+  o = o || {};
+  let h = { "Content-Type": "application/json" };
+  if (T) h["Authorization"] = "Bearer " + T;
+  let r = await fetch(A + p, { method: o.method || "GET", headers: h, body: o.body ? JSON.stringify(o.body) : undefined });
+  let d = null;
+  try { d = await r.json(); } catch (e) { d = null; }
+  if (!r.ok) {
+    let m = (d && (d.message || d.error)) || ("Lỗi " + r.status);
+    let x = new Error(m); x.status = r.status; throw x;
+  }
+  return d;
+}
+
+function toast(m, ok){
+  let w = el("toast");
+  let n = document.createElement("div");
+  n.className = "toast-item" + (ok === false ? " bad" : ok === true ? " ok" : "");
+  n.textContent = m;
+  w.appendChild(n);
+  let kill = function(){ if (n.parentNode) n.parentNode.removeChild(n); };
+  let t = setTimeout(kill, 4000);
+  n.addEventListener("mouseenter", function(){ clearTimeout(t); });
+  n.addEventListener("mouseleave", function(){ t = setTimeout(kill, 4000); });
+  while (w.children.length > 3) w.removeChild(w.firstChild);
+}
+
+function lock(b, on){
+  b.disabled = on;
+  if (on) { b.dataset.t = b.textContent; b.innerHTML = '<span class="spin"></span> Đang xử lý…'; }
+  else if (b.dataset.t) { b.textContent = b.dataset.t; delete b.dataset.t; }
+}
+
+function skel(w, n){
+  let s = "";
+  for (let i = 0; i < n; i++) s += '<div class="skel"></div>';
+  el(w).innerHTML = s;
+}
+
+function showLogin(){
+  el("loginSec").classList.remove("hidden");
+  el("dashSec").classList.add("hidden");
+  el("chip").classList.add("hidden");
+}
+function showDash(){
+  el("loginSec").classList.add("hidden");
+  el("dashSec").classList.remove("hidden");
+  el("chip").classList.remove("hidden");
+  el("who").textContent = U.username + " · " + U.role;
+  el("statUser").textContent = U.username + " · id " + U.id;
+}
+
+async function checkSession(){
+  if (!T) { showLogin(); return; }
+  try {
+    let d = await api("/api/auth/me");
+    U = d.user;
+    if (U.role !== "admin") { T = ""; localStorage.removeItem(LS_T); el("loginErr").textContent = "Tài khoản này không có quyền admin."; showLogin(); return; }
+    showDash();
+    loadDash();
+  } catch (e) {
+    T = ""; localStorage.removeItem(LS_T); showLogin();
+  }
+}
+
+async function doLogin(ev){
+  ev.preventDefault();
+  let b = el("loginBtn");
+  let u = el("loginUser").value.trim();
+  let p = el("loginPass").value;
+  el("loginErr").textContent = "";
+  if (!u || !p) { el("loginErr").textContent = "Nhập đủ tên đăng nhập và mật khẩu."; return; }
+  lock(b, true);
+  try {
+    let d = await api("/api/auth/login", { method: "POST", body: { username: u, password: p } });
+    if (d.user.role !== "admin") { el("loginErr").textContent = "Tài khoản này không có quyền admin. Cần đăng nhập bằng tài khoản admin."; lock(b, false); return; }
+    T = d.token; U = d.user;
+    localStorage.setItem(LS_T, T);
+    toast("Đăng nhập thành công. Chào " + U.username + ".", true);
+    showDash();
+    loadDash();
+  } catch (e) {
+    el("loginErr").textContent = e.status === 401 ? "Sai tên đăng nhập hoặc mật khẩu." : ("Không đăng nhập được: " + e.message);
+  } finally { lock(b, false); }
+}
+
+async function doLogout(){
+  try { await api("/api/auth/logout", { method: "POST" }); } catch (e) {}
+  T = ""; U = null; localStorage.removeItem(LS_T);
+  el("loginUser").value = ""; el("loginPass").value = "";
+  showLogin();
+  toast("Đã đăng xuất.");
+}
+
+async function loadDash(){
+  el("statHealth").textContent = "…";
+  el("statStock").textContent = "…";
+  el("statSold").textContent = "…";
+  let t0 = performance.now();
+  try {
+    let h = await api("/api/health");
+    let ms = Math.round(performance.now() - t0);
+    el("statHealth").innerHTML = '<span class="dot ok"></span>' + (h.ok ? "Hoạt động" : "Lỗi");
+    el("statHealthMs").textContent = "Phản hồi " + ms + " ms" + (ms > 5000 ? " (cold start)" : "");
+  } catch (e) {
+    el("statHealth").innerHTML = '<span class="dot bad"></span>Không kết nối';
+    el("statHealthMs").textContent = e.message;
+  }
+  try {
+    let d = await api("/api/admin/random-index?limit=1");
+    el("statStock").textContent = fmt(d.total);
+  } catch (e) { el("statStock").textContent = "—"; }
+  loadSold();
+}
+
+async function loadSold(){
+  skel("soldOut", 3);
+  try {
+    let d = await api("/api/admin/shop/sold");
+    el("statSold").textContent = fmt(d.count);
+    if (!d.sold || d.sold.length === 0) {
+      el("soldOut").innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M12 22V12"/></svg><p>Chưa có đơn nào bán qua web.</p></div>';
+      return;
+    }
+    let s = '<div class="table-wrap"><table><thead><tr><th>Mã acc</th><th>Thời gian bán</th></tr></thead><tbody>';
+    d.sold.forEach(function(r){
+      s += "<tr><td class=\"code\">" + esc(r.code) + "</td><td class=\"mono\">" + esc(r.sold_at) + "</td></tr>";
+    });
+    s += "</tbody></table></div>";
+    el("soldOut").innerHTML = s;
+  } catch (e) {
+    el("soldOut").innerHTML = '<p class="err">Không tải được danh sách đã bán: ' + esc(e.message) + "</p>";
+  }
+}
+
+async function doSearch(){
+  let b = el("searchBtn");
+  let q = el("q").value.trim();
+  if (!q) { el("searchOut").innerHTML = '<p class="err">Nhập từ khóa để tìm (mã acc, tên tướng hoặc skin).</p>'; return; }
+  lock(b, true);
+  skel("searchOut", 4);
+  try {
+    let d = await api("/api/admin/random-search?q=" + encodeURIComponent(q) + "&limit=20");
+    if (!d.results || d.results.length === 0) {
+      el("searchOut").innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><p>Không tìm thấy acc nào khớp “' + esc(q) + '”.</p><button class="btn btn-secondary" type="button" onclick="document.getElementById(\'q\').value=\'\';document.getElementById(\'searchOut\').innerHTML=\'\'">Xóa tìm kiếm</button></div>';
+      return;
+    }
+    let s = '<p class="note" style="margin-bottom:12px">Tìm thấy <b class="mono">' + fmt(d.total) + '</b> acc (hiển thị ' + d.results.length + ').</p><div class="table-wrap"><table><thead><tr><th>Mã acc</th><th class="num">Giá (đ)</th><th>Loại</th><th>Rank</th></tr></thead><tbody>';
+    d.results.forEach(function(r){
+      s += "<tr><td class=\"code\">" + esc(r.code) + "</td><td class=\"num\">" + fmt(r.price) + "</td><td>" + esc(r.kind || r.category || "") + "</td><td>" + esc(r.rank || "") + "</td></tr>";
+    });
+    s += "</tbody></table></div>";
+    el("searchOut").innerHTML = s;
+  } catch (e) {
+    el("searchOut").innerHTML = '<p class="err">Tìm kiếm lỗi: ' + esc(e.message) + "</p>";
+  } finally { lock(b, false); }
+}
+
+el("loginForm").addEventListener("submit", doLogin);
+el("logoutBtn").addEventListener("click", doLogout);
+el("searchBtn").addEventListener("click", doSearch);
+el("clearBtn").addEventListener("click", function(){ el("q").value = ""; el("searchOut").innerHTML = ""; });
+el("q").addEventListener("keydown", function(e){ if (e.key === "Enter") doSearch(); });
+checkSession();
+
+/* Chú thích biến (QT-48):
+   A = URL API backend Render · T = JWT phiên admin · U = user đang đăng nhập
+   LS_T = khóa localStorage của JWT
+   el = lấy phần tử theo id · api = gọi API (trả JSON, lỗi thì throw)
+   r = Response fetch · d = dữ liệu JSON · e = lỗi · n = số · s = chuỗi HTML
+   b = nút bấm · u = tên user · p = mật khẩu · q = từ khóa tìm kiếm
+   h = headers · o = tùy chọn gọi API · m = thông báo · t0 = thời điểm bắt đầu đo
+   ms = mili giây */
+</script>
+</body>
+</html>
