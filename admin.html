@@ -3,106 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://anhdev-store-backend.onrender.com; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
 <title>AnhDev Admin — Quản lý shop</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
-:root{
-  --bg-canvas:#09090B; --bg-surface:#111114; --bg-elevated:#18181C; --bg-active:#222228;
-  --bg-input:#0D0D10; --bg-glass:rgba(17,17,20,0.72);
-  --text-primary:#F4F4F6; --text-secondary:#A1A1AA; --text-muted:#71717A; --text-inverse:#09090B;
-  --accent-primary:#FF5A1F; --accent-hover:#FF7340; --accent-subtle:rgba(255,90,31,0.12);
-  --border-subtle:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.16);
-  --edge-highlight:inset 0 1px 0 0 rgba(255,255,255,0.08);
-  --input-recess:inset 0 2px 4px 0 rgba(0,0,0,0.45);
-  --status-success:#10B981; --status-warning:#F59E0B; --status-danger:#EF4444; --status-info:#38BDF8;
-  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-  --font-body:'Be Vietnam Pro',-apple-system,BlinkMacSystemFont,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
-  --radius-xs:4px; --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-full:9999px;
-  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px;
-  --space-8:32px; --space-12:48px; --space-16:64px;
-  --ease-snappy:cubic-bezier(0.2,0,0,1); --ease-out-expo:cubic-bezier(0.16,1,0.3,1);
-  --dur-fast:150ms; --dur-normal:250ms; --dur-slow:420ms;
-  --z-sticky:100; --z-toast:400;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;background-color:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-body);font-size:16px;-webkit-font-smoothing:antialiased}
-body{background-color:var(--bg-canvas);color:var(--text-primary);line-height:1.6;overflow-x:clip;min-height:100vh}
-::selection{background-color:var(--accent-primary);color:var(--text-primary)}
-h1,h2,h3{font-family:var(--font-display);color:var(--text-primary);text-wrap:balance}
-h1{font-size:clamp(2rem,4vw,3.25rem);font-weight:800;line-height:1.12;letter-spacing:-0.03em}
-h2{font-size:clamp(1.5rem,2.5vw,2rem);font-weight:700;line-height:1.2;letter-spacing:-0.02em}
-h3{font-size:1.125rem;font-weight:600;line-height:1.35;letter-spacing:-0.01em}
-p{color:var(--text-secondary);font-size:0.9375rem;max-width:65ch;text-wrap:pretty}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.eyebrow{font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent-primary)}
-.container{width:100%;max-width:1240px;margin:0 auto;padding:0 var(--space-6)}
-.site-header{position:sticky;top:0;height:64px;background:var(--bg-glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border-subtle);z-index:var(--z-sticky);display:flex;align-items:center}
-.header-inner{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
-.brand{display:flex;align-items:center;gap:var(--space-3);font-family:var(--font-display);font-weight:800;font-size:1.125rem;letter-spacing:-0.01em}
-.brand svg{width:18px;height:18px;stroke:var(--accent-primary);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;fill:none}
-.user-chip{display:flex;align-items:center;gap:var(--space-3)}
-.user-chip .who{font-family:var(--font-mono);font-size:0.8125rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
-main{padding:var(--space-8) 0 var(--space-16)}
-.bento{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--space-4)}
-.col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}
-@media (max-width:768px){.container{padding:0 var(--space-4)}.col-8,.col-6,.col-4,.col-3{grid-column:span 12}}
-.card{position:relative;background-color:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:var(--space-6);box-shadow:var(--edge-highlight);overflow:hidden;transition:transform var(--dur-normal) var(--ease-out-expo),background-color var(--dur-normal) var(--ease-out-expo),border-color var(--dur-normal) var(--ease-out-expo)}
-.card:hover{background-color:var(--bg-elevated);border-color:var(--border-strong)}
-.card h3{margin-bottom:var(--space-2)}
-.card .sub{color:var(--text-secondary);font-size:0.875rem;margin-bottom:var(--space-4)}
-.stat-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:2rem;font-weight:600;line-height:1.2;letter-spacing:-0.02em}
-.stat-label{font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-top:var(--space-1)}
-.dot{display:inline-block;width:8px;height:8px;border-radius:var(--radius-full);margin-right:var(--space-2);vertical-align:middle}
-.dot.ok{background-color:var(--status-success)}.dot.bad{background-color:var(--status-danger)}.dot.warn{background-color:var(--status-warning)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);height:40px;padding:0 var(--space-5);font-family:var(--font-body);font-size:0.875rem;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;border:1px solid transparent;text-decoration:none;transition:transform var(--dur-fast) var(--ease-snappy),background-color var(--dur-fast) var(--ease-snappy),border-color var(--dur-fast) var(--ease-snappy)}
-.btn:active{transform:scale(0.97)}
-.btn:focus-visible,.input:focus-visible{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-subtle)}
-.btn-primary{background-color:var(--accent-primary);color:var(--text-primary);box-shadow:var(--edge-highlight)}
-.btn-primary:hover{background-color:var(--accent-hover);transform:translateY(-1px)}
-.btn-secondary{background-color:var(--bg-elevated);color:var(--text-primary);border-color:var(--border-subtle);box-shadow:var(--edge-highlight)}
-.btn-secondary:hover{background-color:var(--bg-active);border-color:var(--border-strong)}
-.btn-danger{background-color:var(--status-danger);color:var(--text-primary);box-shadow:var(--edge-highlight)}
-.btn-danger:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.btn-sm{height:32px;padding:0 var(--space-3);font-size:0.8125rem}
-.btn:disabled{opacity:0.55;cursor:not-allowed;transform:none}
-.btn .spin{width:14px;height:14px;border:2px solid rgba(255,255,255,0.35);border-top-color:var(--text-primary);border-radius:var(--radius-full);animation:rot 0.8s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-@media (pointer:coarse){.btn,.input{min-height:44px}}
-.input{width:100%;height:42px;padding:0 var(--space-3);background-color:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);box-shadow:var(--input-recess);color:var(--text-primary);font-family:var(--font-body);font-size:0.875rem;transition:border-color var(--dur-fast) var(--ease-snappy)}
-.input::placeholder{color:var(--text-muted)}
-label{display:block;font-size:0.8125rem;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-2)}
-.field{margin-bottom:var(--space-4)}
-.table-wrap{overflow-x:auto;border:1px solid var(--border-subtle);border-radius:var(--radius-sm)}
-table{width:100%;border-collapse:collapse;font-size:0.875rem}
-thead th{position:sticky;top:0;background-color:var(--bg-elevated);text-align:left;padding:var(--space-3) var(--space-4);font-family:var(--font-mono);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-subtle);white-space:nowrap}
-tbody td{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-subtle);color:var(--text-primary);vertical-align:top}
-tbody tr:last-child td{border-bottom:none}
-tbody tr:hover{background-color:var(--bg-elevated)}
-td.num,th.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-td.code{font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.err{color:var(--status-danger);font-size:0.875rem;margin-top:var(--space-3);min-height:1.25rem}
-.note{color:var(--text-muted);font-size:0.8125rem;margin-top:var(--space-3)}
-.skel{position:relative;overflow:hidden;background-color:var(--bg-elevated);border-radius:var(--radius-xs);height:16px;margin-bottom:var(--space-2)}
-.skel::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:shim 1.4s infinite}
-@keyframes shim{100%{transform:translateX(100%)}}
-.empty{text-align:center;padding:var(--space-8) var(--space-4);color:var(--text-secondary)}
-.empty svg{width:32px;height:32px;stroke:var(--text-muted);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;fill:none;margin-bottom:var(--space-3)}
-.empty p{margin:0 auto var(--space-4)}
-#toast{position:fixed;right:16px;bottom:16px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:var(--space-2);max-width:min(360px,calc(100vw - 32px))}
-.toast-item{background-color:var(--bg-elevated);border:1px solid var(--border-strong);border-left:3px solid var(--accent-primary);border-radius:var(--radius-sm);padding:var(--space-3) var(--space-4);font-size:0.875rem;box-shadow:var(--edge-highlight);animation:tin var(--dur-normal) var(--ease-out-expo)}
-.toast-item.ok{border-left-color:var(--status-success)}
-.toast-item.bad{border-left-color:var(--status-danger)}
-@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.login-wrap{max-width:440px;margin:var(--space-16) auto 0}
-.search-row{display:flex;gap:var(--space-3);align-items:flex-end;flex-wrap:wrap}
-.search-row .field{flex:1;margin-bottom:0;min-width:160px}
-.section-gap{margin-top:var(--space-8)}
-.divider{border-top:1px solid var(--border-subtle);margin-top:var(--space-6);padding-top:var(--space-6)}
-.hidden{display:none!important}
-footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:var(--text-muted);font-size:0.8125rem}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}
-</style>
+<link rel="stylesheet" href="admin.css">
 </head>
 <body>
 <header class="site-header">
@@ -123,30 +28,30 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
   <section id="loginSec" class="login-wrap">
     <div class="card">
       <p class="eyebrow">AnhDev Store · Quản trị</p>
-      <h2 style="margin-top:8px">Đăng nhập admin</h2>
-      <p class="sub">Chỉ tài khoản có quyền admin mới vào được. Dùng tài khoản admin2 của shop.</p>
+      <h2 class="mt-2">Đăng nhập admin</h2>
+      <p class="sub">Chỉ tài khoản có quyền admin mới vào được.</p>
       <form id="loginForm" novalidate>
         <div class="field">
           <label for="loginUser">Tên đăng nhập</label>
-          <input class="input" id="loginUser" type="text" autocomplete="username" placeholder="admin2" required>
+          <input class="input" id="loginUser" type="text" autocomplete="username" placeholder="Tên đăng nhập" required>
         </div>
         <div class="field">
           <label for="loginPass">Mật khẩu</label>
           <input class="input" id="loginPass" type="password" autocomplete="current-password" placeholder="Mật khẩu admin" required>
         </div>
-        <button class="btn btn-primary" id="loginBtn" type="submit" style="width:100%">Đăng nhập</button>
+        <button class="btn btn-primary w-full" id="loginBtn" type="submit">Đăng nhập</button>
         <p class="err" id="loginErr" role="alert"></p>
       </form>
-      <p class="note">Lần đầu sau khi backend ngủ, đăng nhập có thể mất khoảng 50 giây (cold start). Trang không lưu mật khẩu, chỉ lưu phiên đăng nhập trên trình duyệt này.</p>
+      <p class="note">Trang không lưu mật khẩu và không lưu phiên đăng nhập sau khi đóng tab.</p>
     </div>
   </section>
 
-  <!-- Bảng điều khiển -->
+  <!-- Bảng điều khiển: ẩn mặc định, chỉ hiện sau khi /api/auth/me xác nhận role === "admin" -->
   <section id="dashSec" class="hidden">
     <div class="bento">
       <div class="card col-3">
         <p class="stat-label">Backend</p>
-        <p class="stat-num" id="statHealth" style="font-size:1.25rem">—</p>
+        <p class="stat-num stat-num-sm" id="statHealth">—</p>
         <p class="note" id="statHealthMs">Chưa kiểm tra</p>
       </div>
       <div class="card col-3">
@@ -161,7 +66,7 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
       </div>
       <div class="card col-3">
         <p class="stat-label">Phiên</p>
-        <p class="stat-num" id="statRole" style="font-size:1.25rem">admin</p>
+        <p class="stat-num stat-num-sm" id="statRole">admin</p>
         <p class="note" id="statUser">—</p>
       </div>
     </div>
@@ -177,7 +82,7 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
         <button class="btn btn-primary" id="searchBtn" type="button">Tìm</button>
         <button class="btn btn-secondary" id="clearBtn" type="button">Xóa</button>
       </div>
-      <div id="searchOut" style="margin-top:16px"></div>
+      <div id="searchOut" class="out-block"></div>
       <div class="divider">
         <h3>Sửa giá 1 acc</h3>
         <p class="sub">Nhập mã acc và giá mới. Chỉ sửa được acc chưa bán.</p>
@@ -193,7 +98,7 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
           <button class="btn btn-primary" id="editBtn" type="button">Lưu giá mới</button>
         </div>
         <p class="err" id="editErr" role="alert"></p>
-        <div id="editOut" style="margin-top:16px"></div>
+        <div id="editOut" class="out-block"></div>
       </div>
     </section>
 
@@ -205,7 +110,7 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
 
     <section class="card section-gap">
       <h3>Số dư &amp; tài khoản web</h3>
-      <p class="sub">Đặt lại / cộng tiền và xem số dư cho tài khoản web. Lệnh /admin trong Telegram vẫn dùng được song song.</p>
+      <p class="sub">Đặt lại / cộng tiền và xem số dư cho tài khoản web.</p>
       <div class="search-row">
         <div class="field">
           <label for="balUser">Tên tài khoản web</label>
@@ -216,313 +121,51 @@ footer{border-top:1px solid var(--border-subtle);padding:var(--space-6) 0;color:
           <input class="input mono" id="balAmt" type="number" placeholder="50000" autocomplete="off">
         </div>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+      <div class="btn-row">
         <button class="btn btn-primary" id="setBalBtn" type="button">Đặt lại số dư</button>
         <button class="btn btn-secondary" id="addBalBtn" type="button">Cộng / trừ tiền</button>
         <button class="btn btn-secondary" id="checkBalBtn" type="button">Xem tiền</button>
       </div>
       <p class="err" id="balErr" role="alert"></p>
-      <div id="balOut" style="margin-top:16px"></div>
+      <div id="balOut" class="out-block"></div>
       <div class="divider">
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <h3 style="margin-bottom:0">Tài khoản web</h3>
+        <div class="row-flex">
+          <h3 class="mb-0">Tài khoản web</h3>
           <button class="btn btn-secondary" id="usersBtn" type="button">Tải danh sách</button>
         </div>
-        <div id="usersOut" style="margin-top:16px"></div>
+        <div id="usersOut" class="out-block"></div>
+      </div>
+      <div class="divider">
+        <h3>Đổi mật khẩu</h3>
+        <p class="sub">Đổi mật khẩu đăng nhập web cho 1 tài khoản. Mật khẩu mới từ 6–64 ký tự. Đổi xong, mọi phiên đăng nhập cũ của tài khoản đó bị vô hiệu và phải đăng nhập lại bằng mật khẩu mới.</p>
+        <div class="search-row">
+          <div class="field">
+            <label for="pwUser">Tên tài khoản web</label>
+            <input class="input" id="pwUser" type="text" placeholder="Ví dụ: nhatdz" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="pwNew">Mật khẩu mới</label>
+            <input class="input" id="pwNew" type="password" placeholder="Mật khẩu mới (6–64 ký tự)" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="pwConfirm">Nhập lại mật khẩu mới</label>
+            <input class="input" id="pwConfirm" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
+          </div>
+          <button class="btn btn-primary" id="pwBtn" type="button">Đổi mật khẩu</button>
+        </div>
+        <p class="err" id="pwErr" role="alert"></p>
+        <div id="pwOut" class="out-block"></div>
       </div>
     </section>
   </section>
 </main>
 
 <footer>
-  <div class="container">AnhDev Admin · gọi API backend Render · không hiển thị tài khoản/mật khẩu acc game.</div>
+  <div class="container">AnhDev Admin · không hiển thị tài khoản/mật khẩu acc game.</div>
 </footer>
 
 <div id="toast" aria-live="polite"></div>
 
-<script>
-"use strict";
-/* A = API backend Render. T = JWT phiên admin (localStorage). U = user đang đăng nhập. */
-const A = "https://anhdev-store-backend.onrender.com";
-const LS_T = "anhdev_admin_token";
-let T = localStorage.getItem(LS_T) || "";
-let U = null;
-
-function el(i){ return document.getElementById(i); }
-function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function fmt(n){ return Number(n).toLocaleString("vi-VN"); }
-
-async function api(p, o){
-  o = o || {};
-  let h = { "Content-Type": "application/json" };
-  if (T) h["Authorization"] = "Bearer " + T;
-  let r = await fetch(A + p, { method: o.method || "GET", headers: h, body: o.body ? JSON.stringify(o.body) : undefined });
-  let d = null;
-  try { d = await r.json(); } catch (e) { d = null; }
-  if (!r.ok) {
-    let m = (d && (d.message || d.error)) || ("Lỗi " + r.status);
-    let x = new Error(m); x.status = r.status; throw x;
-  }
-  return d;
-}
-
-function toast(m, ok){
-  let w = el("toast");
-  let n = document.createElement("div");
-  n.className = "toast-item" + (ok === false ? " bad" : ok === true ? " ok" : "");
-  n.textContent = m;
-  w.appendChild(n);
-  let kill = function(){ if (n.parentNode) n.parentNode.removeChild(n); };
-  let t = setTimeout(kill, 4000);
-  n.addEventListener("mouseenter", function(){ clearTimeout(t); });
-  n.addEventListener("mouseleave", function(){ t = setTimeout(kill, 4000); });
-  while (w.children.length > 3) w.removeChild(w.firstChild);
-}
-
-function lock(b, on){
-  b.disabled = on;
-  if (on) { b.dataset.t = b.textContent; b.innerHTML = '<span class="spin"></span> Đang xử lý…'; }
-  else if (b.dataset.t) { b.textContent = b.dataset.t; delete b.dataset.t; }
-}
-
-function skel(w, n){
-  let s = "";
-  for (let i = 0; i < n; i++) s += '<div class="skel"></div>';
-  el(w).innerHTML = s;
-}
-
-function showLogin(){
-  el("loginSec").classList.remove("hidden");
-  el("dashSec").classList.add("hidden");
-  el("chip").classList.add("hidden");
-}
-function showDash(){
-  el("loginSec").classList.add("hidden");
-  el("dashSec").classList.remove("hidden");
-  el("chip").classList.remove("hidden");
-  el("who").textContent = U.username + " · " + U.role;
-  el("statUser").textContent = U.username + " · id " + U.id;
-}
-
-async function checkSession(){
-  if (!T) { showLogin(); return; }
-  try {
-    let d = await api("/api/auth/me");
-    U = d.user;
-    if (U.role !== "admin") { T = ""; localStorage.removeItem(LS_T); el("loginErr").textContent = "Tài khoản này không có quyền admin."; showLogin(); return; }
-    showDash();
-    loadDash();
-  } catch (e) {
-    T = ""; localStorage.removeItem(LS_T); showLogin();
-  }
-}
-
-async function doLogin(ev){
-  ev.preventDefault();
-  let b = el("loginBtn");
-  let u = el("loginUser").value.trim();
-  let p = el("loginPass").value;
-  el("loginErr").textContent = "";
-  if (!u || !p) { el("loginErr").textContent = "Nhập đủ tên đăng nhập và mật khẩu."; return; }
-  lock(b, true);
-  try {
-    let d = await api("/api/auth/login", { method: "POST", body: { username: u, password: p } });
-    if (d.user.role !== "admin") { el("loginErr").textContent = "Tài khoản này không có quyền admin. Cần đăng nhập bằng tài khoản admin."; lock(b, false); return; }
-    T = d.token; U = d.user;
-    localStorage.setItem(LS_T, T);
-    toast("Đăng nhập thành công. Chào " + U.username + ".", true);
-    showDash();
-    loadDash();
-  } catch (e) {
-    el("loginErr").textContent = e.status === 401 ? "Sai tên đăng nhập hoặc mật khẩu." : ("Không đăng nhập được: " + e.message);
-  } finally { lock(b, false); }
-}
-
-async function doLogout(){
-  try { await api("/api/auth/logout", { method: "POST" }); } catch (e) {}
-  T = ""; U = null; localStorage.removeItem(LS_T);
-  el("loginUser").value = ""; el("loginPass").value = "";
-  showLogin();
-  toast("Đã đăng xuất.");
-}
-
-async function loadDash(){
-  el("statHealth").textContent = "…";
-  el("statStock").textContent = "…";
-  el("statSold").textContent = "…";
-  let t0 = performance.now();
-  try {
-    let h = await api("/api/health");
-    let ms = Math.round(performance.now() - t0);
-    el("statHealth").innerHTML = '<span class="dot ok"></span>' + (h.ok ? "Hoạt động" : "Lỗi");
-    el("statHealthMs").textContent = "Phản hồi " + ms + " ms" + (ms > 5000 ? " (cold start)" : "");
-  } catch (e) {
-    el("statHealth").innerHTML = '<span class="dot bad"></span>Không kết nối';
-    el("statHealthMs").textContent = e.message;
-  }
-  try {
-    let d = await api("/api/admin/random-index?limit=1");
-    el("statStock").textContent = fmt(d.total);
-  } catch (e) { el("statStock").textContent = "—"; }
-  loadSold();
-}
-
-async function loadSold(){
-  skel("soldOut", 3);
-  try {
-    let d = await api("/api/admin/shop/sold");
-    el("statSold").textContent = fmt(d.count);
-    if (!d.sold || d.sold.length === 0) {
-      el("soldOut").innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M12 22V12"/></svg><p>Chưa có đơn nào bán qua web.</p></div>';
-      return;
-    }
-    let s = '<div class="table-wrap"><table><thead><tr><th>Mã acc</th><th>Thời gian bán</th></tr></thead><tbody>';
-    d.sold.forEach(function(r){
-      s += "<tr><td class=\"code\">" + esc(r.code) + "</td><td class=\"mono\">" + esc(r.sold_at) + "</td></tr>";
-    });
-    s += "</tbody></table></div>";
-    el("soldOut").innerHTML = s;
-  } catch (e) {
-    el("soldOut").innerHTML = '<p class="err">Không tải được danh sách đã bán: ' + esc(e.message) + "</p>";
-  }
-}
-
-async function doSearch(){
-  let b = el("searchBtn");
-  let q = el("q").value.trim();
-  if (!q) { el("searchOut").innerHTML = '<p class="err">Nhập từ khóa để tìm (mã acc, tên tướng hoặc skin).</p>'; return; }
-  lock(b, true);
-  skel("searchOut", 4);
-  try {
-    let d = await api("/api/admin/random-search?q=" + encodeURIComponent(q) + "&limit=20");
-    if (!d.results || d.results.length === 0) {
-      el("searchOut").innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><p>Không tìm thấy acc nào khớp “' + esc(q) + '”.</p><button class="btn btn-secondary" type="button" onclick="document.getElementById(\'q\').value=\'\';document.getElementById(\'searchOut\').innerHTML=\'\'">Xóa tìm kiếm</button></div>';
-      return;
-    }
-    let s = '<p class="note" style="margin-bottom:12px">Tìm thấy <b class="mono">' + fmt(d.total) + '</b> acc (hiển thị ' + d.results.length + ').</p><div class="table-wrap"><table><thead><tr><th>Mã acc</th><th class="num">Giá (đ)</th><th>Loại</th><th>Rank</th><th></th></tr></thead><tbody>';
-    d.results.forEach(function(r){
-      s += "<tr><td class=\"code\">" + esc(r.code) + "</td><td class=\"num\">" + fmt(r.price) + "</td><td>" + esc(r.kind || r.category || "") + "</td><td>" + esc(r.rank || "") + "</td><td style=\"white-space:nowrap;text-align:right\"><button class=\"btn btn-secondary btn-sm\" type=\"button\" onclick=\"fillEdit('" + esc(r.code) + "'," + Number(r.price) + ")\">Sửa</button> <button class=\"btn btn-danger btn-sm\" type=\"button\" onclick=\"delStock('" + esc(r.code) + "',this)\">Xóa</button></td></tr>";
-    });
-    s += "</tbody></table></div>";
-    el("searchOut").innerHTML = s;
-  } catch (e) {
-    el("searchOut").innerHTML = '<p class="err">Tìm kiếm lỗi: ' + esc(e.message) + "</p>";
-  } finally { lock(b, false); }
-}
-
-function fillEdit(c, p){
-  el("editCode").value = c;
-  el("editPrice").value = p;
-  el("editCode").focus();
-  el("editPrice").select();
-}
-
-async function doEdit(){
-  let b = el("editBtn");
-  let c = el("editCode").value.trim();
-  let p = el("editPrice").value.trim();
-  el("editErr").textContent = "";
-  if (!c) { el("editErr").textContent = "Nhập mã acc."; return; }
-  if (p === "" || isNaN(Number(p)) || Math.trunc(Number(p)) < 0) { el("editErr").textContent = "Nhập giá mới hợp lệ (>= 0)."; return; }
-  let n = Math.trunc(Number(p));
-  lock(b, true);
-  try {
-    let d = await api("/api/admin/shop/stock/" + encodeURIComponent(c) + "/update", { method: "POST", body: { price: n } });
-    el("editOut").innerHTML = '<div class="table-wrap"><table><tbody><tr><td>Mã acc</td><td class="code">' + esc(d.code) + '</td></tr><tr><td>Giá cũ</td><td class="num">' + fmt(d.old_price) + 'đ</td></tr><tr><td>Giá mới</td><td class="num">' + fmt(d.price) + 'đ</td></tr></tbody></table></div>';
-    toast("Đã đổi giá " + d.code + " thành " + fmt(d.price) + "đ.", true);
-    if (el("q").value.trim()) doSearch();
-  } catch (e) {
-    el("editErr").textContent = e.status === 404 ? "Không tìm thấy acc này trong kho." : e.status === 409 ? "Acc này đã bán, không sửa được." : ("Lỗi: " + e.message);
-  } finally { lock(b, false); }
-}
-
-async function delStock(c, btn){
-  if (!confirm("Xóa acc " + c + " khỏi kho? Hành động này không hoàn tác được. Acc đã bán thì không xóa được.")) return;
-  btn.disabled = true;
-  try {
-    await api("/api/admin/shop/stock/" + encodeURIComponent(c) + "/delete", { method: "POST", body: {} });
-    toast("Đã xóa " + c + " khỏi kho.", true);
-    if (el("q").value.trim()) doSearch();
-    loadDash();
-  } catch (e) {
-    toast(e.status === 404 ? "Không tìm thấy acc " + c + "." : e.status === 409 ? "Acc " + c + " đã bán, không xóa được." : ("Xóa lỗi: " + e.message), false);
-    btn.disabled = false;
-  }
-}
-
-async function doBal(kind){
-  let u = el("balUser").value.trim();
-  let a = el("balAmt").value.trim();
-  el("balErr").textContent = "";
-  if (!u) { el("balErr").textContent = "Nhập tên tài khoản web."; return; }
-  if (a === "" || isNaN(Number(a))) { el("balErr").textContent = "Nhập số tiền hợp lệ."; return; }
-  let n = Math.trunc(Number(a));
-  if (kind === "set" && !confirm("Đặt lại số dư của " + u + " thành " + fmt(n) + "đ? Hành động này ghi đè số dư hiện tại.")) return;
-  let b = kind === "set" ? el("setBalBtn") : el("addBalBtn");
-  lock(b, true);
-  try {
-    let d = await api("/api/admin/balance/" + kind, { method: "POST", body: { username: u, amount: n } });
-    el("balOut").innerHTML = '<div class="table-wrap"><table><tbody><tr><td>Tài khoản</td><td class="code">' + esc(d.username) + '</td></tr><tr><td>Số dư cũ</td><td class="num">' + fmt(d.old_balance) + 'đ</td></tr><tr><td>Số dư mới</td><td class="num">' + fmt(d.balance) + 'đ</td></tr></tbody></table></div>';
-    toast("Đã " + (kind === "set" ? "đặt lại" : "cộng/trừ") + " số dư cho " + d.username + ": " + fmt(d.balance) + "đ.", true);
-    loadUsers(true);
-  } catch (e) {
-    el("balErr").textContent = e.status === 404 ? "Không tìm thấy tài khoản web này." : ("Lỗi: " + e.message);
-  } finally { lock(b, false); }
-}
-
-async function doCheck(){
-  let u = el("balUser").value.trim();
-  el("balErr").textContent = "";
-  if (!u) { el("balErr").textContent = "Nhập tên tài khoản web."; return; }
-  let b = el("checkBalBtn");
-  lock(b, true);
-  try {
-    let d = await api("/api/admin/users/" + encodeURIComponent(u));
-    el("balOut").innerHTML = '<div class="table-wrap"><table><tbody><tr><td>Tài khoản</td><td class="code">' + esc(d.user.username) + '</td></tr><tr><td>Vai trò</td><td>' + esc(d.user.role) + '</td></tr><tr><td>Số dư</td><td class="num">' + fmt(d.user.balance) + 'đ</td></tr><tr><td>Số hóa đơn</td><td class="num">' + fmt(d.invoice_count) + '</td></tr></tbody></table></div>';
-  } catch (e) {
-    el("balErr").textContent = e.status === 404 ? "Không tìm thấy tài khoản web này." : ("Lỗi: " + e.message);
-  } finally { lock(b, false); }
-}
-
-async function loadUsers(quiet){
-  skel("usersOut", 4);
-  try {
-    let d = await api("/api/admin/users");
-    if (!d.users || d.users.length === 0) {
-      el("usersOut").innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><p>Chưa có tài khoản web nào.</p></div>';
-      return;
-    }
-    let s = '<div class="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Vai trò</th><th class="num">Số dư (đ)</th><th>Telegram</th><th>Ngày tạo</th></tr></thead><tbody>';
-    d.users.forEach(function(r){
-      s += "<tr><td class=\"code\">" + esc(r.username) + "</td><td>" + esc(r.role) + "</td><td class=\"num\">" + fmt(r.balance) + "</td><td class=\"mono\">" + esc(r.telegram_id || "") + "</td><td class=\"mono\">" + esc(r.created_at || "") + "</td></tr>";
-    });
-    s += "</tbody></table></div>";
-    el("usersOut").innerHTML = s;
-  } catch (e) {
-    el("usersOut").innerHTML = '<p class="err">Không tải được danh sách: ' + esc(e.message) + "</p>";
-  }
-}
-
-el("loginForm").addEventListener("submit", doLogin);
-el("logoutBtn").addEventListener("click", doLogout);
-el("searchBtn").addEventListener("click", doSearch);
-el("clearBtn").addEventListener("click", function(){ el("q").value = ""; el("searchOut").innerHTML = ""; });
-el("q").addEventListener("keydown", function(e){ if (e.key === "Enter") doSearch(); });
-el("editBtn").addEventListener("click", doEdit);
-el("setBalBtn").addEventListener("click", function(){ doBal("set"); });
-el("addBalBtn").addEventListener("click", function(){ doBal("add"); });
-el("checkBalBtn").addEventListener("click", doCheck);
-el("usersBtn").addEventListener("click", function(){ loadUsers(false); });
-checkSession();
-
-/* Chú thích biến (QT-48):
-   A = URL API backend Render · T = JWT phiên admin · U = user đang đăng nhập
-   LS_T = khóa localStorage của JWT
-   el = lấy phần tử theo id · api = gọi API (trả JSON, lỗi thì throw)
-   r = Response fetch · d = dữ liệu JSON · e = lỗi · n = số · s = chuỗi HTML
-   b = nút bấm · u = tên user · p = mật khẩu · q = từ khóa tìm kiếm
-   h = headers · o = tùy chọn gọi API · m = thông báo · t0 = thời điểm bắt đầu đo
-   ms = mili giây · c = mã acc */
-</script>
+<script src="admin.js" defer></script>
 </body>
 </html>

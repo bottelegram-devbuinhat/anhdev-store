@@ -14,12 +14,12 @@
         - Nut 40px / input 42px / touch 44px o pointer:coarse (QT-20);
           active scale 0.97 (QT-21); cubic-bezier chuan (QT-28);
           prefers-reduced-motion (QT-32); vong xoay mini 14px (QT-36).
-        - O password KHONG co minlength (admin2 mat khau "1" dang nhap duoc).
+        - O password KHONG co minlength (admin2 mat khau gia 1 ky tu "x" dang nhap duoc).
         - Co API_BASE_URL that, endpoint login/register, key anhdev_web_token,
           payload password_confirm; co chu thich bien QT-48.
      B. Chay that trong jsdom (fetch gia lap backend):
         - Tab Dang nhap/Dang ky chuyen dung; hien/an mat khau.
-        - Login admin2 mat khau "1" thanh cong: dung endpoint + payload,
+        - Login admin2 mat khau gia 1 ky tu "x" thanh cong: dung endpoint + payload,
           token luu localStorage anhdev_web_token, chuyen ve index.html.
         - Login sai TK/MK -> notice loi tieng Viet, nut mo khoa lai.
         - Register moi: dung endpoint + payload (co password_confirm);
@@ -117,8 +117,8 @@ function makeFetch(o){
   o = o || {};
   const calls = [];
   const users = o.users || {
-    admin2: { password: "1", role: "admin" },
-    nhatdeptrai: { password: "123456", role: "user" }
+    admin2: { password: "x", role: "admin" },  // 1 ky tu gia: test login khong min-6 (KHONG phai mat khau that)
+    nhatdeptrai: { password: "test123456", role: "user" }
   };
   function f(url, opts){
     opts = opts || {};
@@ -209,22 +209,22 @@ async function main(){
       d.querySelector("#submitLabel").textContent === "Đăng nhập ngay");
   }
 
-  /* b3: admin2 mat khau "1" dang nhap duoc (test chinh) */
+  /* b3: admin2 mat khau gia 1 ky tu "x" dang nhap duoc (test chinh) */
   {
     const f = makeFetch();
     const t = makeDom(f);
     const d = t.d, w = t.w;
     d.querySelector("#username").value = "admin2";
-    d.querySelector("#password").value = "1";
+    d.querySelector("#password").value = "x";
     submitForm(w, d);
     await sleep(1000);
     const loginCalls = f.calls.filter(function(c){ return c.url.indexOf("/api/auth/login") !== -1; });
     check("b3a. login admin2 goi dung POST /api/auth/login",
       loginCalls.length === 1 && loginCalls[0].method === "POST",
       JSON.stringify(loginCalls));
-    check("b3b. payload dung {username:'admin2', password:'1'}",
+    check("b3b. payload dung {username:'admin2', password:'x'}",
       loginCalls.length === 1 && loginCalls[0].body &&
-      loginCalls[0].body.username === "admin2" && loginCalls[0].body.password === "1",
+      loginCalls[0].body.username === "admin2" && loginCalls[0].body.password === "x",
       JSON.stringify(loginCalls[0] && loginCalls[0].body));
     check("b3c. token luu localStorage anhdev_web_token",
       w.localStorage.getItem("anhdev_web_token") === "jwt-admin2",
@@ -335,7 +335,7 @@ async function main(){
     const t = makeDom(f);
     const d = t.d, w = t.w;
     d.querySelector("#username").value = "nhatdeptrai";
-    d.querySelector("#password").value = "123456";
+    d.querySelector("#password").value = "test123456";
     submitForm(w, d);
     submitForm(w, d);
     const busyNow = d.querySelector("#submitBtn").disabled === true;
@@ -352,7 +352,7 @@ async function main(){
     const t = makeDom(netFail);
     const d = t.d, w = t.w;
     d.querySelector("#username").value = "nhatdeptrai";
-    d.querySelector("#password").value = "123456";
+    d.querySelector("#password").value = "test123456";
     submitForm(w, d);
     await sleep(600);
     check("b10. loi mang: notice 'Không kết nối được máy chủ' + nut mo khoa",
@@ -367,7 +367,7 @@ async function main(){
     const t = makeDom(f);
     const d = t.d, w = t.w;
     d.querySelector("#username").value = "nhatdeptrai";
-    d.querySelector("#password").value = "123456";
+    d.querySelector("#password").value = "test123456";
     submitForm(w, d);
     await sleep(1000);
     check("b11. /me 500: van luu token + chuyen trang",
@@ -396,7 +396,7 @@ async function main(){
     const t = makeDom(f);
     const d = t.d, w = t.w;
     d.querySelector("#username").value = "nhatdeptrai";
-    d.querySelector("#password").value = "123456";
+    d.querySelector("#password").value = "test123456";
     submitForm(w, d);
     await sleep(1000);
     check("b13a. ghi nho (mac dinh check): remember='1', khong sessionStorage",
@@ -409,7 +409,7 @@ async function main(){
     const d = t.d, w = t.w;
     d.querySelector("#remember").checked = false;
     d.querySelector("#username").value = "nhatdeptrai";
-    d.querySelector("#password").value = "123456";
+    d.querySelector("#password").value = "test123456";
     submitForm(w, d);
     await sleep(1000);
     check("b13b. bo ghi nho: remember='0' + token trong sessionStorage",
@@ -431,14 +431,14 @@ async function main(){
       !!d.querySelector('a[href="https://t.me/devbn_bot"]'));
     check("b14c. window.onTelegramAuth la function",
       typeof w.onTelegramAuth === "function");
-    w.onTelegramAuth({ id: 123456, first_name: "Anh", username: "anhdev", auth_date: 1799999999 });
+    w.onTelegramAuth({ id: 987654, first_name: "Anh", username: "anhdev", auth_date: 1799999999 });
     await sleep(900);
     let saved = null;
     try { saved = JSON.parse(w.localStorage.getItem("anhdev_user")); } catch (e) { saved = null; }
     check("b14d. onTelegramAuth luu anhdev_user dung dinh dang store",
-      !!saved && saved.telegram_id === 123456 && saved.username === "anhdev" &&
+      !!saved && saved.telegram_id === 987654 && saved.username === "anhdev" &&
       saved.via === "Telegram" && typeof saved.login_data === "string" &&
-      saved.login_data.indexOf("id=123456") !== -1,
+      saved.login_data.indexOf("id=987654") !== -1,
       JSON.stringify(saved));
     check("b14e. Telegram xong chuyen ve index.html, khong con token web",
       t.redirected() === 1 && !w.localStorage.getItem("anhdev_web_token"),
