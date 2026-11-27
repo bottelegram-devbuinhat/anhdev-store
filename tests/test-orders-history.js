@@ -56,6 +56,7 @@ const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
+const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const API_URL = "https://api.test.local";
 
 /* ---------- fake backend -------------------------------------------------- */
@@ -164,7 +165,7 @@ async function makePage(opts){
   for (let i = 0; i < 40; i++){
     await sleep(150);
     const pc = w.document.querySelector("#prodCount");
-    if (pc && pc.textContent.indexOf("12126") !== -1) break;
+    if (pc && pc.textContent.indexOf(String(TOTAL)) !== -1) break;
   }
   return { dom: dom, w: w };
 }

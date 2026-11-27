@@ -40,6 +40,7 @@ const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
+const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const API_URL = "https://api.test.local";
 
 /* ---------- nạp module admin THẬT (strip từ khóa `export` để Node chạy) --- */
@@ -177,11 +178,11 @@ async function makePage(opts){
   const page = { dom: dom, w: w,
     loaderCalls: function(){ return loaderCalls; },
     adminCalls: function(){ return adminCalls.length; } };
-  // chờ syncStock() tải xong kho thật (prodCount hiện 12126)
+  // chờ syncStock() tải xong kho thật (prodCount hiện TOTAL)
   for (let i = 0; i < 40; i++){
     await sleep(150);
     const pc = w.document.querySelector("#prodCount");
-    if (pc && pc.textContent.indexOf("12126") !== -1) break;
+    if (pc && pc.textContent.indexOf(String(TOTAL)) !== -1) break;
   }
   return page;
 }
@@ -218,7 +219,7 @@ async function logout(w){
   console.log("== a. acc thường (nhatdeptrai) ==");
   adminCalls = [];
   const p1 = await makePage({});
-  check("a1. kho thật đã tải (12126 acc)", prodCount(p1.w).indexOf("12126") !== -1, prodCount(p1.w));
+  check("a1. kho thật đã tải (" + TOTAL + " acc)", prodCount(p1.w).indexOf(String(TOTAL)) !== -1, prodCount(p1.w));
   await login(p1.w, "nhatdeptrai", "test123456");
   check("a2. đăng nhập thường thành công, số dư 250.000đ",
     (p1.w.document.querySelector("[data-balance]") || {}).textContent === "250.000đ",
@@ -228,7 +229,7 @@ async function logout(w){
   check("a5. không có badge ADMIN trong DOM", !p1.w.document.querySelector(".admin-badge"));
   check("a6. không có toggle admin trong DOM", !p1.w.document.querySelector(".admin-toggle"));
   await typeSearch(p1.w, "nakroth ki");
-  check("a7. tìm 'nakroth ki' ra đúng 9 acc", prodCount(p1.w).indexOf("9 / 12126") === 0, prodCount(p1.w));
+  check("a7. tìm 'nakroth ki' ra đúng 9 acc", prodCount(p1.w).indexOf("9 / " + TOTAL) === 0, prodCount(p1.w));
   check("a8. 9 kết quả đều là acc sẵn thông tin (không random)",
     cards(p1.w).length === 9 && cards(p1.w).every(function(c){ return c.getAttribute("data-cat") === "detail"; }),
     "cards=" + cards(p1.w).length);
@@ -348,13 +349,13 @@ async function logout(w){
 
   console.log("== f. hồi quy tìm kiếm cũ (kho thật) ==");
   await typeSearch(p1.w, "murad");
-  check("f1. tìm 'murad' = 162 acc", prodCount(p1.w).indexOf("162 / 12126") === 0, prodCount(p1.w));
+  check("f1. tìm 'murad' = 162 acc", prodCount(p1.w).indexOf("162 / " + TOTAL) === 0, prodCount(p1.w));
   await typeSearch(p1.w, "sss");
   check("f2. tìm 'sss' không ra acc Random nào (anti-leak)",
     cards(p1.w).every(function(c){ return c.getAttribute("data-cat") !== "random-tele"; }),
     "cards=" + cards(p1.w).length);
   await typeSearch(p1.w, "nakroth ki");
-  check("f3. tìm 'nakroth ki' = 9 acc (không đổi)", prodCount(p1.w).indexOf("9 / 12126") === 0, prodCount(p1.w));
+  check("f3. tìm 'nakroth ki' = 9 acc (không đổi)", prodCount(p1.w).indexOf("9 / " + TOTAL) === 0, prodCount(p1.w));
 
   console.log("== g. validate mật khẩu ==");
   const p3 = await makePage({});

@@ -13,11 +13,11 @@
 
    Kịch bản:
      a. sold-codes trả 3 mã -> 3 acc đó BIẾN KHỎI lưới hoàn toàn (không còn
-        nút Mua ngay, không còn thẻ), số lượng giảm 12126 -> 12123,
+        nút Mua ngay, không còn thẻ), số lượng giảm TOTAL -> TOTAL-3,
         acc khác vẫn còn; endpoint được gọi đúng 1 lần lúc tải trang.
-     b. sold-codes lỗi mạng -> fallback im lặng: lưới vẫn hiện đủ 12126 acc,
+     b. sold-codes lỗi mạng -> fallback im lặng: lưới vẫn hiện đủ TOTAL acc,
         không toast lỗi, không vỡ trang.
-     c. sold-codes trả danh sách rỗng -> lưới đủ 12126 acc.
+     c. sold-codes trả danh sách rỗng -> lưới đủ TOTAL acc.
      d. mua thành công 1 acc -> acc đó biến khỏi lưới ngay (số lượng -1),
         không còn nút Mua ngay.
      e. server báo 409 sold_out (người khác mua trước) -> acc đó cũng biến
@@ -36,7 +36,7 @@ const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
 const API_URL = "https://api.test.local";
-const TOTAL = (stock.accounts || []).length; // 12126
+const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const SOLD3 = (stock.accounts || []).slice(0, 3).map(function(a){ return a.code; });
 const FOURTH = (stock.accounts || [])[3].code;
 
@@ -175,8 +175,8 @@ function firstRealBuyBtn(w){
   console.log("== a. sold-codes tra 3 ma -> 3 acc bien khoi luoi ==");
   soldMode = "ok"; buyMode = "success"; soldCalls = 0; buyCalls = [];
   const p1 = await makePage();
-  check("a1. so luong giam 12126 -> 12123 (ca tu so va mau so)",
-    prodCount(p1.w).indexOf("12123 / 12123") !== -1, prodCount(p1.w));
+  check("a1. so luong giam " + TOTAL + " -> " + (TOTAL - 3) + " (ca tu so va mau so)",
+    prodCount(p1.w).indexOf((TOTAL - 3) + " / " + (TOTAL - 3)) !== -1, prodCount(p1.w));
   SOLD3.forEach(function(code, i){
     check("a2." + (i + 1) + ". acc da ban " + code + " khong con nut Mua ngay",
       !hasBuyBtn(p1.w, code));
@@ -190,8 +190,8 @@ function firstRealBuyBtn(w){
   console.log("== b. sold-codes loi mang -> fallback hien du luoi ==");
   soldMode = "network"; soldCalls = 0;
   const p2 = await makePage();
-  check("b1. loi mang: luoi van du 12126 acc",
-    prodCount(p2.w).indexOf("12126 / 12126") !== -1, prodCount(p2.w));
+  check("b1. loi mang: luoi van du " + TOTAL + " acc",
+    prodCount(p2.w).indexOf(TOTAL + " / " + TOTAL) !== -1, prodCount(p2.w));
   await searchFor(p2.w, SOLD3[0]);
   check("b2. loi mang: acc dau tien van con nut Mua ngay (tim bang search, vi luoi da xao tron)",
     hasBuyBtn(p2.w, SOLD3[0]));
@@ -201,15 +201,15 @@ function firstRealBuyBtn(w){
   console.log("== c. sold-codes tra danh sach rong ==");
   soldMode = "empty"; soldCalls = 0;
   const p3 = await makePage();
-  check("c1. danh sach rong: luoi du 12126 acc",
-    prodCount(p3.w).indexOf("12126 / 12126") !== -1, prodCount(p3.w));
+  check("c1. danh sach rong: luoi du " + TOTAL + " acc",
+    prodCount(p3.w).indexOf(TOTAL + " / " + TOTAL) !== -1, prodCount(p3.w));
 
   console.log("== d. mua thanh cong -> acc vua mua bien khoi luoi ngay ==");
   soldMode = "empty"; buyMode = "success"; buyCalls = [];
   USERS.webbuyer.balance = 250000;
   const p4 = await makePage();
-  check("d0. truoc khi mua: luoi du 12126 acc",
-    prodCount(p4.w).indexOf("12126 / 12126") !== -1, prodCount(p4.w));
+  check("d0. truoc khi mua: luoi du " + TOTAL + " acc",
+    prodCount(p4.w).indexOf(TOTAL + " / " + TOTAL) !== -1, prodCount(p4.w));
   await login(p4.w, "webbuyer", "buyerpass1");
   check("d1. dang nhap web thanh cong", balanceText(p4.w) === "250.000đ", balanceText(p4.w));
   const btn4 = firstRealBuyBtn(p4.w);
@@ -222,8 +222,8 @@ function firstRealBuyBtn(w){
     (p4.w.document.querySelector("#buyBody") || {}).textContent.indexOf("testuser123") !== -1);
   check("d3. acc vua mua khong con nut Mua ngay",
     !hasBuyBtn(p4.w, code4), "code=" + code4);
-  check("d4. so luong giam con 12125 / 12125",
-    prodCount(p4.w).indexOf("12125 / 12125") !== -1, prodCount(p4.w));
+  check("d4. so luong giam con " + (TOTAL - 1) + " / " + (TOTAL - 1),
+    prodCount(p4.w).indexOf((TOTAL - 1) + " / " + (TOTAL - 1)) !== -1, prodCount(p4.w));
 
   console.log("== e. 409 sold_out -> acc cung bien khoi luoi ==");
   soldMode = "empty"; buyMode = "sold_out"; buyCalls = [];
@@ -241,8 +241,8 @@ function firstRealBuyBtn(w){
     JSON.stringify(toasts(p5.w)));
   check("e2. acc 409 khong con nut Mua ngay",
     !hasBuyBtn(p5.w, code5), "code=" + code5);
-  check("e3. so luong giam con 12125 / 12125",
-    prodCount(p5.w).indexOf("12125 / 12125") !== -1, prodCount(p5.w));
+  check("e3. so luong giam con " + (TOTAL - 1) + " / " + (TOTAL - 1),
+    prodCount(p5.w).indexOf((TOTAL - 1) + " / " + (TOTAL - 1)) !== -1, prodCount(p5.w));
 
   console.log("\nKET QUA: " + pass + " PASS, " + fail + " FAIL");
   if (failures.length) console.log("FAILURES: " + failures.join(" | "));

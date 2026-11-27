@@ -36,7 +36,7 @@ const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
 const API_URL = "https://api.test.local";
 const ACCOUNTS = stock.accounts || [];
-const TOTAL = ACCOUNTS.length; // 12126
+const TOTAL = ACCOUNTS.length; // tong kho that, tu stock.json
 const IDX = {};   // code -> vi tri trong stock.json
 const PRICE = {}; // code -> gia
 ACCOUNTS.forEach(function(a, i){ IDX[a.code] = i; PRICE[a.code] = a.price; });

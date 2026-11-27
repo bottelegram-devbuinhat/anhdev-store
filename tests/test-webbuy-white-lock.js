@@ -45,6 +45,7 @@ const appJs = fs.readFileSync(path.join(ROOT, "assets/app.js"), "utf8");
 const animJs = fs.readFileSync(path.join(ROOT, "assets/animations.js"), "utf8");
 const stock = JSON.parse(fs.readFileSync(
   (fs.existsSync(path.join(ROOT, "stock.json")) ? path.join(ROOT, "stock.json") : path.join(__dirname, "..", "..", "anhdev-store-push", "stock.json")), "utf8"));
+const TOTAL = (stock.accounts || []).length; // tong kho that, tu stock.json
 const API_URL = "https://api.test.local";
 
 /* acc mẫu thật lấy từ stock.json (chỉ dùng code + kind + price, không đọc tk|mk) */
@@ -144,7 +145,7 @@ async function makePage(opts){
       if (w.document.querySelector("#productArea .card")) break;
     } else {
       const pc = w.document.querySelector("#prodCount");
-      if (pc && pc.textContent.indexOf("12126") !== -1) break;
+      if (pc && pc.textContent.indexOf(String(TOTAL)) !== -1) break;
     }
   }
   return { dom: dom, w: w };
@@ -208,7 +209,7 @@ function isBuyModalOpen(w){
   buyCalls = [];
   USERS.testuser.balance = 250000;
   const p1 = await makePage({});
-  check("a0. kho that da tai (12126 acc)", prodCount(p1.w).indexOf("12126") !== -1, prodCount(p1.w));
+  check("a0. kho that da tai (" + TOTAL + " acc)", prodCount(p1.w).indexOf(String(TOTAL)) !== -1, prodCount(p1.w));
   await login(p1.w, "testuser", "testpass1");
   check("a1. dang nhap web thanh cong, so du 250.000d", balanceText(p1.w) === "250.000đ", balanceText(p1.w));
   await searchFor(p1.w, RANDOM_CODE);
@@ -354,7 +355,7 @@ function isBuyModalOpen(w){
   buyCalls = [];
   USERS.testuser.balance = 250000;
   const p7 = await makePage({ stockFail: true });
-  check("g0. kho mau da tai (khong phai 12126 acc)", prodCount(p7.w).indexOf("12126") === -1, prodCount(p7.w));
+  check("g0. kho mau da tai (khong phai " + TOTAL + " acc)", prodCount(p7.w).indexOf(String(TOTAL)) === -1, prodCount(p7.w));
   await login(p7.w, "testuser", "testpass1");
   const packBtn = p7.w.document.querySelector('[data-buy^="r"]');
   check("g1. tim duoc nut Mua cua pack demo", !!packBtn);
