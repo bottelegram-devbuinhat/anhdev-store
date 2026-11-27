@@ -172,6 +172,9 @@
     ordRecv:{ vi:"Nhận acc", en:"Delivery" },
     ordRecvBot:{ vi:"Mở bot @devbn_bot → Đơn hàng của tôi để xem tài khoản + mật khẩu.", en:"Open the bot @devbn_bot → My orders to view the username + password." },
     ordRecvOnce:{ vi:"Tài khoản + mật khẩu đã hiển thị 1 lần ngay sau khi mua — hãy lưu lại khi mua để xem lại tại đây.", en:"Username + password were shown once right after purchase — save them when you buy to view them here." },
+    ordReveal:{ vi:"Xem lại tài khoản", en:"View account again" },
+    ordRevealLoading:{ vi:"Đang lấy…", en:"Loading…" },
+    ordRevealFail:{ vi:"Không xem lại được tài khoản, thử lại sau.", en:"Could not retrieve the account, please try again." },
     invEmptyT:{ vi:"Chưa có hoá đơn nạp nào", en:"No top-up invoices yet" },
     invEmptyS:{ vi:"Nạp tiền qua VietQR hoặc thẻ cào, hoá đơn và trạng thái xử lý sẽ lưu tại đây.", en:"Top up via VietQR or prepaid cards — invoices and their status will be saved here." },
     accLoginB:{ vi:"Đăng nhập ngay", en:"Log in now" },
@@ -2153,7 +2156,11 @@
           '<div class="cred-row"><span class="k">' + L("credPass") + '</span><code class="cred-val">' + CRED_MASK + '</code><button class="copy-btn" data-copy="' + esc(o.pass) + '">Copy</button></div></div>';
         eyeBtn = '<button type="button" class="ord-eye-btn" data-eye="' + i + '" aria-pressed="false" aria-label="' + esc(L("eyeShow")) + '" title="' + esc(L("eyeShow")) + '" style="margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none">' + EYE_SVG + '</button>';
       } else {
-        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvOnce") + '</span></div></div>';
+        /* Don khong co tk|mk local (mua o trinh duyet/may khac): giu nhan
+           "da hien thi 1 lan" + them nut Xem lai tai khoan — goi
+           GET /api/shop/orders/<code>/credentials (JWT, chi chu don). */
+        cred = '<div class="cred"><div class="cred-row"><span class="k">' + L("ordRecv") + '</span><span style="font-size:13px">' + L("ordRecvOnce") + '</span></div>' +
+          '<div class="cred-row" style="margin-top:8px"><button type="button" class="btn btn-ghost ord-reveal-btn" data-reveal="' + esc(o.code) + '" data-idx="' + i + '">' + L("ordReveal") + '</button></div></div>';
       }
       return '<div class="order"><div class="order-top"><b>' + esc(o.productName) + '</b>' + (o.demo ? '<span class="badge pend">Demo</span>' : '') + '<span class="badge">Đã bàn giao</span>' + eyeBtn + '</div>' +
         '<div class="meta">Mã đơn ' + o.code + ' · ' + o.time + ' · ' + fmt(o.price) + '</div>' + cred + '</div>';
@@ -2173,6 +2180,34 @@
         btn.setAttribute("aria-label", shown ? L("eyeShow") : L("eyeHide"));
         btn.title = shown ? L("eyeShow") : L("eyeHide");
         btn.innerHTML = shown ? EYE_SVG : EYE_OFF_SVG;
+      });
+    });
+    /* Xem lai tk|mk cho don khong co ban local: GET /api/shop/orders/<code>/
+       credentials (JWT, chi chu don) -> luu tk|mk vao state.orders +
+       localStorage (saveWebOrders) roi render lai de hien dang che + nut
+       mat nhu don mua trong phien. Khoa nut trong luc goi de khong goi
+       trung 2 lan; loi thi toast + giu nguyen fallback. */
+    $$(".ord-reveal-btn", box).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if (btn.disabled) return;
+        var code = btn.getAttribute("data-reveal");
+        var idx = parseInt(btn.getAttribute("data-idx"), 10);
+        var o = state.orders[idx];
+        if (!code || !o || o.code !== code) return;
+        btn.disabled = true;
+        btn.textContent = L("ordRevealLoading");
+        backendFetch("/api/shop/orders/" + encodeURIComponent(code) + "/credentials")
+          .then(function(d){
+            var acc = (d && d.account) || d;
+            if (!acc || !acc.username || !acc.password) throw new Error("bad credentials response");
+            o.user = acc.username; o.pass = acc.password;
+            saveWebOrders();
+            renderOrders();
+          })
+          .catch(function(err){
+            toast(isNetworkError(err) ? L("netErr") : L("ordRevealFail"), "error");
+            renderOrders(); /* khoi phuc nut Xem lai + fallback */
+          });
       });
     });
   }

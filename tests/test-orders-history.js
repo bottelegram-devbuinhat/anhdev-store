@@ -18,7 +18,10 @@
    la "testuser123" / "testpass123" (khong phai tk|mk that). No mo phong
    dung hop dong backend da kiem chung: login -> JWT, /me -> {user},
    POST /api/shop/buy -> 200 (kem tk|mk fake), GET /api/shop/orders ->
-   200 {orders:[{id, code, price, status, created_at}]} (KHONG co tk|mk).
+   200 {orders:[{id, code, price, status, created_at}]} (KHONG co tk|mk),
+   GET /api/shop/orders/<code>/credentials -> 200 {code, username, password}
+   (tk|mk fake "testuser123" / "testpass123"; mode fail -> 403,
+   network -> loi mang, slow -> tra cham 400ms).
 
    Kich ban:
      a. don backend hien trong lich su ngay sau khi dang nhap (bug goc):
@@ -32,6 +35,14 @@
         thai trong / don local, trang van chay binh thuong.
      d. dang xuat: don bien khoi bo nho, mo Don hang chi con man hinh
         dang nhap, khong thay don cu.
+   e. xem lai tk|mk don khong co ban local (nut "Xem lại tài khoản"):
+        bam nut -> GET /api/shop/orders/<code>/credentials -> tk|mk
+        hien dang che + nut mat nhu don mua trong phien, tk|mk duoc luu
+        xuong localStorage; don da co tk|mk local thi KHONG co nut nay.
+   f. GET /credentials loi (403): toast loi, fallback + nut Xem lai
+        nguyen ven, khong luu tk|mk.
+   g. bam nut 2 lan lien tiep trong luc dang goi: chi goi backend 1 lan
+        (nut bi khoa + hien "Đang lấy…").
    ============================================================================ */
 const fs = require("fs");
 const path = require("path");
@@ -54,6 +65,8 @@ const USERS = {
 let ordersMode = "one";    // one | empty | network
 let ordersCalls = [];      // moi request GET /api/shop/orders
 let BACKEND_ORDERS = [];   // don backend tra ve (fake shop_orders)
+let revealMode = "ok";     // ok | fail | network | slow (GET .../credentials)
+let revealCalls = [];      // moi request GET /api/shop/orders/<code>/credentials
 let buyCalls = [];
 function priceOf(code){
   const a = (stock.accounts || []).find(function(x){ return x.code === code; });
@@ -84,6 +97,18 @@ function fakeFetch(url, opts){
       role: rec.role, discount_percent: 0, telegram_id: null } }));
   }
   if (u.indexOf("/api/auth/logout") !== -1) return Promise.resolve(makeResp(200, { ok: true }));
+  if (u.indexOf("/credentials") !== -1){
+    const rec = USERS[tokenUser];
+    if (!rec) return Promise.resolve(makeResp(401, { ok: false, error: "unauthorized" }));
+    const m = u.match(/\/api\/shop\/orders\/([^\/]+)\/credentials/);
+    const code = m ? decodeURIComponent(m[1]) : null;
+    revealCalls.push({ code: code });
+    if (revealMode === "fail") return Promise.resolve(makeResp(403, { ok: false, error: "not_owner" }));
+    if (revealMode === "network") return Promise.reject(new TypeError("Failed to fetch"));
+    const okResp = function(){ return makeResp(200, { ok: true, code: code, username: "testuser123", password: "testpass123" }); };
+    if (revealMode === "slow") return new Promise(function(res){ setTimeout(function(){ res(okResp()); }, 400); });
+    return Promise.resolve(okResp());
+  }
   if (u.indexOf("/api/shop/orders") !== -1){
     const rec = USERS[tokenUser];
     if (!rec) return Promise.resolve(makeResp(401, { ok: false, error: "unauthorized" }));
@@ -278,6 +303,83 @@ function firstRealBuyBtn(w){
   check("d3. sau khi dang xuat, lich su chi con man hinh dang nhap (khong thay don cu)",
     ordersText(p4.w).indexOf("Đăng nhập để xem đơn hàng") !== -1
     && ordersText(p4.w).indexOf("LQ9002") === -1, ordersText(p4.w).slice(0, 200));
+
+  console.log("== e. xem lai tk|mk don khong co ban local (GET /credentials) ==");
+  ordersMode = "one"; ordersCalls = []; revealMode = "ok"; revealCalls = [];
+  BACKEND_ORDERS = [{ id: 7, code: "LQ9002", price: 3000,
+    status: "delivered", created_at: "2026-11-25 14:03:29" }];
+  USERS.webbuyer.balance = 250000;
+  const p5 = await makePage({});
+  await login(p5.w, "webbuyer", "buyerpass1");
+  await openOrders(p5.w);
+  const rv5 = p5.w.document.querySelector(".ord-reveal-btn");
+  check("e1. don khong co tk|mk local thi hien nut 'Xem lại tài khoản' (data-reveal=LQ9002), khong co nut mat",
+    !!rv5 && rv5.getAttribute("data-reveal") === "LQ9002" && !p5.w.document.querySelector(".ord-eye-btn"),
+    rv5 ? rv5.outerHTML.slice(0, 200) : "no button");
+  check("e2. van hien nhan 'da hien thi 1 lan' truoc khi xem lai",
+    ordersText(p5.w).indexOf("đã hiển thị 1 lần") !== -1, ordersText(p5.w).slice(0, 200));
+  if (rv5) rv5.click();
+  await sleep(600);
+  check("e3. bam nut goi dung GET /api/shop/orders/LQ9002/credentials",
+    revealCalls.length === 1 && revealCalls[0].code === "LQ9002",
+    JSON.stringify(revealCalls));
+  const eye5 = p5.w.document.querySelector(".ord-eye-btn");
+  check("e4. sau khi xem lai: tk/mk bi che (••••••••) + co nut mat, khong con nut Xem lai",
+    !!eye5 && !p5.w.document.querySelector(".ord-reveal-btn") && ordersText(p5.w).indexOf("••••••••") !== -1 && ordersText(p5.w).indexOf("testuser123") === -1,
+    ordersText(p5.w).slice(0, 200));
+  if (eye5) eye5.click();
+  check("e5. bam mat thi hien tk/mk vua lay ve",
+    ordersText(p5.w).indexOf("testuser123") !== -1 && ordersText(p5.w).indexOf("testpass123") !== -1,
+    ordersText(p5.w).slice(0, 200));
+  const stored5 = p5.w.localStorage.getItem("anhdev_web_orders_webbuyer") || "";
+  check("e6. tk/mk vua lay ve duoc luu xuong localStorage de lan sau khoi can goi lai",
+    stored5.indexOf("LQ9002") !== -1 && stored5.indexOf("testuser123") !== -1,
+    stored5.slice(0, 200));
+  check("e7. don da co tk|mk local thi KHONG hien nut Xem lai (chi co nut mat)",
+    !p2.w.document.querySelector(".ord-reveal-btn") && !!p2.w.document.querySelector(".ord-eye-btn"));
+
+  console.log("== f. GET /credentials loi: toast loi, fallback nguyen ven ==");
+  ordersMode = "one"; revealMode = "fail"; revealCalls = [];
+  BACKEND_ORDERS = [{ id: 7, code: "LQ9002", price: 3000,
+    status: "delivered", created_at: "2026-11-25 14:03:29" }];
+  const p6 = await makePage({});
+  await login(p6.w, "webbuyer", "buyerpass1");
+  await openOrders(p6.w);
+  const rv6 = p6.w.document.querySelector(".ord-reveal-btn");
+  check("f1. tim duoc nut Xem lai", !!rv6);
+  if (rv6) rv6.click();
+  await sleep(600);
+  const toast6 = p6.w.document.querySelector("#toastContainer");
+  check("f2. loi 403 thi hien toast loi 'Không xem lại được tài khoản'",
+    !!toast6 && toast6.textContent.indexOf("Không xem lại được tài khoản") !== -1,
+    toast6 ? toast6.textContent : "no toast");
+  check("f3. sau khi loi: fallback 'da hien thi 1 lan' van con, nut Xem lai van con, khong co nut mat",
+    ordersText(p6.w).indexOf("đã hiển thị 1 lần") !== -1
+    && !!p6.w.document.querySelector(".ord-reveal-btn")
+    && !p6.w.document.querySelector(".ord-eye-btn"),
+    ordersText(p6.w).slice(0, 200));
+  check("f4. sau khi loi: tk/mk khong duoc luu xuong localStorage",
+    (p6.w.localStorage.getItem("anhdev_web_orders_webbuyer") || "").indexOf("testuser123") === -1);
+
+  console.log("== g. bam nut 2 lan lien tiep chi goi backend 1 lan ==");
+  ordersMode = "one"; revealMode = "slow"; revealCalls = [];
+  BACKEND_ORDERS = [{ id: 7, code: "LQ9002", price: 3000,
+    status: "delivered", created_at: "2026-11-25 14:03:29" }];
+  const p7 = await makePage({});
+  await login(p7.w, "webbuyer", "buyerpass1");
+  await openOrders(p7.w);
+  const rv7 = p7.w.document.querySelector(".ord-reveal-btn");
+  check("g1. tim duoc nut Xem lai", !!rv7);
+  if (rv7){ rv7.click(); rv7.click(); }
+  check("g2. nut bi khoa + hien 'Đang lấy…' ngay khi dang goi",
+    !!rv7 && rv7.disabled === true && rv7.textContent.indexOf("Đang lấy") !== -1,
+    rv7 ? "disabled=" + rv7.disabled + " text=" + rv7.textContent : "no button");
+  await sleep(900);
+  check("g3. chi goi GET /credentials dung 1 lan du bam 2 lan",
+    revealCalls.length === 1, "revealCalls=" + revealCalls.length);
+  check("g4. sau khi goi xong: tk/mk bi che + co nut mat",
+    !!p7.w.document.querySelector(".ord-eye-btn") && ordersText(p7.w).indexOf("••••••••") !== -1,
+    ordersText(p7.w).slice(0, 200));
 
   console.log("\nKET QUA: " + pass + " PASS, " + fail + " FAIL");
   if (failures.length) console.log("FAILURES: " + failures.join(" | "));
