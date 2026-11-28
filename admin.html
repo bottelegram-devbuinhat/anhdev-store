@@ -144,6 +144,22 @@
     </section>
 
     <section class="card section-gap">
+      <div class="row-flex">
+        <h3 class="mb-0">Nhạc</h3>
+        <button class="btn btn-secondary" id="musicRefreshBtn" type="button">Tải lại danh sách</button>
+      </div>
+      <p class="sub">Tải nhạc lên để phát trên trang store. File chấp nhận: .mp3, .wav, .ogg, .m4a (tối đa 20 MB mỗi file).</p>
+      <div class="field">
+        <label for="musicFile">File nhạc</label>
+        <input class="file-input" id="musicFile" type="file" accept=".mp3,.wav,.ogg,.m4a,audio/*">
+      </div>
+      <button class="btn btn-primary" id="musicUploadBtn" type="button">Tải lên</button>
+      <p class="err" id="musicErr" role="alert"></p>
+      <div id="musicOut" class="out-block"></div>
+      <p class="note">File nhạc lưu trên backend Render (ổ đĩa tạm) nên sẽ mất khi backend redeploy — cần upload lại sau mỗi lần redeploy.</p>
+    </section>
+
+    <section class="card section-gap">
       <h3>Đơn đã bán qua web</h3>
       <p class="sub">Danh sách mã acc đã bán qua web, mới nhất ở trên.</p>
       <div id="soldOut"></div>

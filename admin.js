@@ -91,6 +91,26 @@ async function api(p, o){
   return d;
 }
 
+/* Gọi API upload file (multipart): KHÔNG tự set Content-Type để trình
+   duyệt gắn boundary; chỉ gắn Bearer. Dùng cho POST /api/admin/music/upload. */
+async function apiUpload(p, f){
+  let h = {};
+  if (T) h["Authorization"] = "Bearer " + T;
+  let b = new FormData();
+  b.append("file", f);
+  let r = await fetch(A + p, { method: "POST", headers: h, body: b });
+  let d = null;
+  try { d = await r.json(); } catch (e) { d = null; }
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) { clearToken(); showLogin(); }
+    let m = (d && (d.message || d.error)) || ("Lỗi " + r.status);
+    let x = new Error(m);
+    x.status = r.status;
+    throw x;
+  }
+  return d;
+}
+
 function toast(m, ok){
   let w = el("toast");
   let n = ce("div", "toast-item" + (ok === false ? " bad" : ok === true ? " ok" : ""), m);
@@ -211,6 +231,7 @@ async function loadDash(){
     el("statStock").textContent = fmt(d.total);
   } catch (e) { el("statStock").textContent = "—"; }
   loadSold();
+  loadMusic();
 }
 
 async function loadSold(){
@@ -585,6 +606,105 @@ function sendBulkTxt(){
   doBulkAdd(r.accounts, r.errors, el("bulkTxtBtn"));
 }
 
+/* ---------- Nhạc ---------- */
+
+function fmtSize(n){
+  n = Number(n);
+  if (!isFinite(n) || n < 0) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+/* Chuẩn hoá danh sách nhạc trả về: backend có thể trả tracks/music/items/
+   files/data; mỗi mục có thể là chuỗi tên file hoặc object có filename/
+   file/url + name + size. Trả về [{filename, name, size}]. */
+function normMusic(d){
+  let a = (d && (d.tracks || d.music || d.items || d.files || d.data)) || [];
+  if (!Array.isArray(a)) return [];
+  let o = [];
+  a.forEach(function(v){
+    if (typeof v === "string") { o.push({ filename: v, name: v, size: null }); return; }
+    if (!v || typeof v !== "object") return;
+    let k = v.filename || v.file || (v.url ? String(v.url).split("/").pop() : "") || v.name || "";
+    if (!k) return;
+    o.push({ filename: String(k), name: v.name ? String(v.name) : String(k), size: v.size != null ? Number(v.size) : null });
+  });
+  return o;
+}
+
+async function loadMusic(){
+  skel("musicOut", 3);
+  let o = el("musicOut");
+  try {
+    let d = await api("/api/music/list");
+    let a = normMusic(d);
+    clr(o);
+    if (!a.length) {
+      o.appendChild(emptyBox("Chưa có bài nhạc nào.", [
+        ["path", { d: "M9 18V5l12-2v13" }],
+        ["circle", { cx: "6", cy: "18", r: "3" }],
+        ["circle", { cx: "18", cy: "16", r: "3" }]
+      ]));
+      return;
+    }
+    let n = ce("p", "note mb-3");
+    n.textContent = "Có " + a.length + " bài nhạc.";
+    o.appendChild(n);
+    let r = a.map(function(v){
+      let g = ce("button", "btn btn-danger btn-sm", "Xóa");
+      g.type = "button";
+      g.addEventListener("click", function(){ delMusic(v.filename, g); });
+      return [
+        { t: v.name, c: "mono" },
+        { t: v.size != null ? fmtSize(v.size) : "", c: "num" },
+        { e: g, c: "act" }
+      ];
+    });
+    o.appendChild(tbl(
+      [{ t: "Tên bài" }, { t: "Dung lượng", c: "num" }, { t: "" }],
+      r
+    ));
+  } catch (e) {
+    clr(o);
+    o.appendChild(ce("p", "err", "Không tải được danh sách nhạc: " + e.message));
+  }
+}
+
+async function doMusicUpload(){
+  let b = el("musicUploadBtn");
+  let i = el("musicFile");
+  let f = i.files && i.files[0];
+  err("musicErr", "");
+  if (!f) { err("musicErr", "Chọn 1 file nhạc để tải lên."); return; }
+  let n = f.name || "";
+  let x = n.split(".").pop().toLowerCase();
+  if (["mp3", "wav", "ogg", "m4a"].indexOf(x) === -1) { err("musicErr", "Chỉ nhận file .mp3, .wav, .ogg, .m4a."); return; }
+  if (f.size > 20 * 1024 * 1024) { err("musicErr", "File quá lớn (tối đa 20 MB)."); return; }
+  lock(b, true);
+  try {
+    let d = await apiUpload("/api/admin/music/upload", f);
+    toast("Đã tải lên " + (d.filename || n) + ".", true);
+    i.value = "";
+    loadMusic();
+  } catch (e) {
+    err("musicErr", "Tải lên lỗi: " + e.message);
+  } finally { lock(b, false); }
+}
+
+async function delMusic(f, btn){
+  if (!confirm("Xóa bài nhạc \"" + f + "\"? Hành động này không hoàn tác được.")) return;
+  btn.disabled = true;
+  try {
+    await api("/api/admin/music/" + encodeURIComponent(f), { method: "DELETE" });
+    toast("Đã xóa " + f + ".", true);
+    loadMusic();
+  } catch (e) {
+    toast("Xóa lỗi: " + e.message, false);
+    btn.disabled = false;
+  }
+}
+
 el("loginForm").addEventListener("submit", doLogin);
 el("logoutBtn").addEventListener("click", doLogout);
 el("searchBtn").addEventListener("click", doSearch);
@@ -604,6 +724,8 @@ el("bulkJsonBtn").addEventListener("click", sendBulkJson);
 el("bulkTxtBtn").addEventListener("click", sendBulkTxt);
 el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJsonFile"), el("bulkJson")); });
 el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile"), el("bulkTxt")); });
+el("musicUploadBtn").addEventListener("click", doMusicUpload);
+el("musicRefreshBtn").addEventListener("click", loadMusic);
 window.addEventListener("pagehide", clearToken);
 checkSession();
 
@@ -625,4 +747,8 @@ checkSession();
    doBulkAdd = gửi bulk-add (POST /api/admin/shop/stock/bulk-add) · setBulkTab = đổi tab chế độ nhập
    loadBulkFile = đọc file .json/.txt vào textarea · sendBulkChat/Json/Txt = gửi theo từng chế độ
    g = lỗi parse client · m = chế độ tab (chat/json/txt) · z = bộ 3 [chế độ, id tab, id pane] · i = ô file input
-   f = file đã chọn · x = nội dung file/text · y = tổng lỗi (server + parse) · c = dòng mã đã thêm */
+   f = file đã chọn · x = nội dung file/text · y = tổng lỗi (server + parse) · c = dòng mã đã thêm
+   apiUpload = gọi API upload file multipart (chỉ gắn Bearer, không set Content-Type)
+   normMusic = chuẩn hoá danh sách nhạc (tracks/music/items/files/data, chuỗi hoặc object)
+   fmtSize = định dạng dung lượng B/KB/MB · loadMusic = tải danh sách nhạc (GET /api/music/list)
+   doMusicUpload = tải file nhạc lên (POST /api/admin/music/upload) · delMusic = xóa 1 bài nhạc (DELETE /api/admin/music/:filename) */
