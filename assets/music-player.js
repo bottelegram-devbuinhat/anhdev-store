@@ -82,7 +82,11 @@
   function resolveUrl(s){
     if (!s) return null;
     if (typeof s.url === "string" && s.url) {
-      if (/^(https?:)?\/\//i.test(s.url) || s.url.charAt(0) === "/") return s.url;
+      /* Chi URL day du (http(s):// hoac //) moi tra ve nguyen.
+         Duong dan tuong doi kieu "/api/music/..." la cua BACKEND, phai
+         ghep voi BASE — tra ve nguyen se khien trinh duyet hieu la
+         duong dan tren GitHub Pages (404), nhac khong bao gio phat. */
+      if (/^(https?:)?\/\//i.test(s.url)) return s.url;
       return BASE.replace(/\/$/, "") + "/" + s.url.replace(/^\//, "");
     }
     if (typeof s.filename === "string" && s.filename) {
