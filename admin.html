@@ -156,6 +156,10 @@
           <input class="file-input hidden" id="musicFile" type="file" accept=".mp3,.wav,.ogg,.m4a,audio/*">
         </div>
       </div>
+      <div class="field preview-vol">
+        <label for="previewVol">Âm lượng nghe thử</label>
+        <input type="range" id="previewVol" min="0" max="100" value="80">
+      </div>
       <button class="btn btn-primary" id="musicUploadBtn" type="button">Tải lên</button>
       <p class="err" id="musicErr" role="alert"></p>
       <div id="musicOut" class="out-block"></div>

@@ -117,3 +117,7 @@ td.act{white-space:nowrap;text-align:right}
 .drop-zone:focus-visible{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-subtle)}
 .drop-zone.drag-over{border-color:var(--accent-primary);background-color:var(--accent-subtle)}
 .drop-hint{margin:0;color:var(--text-secondary);font-size:0.875rem}
+/* Thanh truot am luong nghe thu nhac. */
+.preview-vol{display:flex;align-items:center;gap:12px}
+.preview-vol label{margin-bottom:0;white-space:nowrap}
+.preview-vol input[type="range"]{flex:1;accent-color:var(--accent-primary)}

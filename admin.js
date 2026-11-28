@@ -616,6 +616,75 @@ function fmtSize(n){
   return (n / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+/* Dinh dang giay thanh m:ss (thoi luong bai nhac). */
+function fmtDur(s){
+  if (s == null || isNaN(s) || !isFinite(s)) return "";
+  s = Math.round(s);
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+/* Nghe thu: 1 <audio> dung chung cho ca danh sach + nut cua tung bai. */
+let previewAudio = null;
+let previewFile = "";
+let previewBtns = {};
+function getPreviewAudio(){
+  if (!previewAudio) {
+    previewAudio = new Audio();
+    previewAudio.preload = "metadata";
+    previewAudio.volume = Number((el("previewVol") && el("previewVol").value) || 80) / 100;
+    previewAudio.addEventListener("ended", function(){ previewFile = ""; refreshPreviewBtns(); });
+  }
+  return previewAudio;
+}
+function refreshPreviewBtns(){
+  Object.keys(previewBtns).forEach(function(k){
+    let b = previewBtns[k];
+    /* Bai dang la ban nghe thu (dang phat hoac sap phat) thi hien Dung;
+       con lai hien Nghe thu. Khong phu thuoc vao audio.paused de nut
+       doi ngay khi bam, khong cho play() resolve xong. */
+    b.textContent = (k === previewFile) ? "⏸ Dừng" : "▶ Nghe thử";
+  });
+}
+async function togglePreview(f){
+  let a = getPreviewAudio();
+  if (previewFile === f && !a.paused) { a.pause(); previewFile = ""; refreshPreviewBtns(); return; }
+  a.pause();
+  a.src = A + "/api/music/" + encodeURIComponent(f);
+  previewFile = f;
+  refreshPreviewBtns();
+  try { await a.play(); } catch (e) { previewFile = ""; refreshPreviewBtns(); return; }
+  refreshPreviewBtns();
+}
+
+/* Lay dung luong (HEAD -> Content-Length) + thoi luong (audio metadata)
+   cho 1 bai, cap nhat truc tiep vao span da cho. Chay nen, khong chan
+   danh sach hien. */
+async function fillMusicMeta(v, durSp, sizeSp){
+  if (v.size != null) { sizeSp.textContent = fmtSize(v.size); }
+  else {
+    try {
+      let r = await fetch(A + "/api/music/" + encodeURIComponent(v.filename), { method: "HEAD" });
+      let n = r.headers.get("Content-Length");
+      if (n) sizeSp.textContent = fmtSize(Number(n));
+    } catch (e) { /* giu nguyen "…" */ }
+  }
+  try {
+    let au = new Audio();
+    au.preload = "metadata";
+    au.src = A + "/api/music/" + encodeURIComponent(v.filename);
+    await new Promise(function(res){
+      let done = false;
+      function fin(){ if (!done) { done = true; res(); } }
+      au.addEventListener("loadedmetadata", fin);
+      au.addEventListener("error", fin);
+      setTimeout(fin, 10000);
+    });
+    if (au.duration && isFinite(au.duration)) durSp.textContent = fmtDur(au.duration);
+    au.removeAttribute("src");
+    au.load();
+  } catch (e) { /* giu nguyen "…" */ }
+}
+
 /* Chuẩn hoá danh sách nhạc trả về: backend trả {ok, songs:[...]} (mỗi
    mục {filename, url, title}); các dạng khác tracks/music/items/files/
    data vẫn được chấp nhận để tương thích. Mỗi mục có thể là chuỗi tên
@@ -636,6 +705,10 @@ function normMusic(d){
 }
 
 async function loadMusic(){
+  /* Tai lai danh sach: dung nhac dang nghe thu (neu co) de nut khoi lac. */
+  if (previewAudio && !previewAudio.paused) { previewAudio.pause(); }
+  previewFile = "";
+  previewBtns = {};
   skel("musicOut", 3);
   let o = el("musicOut");
   try {
@@ -654,17 +727,26 @@ async function loadMusic(){
     n.textContent = "Có " + a.length + " bài nhạc.";
     o.appendChild(n);
     let r = a.map(function(v){
+      let durSp = ce("span", "", "…");
+      let sizeSp = ce("span", "", v.size != null ? fmtSize(v.size) : "…");
+      let p = ce("button", "btn btn-secondary btn-sm", "▶ Nghe thử");
+      p.type = "button";
+      previewBtns[v.filename] = p;
+      p.addEventListener("click", function(){ togglePreview(v.filename); });
       let g = ce("button", "btn btn-danger btn-sm", "Xóa");
       g.type = "button";
       g.addEventListener("click", function(){ delMusic(v.filename, g); });
+      fillMusicMeta(v, durSp, sizeSp);
       return [
         { t: v.name, c: "mono" },
-        { t: v.size != null ? fmtSize(v.size) : "", c: "num" },
+        { e: durSp, c: "num" },
+        { e: sizeSp, c: "num" },
+        { e: p, c: "act" },
         { e: g, c: "act" }
       ];
     });
     o.appendChild(tbl(
-      [{ t: "Tên bài" }, { t: "Dung lượng", c: "num" }, { t: "" }],
+      [{ t: "Tên bài" }, { t: "Thời lượng", c: "num" }, { t: "Dung lượng", c: "num" }, { t: "Nghe thử" }, { t: "" }],
       r
     ));
   } catch (e) {
@@ -729,6 +811,10 @@ el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJ
 el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile"), el("bulkTxt")); });
 el("musicUploadBtn").addEventListener("click", function(){ doMusicUpload(); });
 el("musicRefreshBtn").addEventListener("click", loadMusic);
+el("previewVol").addEventListener("input", function(){
+  let a = getPreviewAudio();
+  a.volume = Number(el("previewVol").value) / 100;
+});
 /* Keo-tha file nhac: tha file vao vung drop-zone thi upload luon; bam vao
    vung thi mo hop chon file (thay cho input file rieng). */
 (function(){
