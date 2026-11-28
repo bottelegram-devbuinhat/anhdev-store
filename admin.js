@@ -652,7 +652,7 @@ async function togglePreview(f){
   a.src = A + "/api/music/" + encodeURIComponent(f);
   previewFile = f;
   refreshPreviewBtns();
-  try { await a.play(); } catch (e) { previewFile = ""; refreshPreviewBtns(); return; }
+  try { await a.play(); } catch (e) { previewFile = ""; refreshPreviewBtns(); err("musicErr", "Không phát được file nhạc này."); return; }
   refreshPreviewBtns();
 }
 
