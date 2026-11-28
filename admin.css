@@ -111,3 +111,9 @@ td.act{white-space:nowrap;text-align:right}
 .bulk-ta{height:auto;min-height:160px;padding:12px;font-family:var(--font-mono);font-size:0.875rem;line-height:1.6;resize:vertical}
 .file-input{display:block;width:100%;padding:12px;background-color:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);box-shadow:var(--input-recess);color:var(--text-secondary);font-size:0.875rem}
 .file-input:focus-visible{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-subtle)}
+/* Vung keo-tha file nhac: khung dut net, bam mo hop chon file. */
+.drop-zone{border:2px dashed var(--border-subtle);border-radius:var(--radius-md);padding:24px 16px;text-align:center;cursor:pointer;background-color:var(--bg-input);transition:border-color var(--dur-normal) var(--ease-out-expo),background-color var(--dur-normal) var(--ease-out-expo)}
+.drop-zone:hover{border-color:var(--accent-primary)}
+.drop-zone:focus-visible{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-subtle)}
+.drop-zone.drag-over{border-color:var(--accent-primary);background-color:var(--accent-subtle)}
+.drop-hint{margin:0;color:var(--text-secondary);font-size:0.875rem}

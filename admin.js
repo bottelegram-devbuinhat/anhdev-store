@@ -616,19 +616,21 @@ function fmtSize(n){
   return (n / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-/* Chuẩn hoá danh sách nhạc trả về: backend có thể trả tracks/music/items/
-   files/data; mỗi mục có thể là chuỗi tên file hoặc object có filename/
-   file/url + name + size. Trả về [{filename, name, size}]. */
+/* Chuẩn hoá danh sách nhạc trả về: backend trả {ok, songs:[...]} (mỗi
+   mục {filename, url, title}); các dạng khác tracks/music/items/files/
+   data vẫn được chấp nhận để tương thích. Mỗi mục có thể là chuỗi tên
+   file hoặc object có filename/file/url + title/name + size.
+   Trả về [{filename, name, size}]. */
 function normMusic(d){
-  let a = (d && (d.tracks || d.music || d.items || d.files || d.data)) || [];
+  let a = (d && (d.songs || d.tracks || d.music || d.items || d.files || d.data)) || [];
   if (!Array.isArray(a)) return [];
   let o = [];
   a.forEach(function(v){
     if (typeof v === "string") { o.push({ filename: v, name: v, size: null }); return; }
     if (!v || typeof v !== "object") return;
-    let k = v.filename || v.file || (v.url ? String(v.url).split("/").pop() : "") || v.name || "";
+    let k = v.filename || v.file || (v.url ? String(v.url).split("/").pop() : "") || v.title || v.name || "";
     if (!k) return;
-    o.push({ filename: String(k), name: v.name ? String(v.name) : String(k), size: v.size != null ? Number(v.size) : null });
+    o.push({ filename: String(k), name: v.title ? String(v.title) : (v.name ? String(v.name) : String(k)), size: v.size != null ? Number(v.size) : null });
   });
   return o;
 }
@@ -671,10 +673,11 @@ async function loadMusic(){
   }
 }
 
-async function doMusicUpload(){
+/* f co the la file keo-tha (drop) hoac undefined = lay tu input file. */
+async function doMusicUpload(f){
   let b = el("musicUploadBtn");
   let i = el("musicFile");
-  let f = i.files && i.files[0];
+  f = f || (i.files && i.files[0]);
   err("musicErr", "");
   if (!f) { err("musicErr", "Chọn 1 file nhạc để tải lên."); return; }
   let n = f.name || "";
@@ -724,8 +727,28 @@ el("bulkJsonBtn").addEventListener("click", sendBulkJson);
 el("bulkTxtBtn").addEventListener("click", sendBulkTxt);
 el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJsonFile"), el("bulkJson")); });
 el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile"), el("bulkTxt")); });
-el("musicUploadBtn").addEventListener("click", doMusicUpload);
+el("musicUploadBtn").addEventListener("click", function(){ doMusicUpload(); });
 el("musicRefreshBtn").addEventListener("click", loadMusic);
+/* Keo-tha file nhac: tha file vao vung drop-zone thi upload luon; bam vao
+   vung thi mo hop chon file (thay cho input file rieng). */
+(function(){
+  let z = el("musicDrop");
+  if (!z) return;
+  ["dragenter", "dragover"].forEach(function(ev){
+    z.addEventListener(ev, function(e){ e.preventDefault(); z.classList.add("drag-over"); });
+  });
+  ["dragleave", "drop"].forEach(function(ev){
+    z.addEventListener(ev, function(e){ e.preventDefault(); z.classList.remove("drag-over"); });
+  });
+  z.addEventListener("drop", function(e){
+    let f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) doMusicUpload(f);
+  });
+  z.addEventListener("click", function(){ el("musicFile").click(); });
+  z.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el("musicFile").click(); }
+  });
+})();
 window.addEventListener("pagehide", clearToken);
 checkSession();
 

@@ -151,7 +151,10 @@
       <p class="sub">Tải nhạc lên để phát trên trang store. File chấp nhận: .mp3, .wav, .ogg, .m4a (tối đa 20 MB mỗi file).</p>
       <div class="field">
         <label for="musicFile">File nhạc</label>
-        <input class="file-input" id="musicFile" type="file" accept=".mp3,.wav,.ogg,.m4a,audio/*">
+        <div class="drop-zone" id="musicDrop" tabindex="0" role="button" aria-label="Kéo thả file nhạc vào đây hoặc bấm để chọn file">
+          <p class="drop-hint">Kéo thả file nhạc vào đây, hoặc bấm để chọn file</p>
+          <input class="file-input hidden" id="musicFile" type="file" accept=".mp3,.wav,.ogg,.m4a,audio/*">
+        </div>
       </div>
       <button class="btn btn-primary" id="musicUploadBtn" type="button">Tải lên</button>
       <p class="err" id="musicErr" role="alert"></p>
