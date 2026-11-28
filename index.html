@@ -144,7 +144,8 @@
 
       /* ---------- Layout ---------- */
       .layout{display:flex;min-height:100vh}
-      .sidebar{width:268px;flex:0 0 268px;background:var(--surface);border-right:1px solid var(--line);padding:20px 16px 24px;position:sticky;top:0;height:100vh;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px;z-index:var(--z-sidebar);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+      .sidebar{width:268px;flex:0 0 268px;background:var(--surface);border-right:1px solid var(--line);padding:20px 16px 24px;position:fixed;left:0;top:0;height:100vh;overflow-y:auto;overscroll-behavior:contain;display:none;flex-direction:column;gap:18px;z-index:var(--z-sidebar);box-shadow:var(--shadow-lg);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+      .sidebar.open{display:flex}
       .sidebar::-webkit-scrollbar{width:6px}
       .sidebar::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
       .sidebar::-webkit-scrollbar-track{background:transparent}
@@ -173,14 +174,15 @@
       .nav-item .chev{margin-left:auto;width:14px;height:14px;opacity:.6}
       .side-note{margin-top:auto;background:var(--gold-soft);border-radius:14px;padding:11px 13px;font-size:12px;color:var(--ink-2)}
       .side-note b{color:var(--ink)}
-      .scrim{display:none}
+      .scrim{display:block;position:fixed;inset:0;background:rgba(20,8,14,.5);z-index:var(--z-scrim);opacity:0;pointer-events:none;transition:opacity .25s}
+      .scrim.show{opacity:1;pointer-events:auto}
 
       .main{flex:1;min-width:0;display:flex;flex-direction:column}
       .topbar{position:sticky;top:0;z-index:var(--z-topbar);background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 22px}
       .icon-btn{width:42px;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink-2)}
       .icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
       .icon-btn:hover{border-color:var(--wine);color:var(--wine)}
-      .burger{display:none}
+      .burger{display:grid}
       .wallet-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 13px;font-weight:700;font-size:13.5px;min-height:42px;min-width:0}
       .wallet-pill [data-balance]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .wallet-pill svg{width:17px;height:17px;stroke:var(--wine);fill:none;stroke-width:1.8}
@@ -473,11 +475,8 @@
 
       /* ---------- Responsive ---------- */
       @media(max-width:1023px){
-        .sidebar{position:fixed;left:0;top:0;display:none;box-shadow:var(--shadow-lg)}
-        .sidebar.open{display:flex}
-        .scrim{display:block;position:fixed;inset:0;background:rgba(20,8,14,.5);z-index:var(--z-scrim);opacity:0;pointer-events:none;transition:opacity .25s}
-        .scrim.show{opacity:1;pointer-events:auto}
-        .burger{display:grid}
+        /* Drawer/scrim/burger gio la base rule (dung ca desktop) — chi giu
+           lai cac rule chi rieng mobile o day. */
         .content{padding:18px 16px 110px}
         .topbar{padding:10px 14px}
         .user-chip .uname{display:none}

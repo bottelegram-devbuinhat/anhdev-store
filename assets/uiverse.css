@@ -909,7 +909,8 @@ html[data-theme="dark"]{
   body{padding-bottom:120px;}
   .bottom-nav{
     display:flex;
-    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    position:fixed; left:50%; right:auto; bottom:16px; transform:translateX(-50%);
+    margin:0;
     width:max-content; max-width:min(560px, calc(100vw - 32px));
     z-index:var(--z-bottomnav);
     background:var(--bg-glass);
