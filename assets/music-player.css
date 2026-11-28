@@ -1,0 +1,102 @@
+/* ============================================================================
+   Music player — thanh phat nhac noi (floating bar, goc duoi trai)
+   ----------------------------------------------------------------------------
+   Vi tri: desktop nam TREN dock giua (dock cao ~60px, cach day 16px) de
+   khong che nhau; mobile nam TREN bottom-nav (cao ~64px + safe-area).
+   Co the thu gon thanh nut tron (FAB) de khong che noi dung.
+   Mau/bo dung token san co cua store (Neon Aurora) nen tu doi theo theme
+   sang/toi. Animation chi transform + opacity.
+   ============================================================================ */
+.mp{
+  position:fixed; left:16px; bottom:88px; z-index:46;
+  width:min(360px, calc(100vw - 32px));
+  display:flex; align-items:center; gap:8px; padding:8px 10px;
+  background:var(--bg-glass, var(--surface));
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow-lg, var(--shadow));
+  color:var(--ink); font-family:inherit;
+}
+.mp[hidden]{display:none;}
+.mp-btn{
+  flex:0 0 auto; width:36px; height:36px; border:0; border-radius:50%;
+  background:transparent; color:var(--muted);
+  display:grid; place-items:center; cursor:pointer; padding:0;
+}
+.mp-btn:hover{background:var(--bg-soft, rgba(127,127,127,.12)); color:var(--ink);}
+.mp-btn:active{transform:scale(.94);}
+.mp-btn svg{
+  width:20px; height:20px; stroke:currentColor; fill:none;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+.mp-play{
+  position:relative; width:40px; height:40px;
+  background:var(--wine-btn, var(--wine)); color:var(--on-wine, #fff);
+}
+.mp-play:hover{background:var(--wine-btn, var(--wine)); color:var(--on-wine, #fff); filter:brightness(1.08);}
+.mp-play svg{width:22px; height:22px; fill:currentColor; stroke:none;}
+.mp-ic-pause{display:none;}
+.mp.is-playing .mp-ic-play{display:none;}
+.mp.is-playing .mp-ic-pause{display:block;}
+/* Autoplay bi trinh duyet chan: vong nhan tren nut Play de nguoi dung biet
+   can bam 1 lan (chi transform + opacity). */
+.mp.need-tap .mp-play::after{
+  content:""; position:absolute; inset:-4px; border-radius:50%;
+  border:2px solid var(--wine); opacity:0;
+  animation:mp-ring 1.6s ease-out infinite;
+}
+@keyframes mp-ring{
+  0%{transform:scale(.85); opacity:.8;}
+  100%{transform:scale(1.25); opacity:0;}
+}
+.mp-info{flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:8px;}
+.mp-eq{display:inline-flex; align-items:flex-end; gap:2px; height:14px; flex:0 0 auto;}
+.mp-eq span{
+  width:3px; height:100%; border-radius:2px; background:var(--wine);
+  transform-origin:bottom; transform:scaleY(.3);
+}
+.mp.is-playing .mp-eq span{animation:mp-eq .9s ease-in-out infinite;}
+.mp-eq span:nth-child(2){animation-delay:.25s;}
+.mp-eq span:nth-child(3){animation-delay:.5s;}
+@keyframes mp-eq{
+  0%,100%{transform:scaleY(.3);}
+  50%{transform:scaleY(1);}
+}
+.mp-title{
+  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-size:13.5px; font-weight:700; color:var(--ink);
+}
+.mp-title-tap{color:var(--wine);}
+.mp-vol{flex:0 0 auto; display:flex; align-items:center; gap:6px; color:var(--muted);}
+.mp-vol svg{
+  width:18px; height:18px; stroke:currentColor; fill:none;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+.mp-vol input[type="range"]{width:64px; accent-color:var(--wine); cursor:pointer;}
+/* Nut tron mo lai player khi da thu gon */
+.mp-fab{
+  position:fixed; left:16px; bottom:88px; z-index:46;
+  width:48px; height:48px; border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--bg-glass, var(--surface)); color:var(--wine);
+  display:grid; place-items:center; cursor:pointer;
+  box-shadow:var(--shadow-lg, var(--shadow));
+}
+.mp-fab[hidden]{display:none;}
+.mp-fab:hover{filter:brightness(1.06);}
+.mp-fab:active{transform:scale(.94);}
+.mp-fab svg{
+  width:22px; height:22px; stroke:currentColor; fill:none;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+@media (max-width:899px){
+  .mp{left:12px; right:12px; width:auto; bottom:calc(78px + env(safe-area-inset-bottom));}
+  .mp-fab{left:12px; bottom:calc(78px + env(safe-area-inset-bottom));}
+}
+@media (max-width:420px){
+  .mp-vol input[type="range"]{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  .mp.is-playing .mp-eq span{animation:none; transform:scaleY(.7);}
+  .mp.need-tap .mp-play::after{animation:none; opacity:0;}
+}

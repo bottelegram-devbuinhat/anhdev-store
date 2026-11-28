@@ -27,6 +27,7 @@
      API số dư / nạp tiền qua Cloudflare Worker là API_BASE riêng
      (đừng nhầm với API_BASE_URL này). */
   var API_BASE_URL = "https://anhdev-store-backend.onrender.com";
+  window.ANHDEV_BACKEND_URL = API_BASE_URL; /* music-player.js (file rieng) doc URL backend qua day — khong hardcode lai */
   function backendReady(){ return !!API_BASE_URL && API_BASE_URL.indexOf("REPLACE-WITH") === -1; }
 
   /* ===== BẢNG CHIẾT KHẤU NẠP THẺ (CHỈ ĐỂ HIỂN THỊ) =====

@@ -20,7 +20,7 @@
          (vd domain Cloudflare Tunnel). Neu khong trinh duyet se chan fetch
          toi backend. API phai la https:// (khong dung http://) neu khong
          se bi Mixed Content / bi chan. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://anhdev-store-backend.onrender.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.vietqr.io https://t.me https://cdn.telegram.org; media-src 'self' https://anhdev-store-backend.onrender.com; connect-src 'self' https://anhdev-balance.nhatdz2k011.workers.dev https://anhdev-store-backend.onrender.com; frame-src https://oauth.telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <link rel="icon" href="data:," />
@@ -514,6 +514,8 @@
          .uiv- thang khi hoa voi rule store cung do dac hieu (vd .buy-btn,
          .btn-wine). Xem assets/uiverse.css. -->
     <link rel="stylesheet" href="assets/uiverse.css" />
+    <!-- Music player (floating bar): CSS rieng, xem assets/music-player.css. -->
+    <link rel="stylesheet" href="assets/music-player.css" />
   </head>
   <body>
     <div class="layout">
@@ -623,10 +625,6 @@
           <button class="icon-btn burger" id="burger" aria-label="Mở menu">
             <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
-          <div class="brand-mark">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.8 20.2,6.4 20.2,17.6 12,22.2 3.8,17.6 3.8,6.4" fill="none" stroke="var(--brand-gold)" stroke-width="1.8" stroke-linejoin="round"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="900" fill="var(--brand-gold)" stroke="none" font-family="inherit">A</text></svg>
-            <span class="brand-text">ANHDEV</span>
-          </div>
           <div class="wallet-pill" title="Số dư ví">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7H4a2 2 0 0 1 0-4h14v4"/><path d="M4 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14" r="1.2"/></svg>
             <span class="wp-lbl" data-i18n="walletLbl">Ví:</span> <span class="bal-num" data-balance>0đ</span>
@@ -993,6 +991,39 @@
       </div>
     </div>
 
+    <!-- ============ MUSIC PLAYER (floating) ============
+         Phat nhac nen cua shop: danh sach lay tu backend /api/music/list
+         (xem assets/music-player.js). Mac dinh an (hidden) cho toi khi
+         tai xong danh sach co bai; chua co nhac thi van an, khong vo layout.
+         Icon SVG (khong emoji). -->
+    <div class="mp" id="musicPlayer" hidden>
+      <audio id="mpAudio" preload="auto"></audio>
+      <button class="mp-btn mp-play" id="mpPlayBtn" type="button" aria-label="Phát nhạc">
+        <svg class="mp-ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <svg class="mp-ic-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.6z"/></svg>
+      </button>
+      <button class="mp-btn" id="mpPrevBtn" type="button" aria-label="Bài trước">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.4v14H6z"/><path d="M20 5.5v13L9.5 12z"/></svg>
+      </button>
+      <div class="mp-info">
+        <span class="mp-eq" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="mp-title" id="mpTitle">Đang tải nhạc...</span>
+      </div>
+      <button class="mp-btn" id="mpNextBtn" type="button" aria-label="Bài tiếp">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 5H18v14h-2.4z"/><path d="M4 5.5v13l10.5-6.5z"/></svg>
+      </button>
+      <label class="mp-vol" aria-label="Âm lượng">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>
+        <input type="range" id="mpVol" min="0" max="100" value="80" aria-label="Âm lượng" />
+      </label>
+      <button class="mp-btn" id="mpCollapseBtn" type="button" aria-label="Thu gọn trình phát">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+    <button class="mp-fab" id="mpFab" type="button" aria-label="Mở trình phát nhạc" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5A2.5 2.5 0 1 1 6.5 16c.5 0 1 .15 1.4.42V5l11-2.5V16a2.5 2.5 0 1 1-1.5-2.29V7.2L9 9.3z"/></svg>
+    </button>
+
     <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
     <!-- GSAP 3 + Lenis + canvas-confetti (CDN, pinned, crossorigin) — PART 3.
@@ -1001,6 +1032,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" integrity="sha384-O55L/6rhHr9CFvrxqv5luxOCcmVaBmETbZbJDP+Do8T0pztTACsFBD/IXCNkj7DV" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" integrity="sha384-sPwMflxqfAN+Q5mvlkLmHiX3PORGbZSXHiSGPTXT9VHCD/AB+b+r+vJWsqprv+7k" crossorigin="anonymous" defer></script>
     <script src="assets/app.js" defer></script>
+    <script src="assets/music-player.js" defer></script>
     <script src="assets/animations.js" defer></script>
   </body>
 </html>
