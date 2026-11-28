@@ -442,6 +442,7 @@ async function doChangePassword(){
 async function loadUsers(quiet){
   skel("usersOut", 4);
   let o = el("usersOut");
+  err("usersErr", "");
   try {
     let d = await api("/api/admin/users");
     clr(o);
@@ -455,21 +456,90 @@ async function loadUsers(quiet){
       return;
     }
     let r = d.users.map(function(v){
+      let s = ce("button", "btn btn-secondary btn-sm", "Sửa");
+      s.type = "button";
+      s.addEventListener("click", function(){ startUserEdit(v, s); });
       return [
         { t: v.username, c: "code" },
         { t: v.role },
         { t: fmt(v.balance), c: "num" },
         { t: v.telegram_id || "", c: "mono" },
-        { t: v.created_at || "", c: "mono" }
+        { t: v.created_at || "", c: "mono" },
+        { e: s, c: "act" }
       ];
     });
     o.appendChild(tbl(
-      [{ t: "Tài khoản" }, { t: "Vai trò" }, { t: "Số dư (đ)", c: "num" }, { t: "Telegram" }, { t: "Ngày tạo" }],
+      [{ t: "Tài khoản" }, { t: "Vai trò" }, { t: "Số dư (đ)", c: "num" }, { t: "Telegram" }, { t: "Ngày tạo" }, { t: "" }],
       r
     ));
   } catch (e) {
     clr(o);
     o.appendChild(ce("p", "err", "Không tải được danh sách: " + e.message));
+  }
+}
+
+/* Sua 1 user ngay trong bang: o So du thanh input so, o Vai tro thanh
+   select user/admin, nut Sua thanh Luu + Huy. Luu chi goi API cho
+   truong nao doi (update-balance action "set" cho so du,
+   /users/<username>/role cho vai tro); khong doi gi thi thoat. */
+function startUserEdit(v, btn){
+  let tr = btn.closest("tr");
+  if (!tr) return;
+  err("usersErr", "");
+  let tds = tr.querySelectorAll("td");
+  let balIn = ce("input", "input mono");
+  balIn.type = "number";
+  balIn.min = "0";
+  balIn.step = "1";
+  balIn.value = String(v.balance);
+  balIn.setAttribute("aria-label", "Số dư mới của " + v.username);
+  clr(tds[2]);
+  tds[2].appendChild(balIn);
+  let roleSel = ce("select", "input");
+  roleSel.setAttribute("aria-label", "Vai trò mới của " + v.username);
+  ["user", "admin"].forEach(function(r){
+    let o = ce("option", "", r);
+    o.value = r;
+    if (r === v.role) o.selected = true;
+    roleSel.appendChild(o);
+  });
+  clr(tds[1]);
+  tds[1].appendChild(roleSel);
+  let save = ce("button", "btn btn-primary btn-sm", "Lưu");
+  save.type = "button";
+  let cancel = ce("button", "btn btn-secondary btn-sm", "Hủy");
+  cancel.type = "button";
+  clr(tds[5]);
+  tds[5].appendChild(save);
+  tds[5].appendChild(document.createTextNode(" "));
+  tds[5].appendChild(cancel);
+  save.addEventListener("click", function(){ saveUserEdit(v, balIn, roleSel, save); });
+  cancel.addEventListener("click", function(){ loadUsers(true); });
+}
+
+async function saveUserEdit(v, balIn, roleSel, btn){
+  err("usersErr", "");
+  let raw = String(balIn.value).trim();
+  let n = Number(raw);
+  if (raw === "" || isNaN(n) || !Number.isInteger(n) || n < 0) {
+    err("usersErr", "Nhập số dư hợp lệ (số nguyên >= 0).");
+    return;
+  }
+  let newRole = roleSel.value;
+  if (n === v.balance && newRole === v.role) { loadUsers(true); return; }
+  lock(btn, true);
+  try {
+    if (n !== v.balance) {
+      await api("/api/admin/update-balance", { method: "POST", body: { username: v.username, action: "set", amount: n } });
+    }
+    if (newRole !== v.role) {
+      await api("/api/admin/users/" + encodeURIComponent(v.username) + "/role", { method: "POST", body: { role: newRole } });
+    }
+    toast("Đã cập nhật " + v.username + ".", true);
+    loadUsers(true);
+  } catch (e) {
+    err("usersErr", e.status === 404 ? "Không tìm thấy tài khoản web này." : ("Lỗi: " + e.message));
+    lock(btn, false);
   }
 }
 
