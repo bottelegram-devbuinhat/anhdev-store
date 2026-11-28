@@ -119,8 +119,11 @@
       </div>
       <div id="bulkJsonPane" class="tab-pane hidden">
         <div class="field">
-          <label for="bulkJsonFile">File .json — mảng các account</label>
-          <input class="file-input" id="bulkJsonFile" type="file" accept=".json,application/json">
+          <label>Kéo thả file .json vào đây — hoặc bấm để chọn file</label>
+          <div class="drop-zone" id="bulkJsonDrop" tabindex="0" role="button" aria-label="Kéo thả file JSON vào đây hoặc bấm để chọn file">
+            <p class="drop-hint">Kéo thả file .json vào đây, hoặc bấm để chọn</p>
+            <input class="file-input hidden" id="bulkJsonFile" type="file" accept=".json,application/json">
+          </div>
         </div>
         <div class="field">
           <label for="bulkJson">Mảng JSON các account</label>
@@ -130,8 +133,11 @@
       </div>
       <div id="bulkTxtPane" class="tab-pane hidden">
         <div class="field">
-          <label for="bulkTxtFile">File .txt — mỗi dòng 1 acc (cùng format như Nhập nhanh)</label>
-          <input class="file-input" id="bulkTxtFile" type="file" accept=".txt,text/plain">
+          <label>Kéo thả file .txt vào đây — hoặc bấm để chọn file</label>
+          <div class="drop-zone" id="bulkTxtDrop" tabindex="0" role="button" aria-label="Kéo thả file TXT vào đây hoặc bấm để chọn file">
+            <p class="drop-hint">Kéo thả file .txt vào đây, hoặc bấm để chọn</p>
+            <input class="file-input hidden" id="bulkTxtFile" type="file" accept=".txt,text/plain">
+          </div>
         </div>
         <div class="field">
           <label for="bulkTxt">Nội dung file đã load</label>

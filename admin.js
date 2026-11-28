@@ -540,8 +540,8 @@ function setBulkTab(m){
   });
 }
 
-async function loadBulkFile(i, t){
-  let f = i.files && i.files[0];
+/* f = File da chon (tu hop chon file hoac keo-tha); t = textarea dich. */
+async function loadBulkFile(f, t){
   if (!f) return;
   let x = "";
   try {
@@ -556,6 +556,31 @@ async function loadBulkFile(i, t){
   t.value = x;
   toast("Đã load file " + f.name + ".", true);
 }
+
+/* Keo-tha file bulk-add (JSON/TXT): tha file vao vung drop-zone thi load
+   vao textarea; bam vao vung thi mo hop chon file (nhu cu). */
+function wireBulkDrop(z, i, t, ext){
+  let d = el(z);
+  if (!d) return;
+  ["dragenter", "dragover"].forEach(function(ev){
+    d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.add("drag-over"); });
+  });
+  ["dragleave", "drop"].forEach(function(ev){
+    d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.remove("drag-over"); });
+  });
+  d.addEventListener("drop", function(e){
+    let f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    if (f.name.toLowerCase().slice(-ext.length) !== ext) { err("bulkErr", "Chỉ nhận file " + ext + "."); return; }
+    loadBulkFile(f, el(t));
+  });
+  d.addEventListener("click", function(){ el(i).click(); });
+  d.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el(i).click(); }
+  });
+}
+wireBulkDrop("bulkJsonDrop", "bulkJsonFile", "bulkJson", ".json");
+wireBulkDrop("bulkTxtDrop", "bulkTxtFile", "bulkTxt", ".txt");
 
 async function doBulkAdd(a, g, b){
   err("bulkErr", "");
@@ -807,8 +832,8 @@ el("bulkTabTxt").addEventListener("click", function(){ setBulkTab("txt"); });
 el("bulkChatBtn").addEventListener("click", sendBulkChat);
 el("bulkJsonBtn").addEventListener("click", sendBulkJson);
 el("bulkTxtBtn").addEventListener("click", sendBulkTxt);
-el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJsonFile"), el("bulkJson")); });
-el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile"), el("bulkTxt")); });
+el("bulkJsonFile").addEventListener("change", function(){ loadBulkFile(el("bulkJsonFile").files && el("bulkJsonFile").files[0], el("bulkJson")); });
+el("bulkTxtFile").addEventListener("change", function(){ loadBulkFile(el("bulkTxtFile").files && el("bulkTxtFile").files[0], el("bulkTxt")); });
 el("musicUploadBtn").addEventListener("click", function(){ doMusicUpload(); });
 el("musicRefreshBtn").addEventListener("click", loadMusic);
 el("previewVol").addEventListener("input", function(){
