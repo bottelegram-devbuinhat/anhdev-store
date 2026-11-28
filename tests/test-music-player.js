@@ -139,8 +139,10 @@ async function scenarioB() {
   const w = makeWindow({ songs: SONGS, randomSeq: [0.1, 0.9, 0.4] });
   await flush();
   const audio = w.q("mpAudio");
-  check("b1. co nhac: player hien (khong hidden)",
-    w.q("musicPlayer").hidden === false && w.q("mpFab").hidden === true);
+  check("b1. co nhac: mo trang chi hien NUT TRON, bar an (nhac van phat nen)",
+    w.q("musicPlayer").hidden === true && w.q("mpFab").hidden === false);
+  check("b1b. bam nut tron: mo bar, nut tron an",
+    (function(){ click(w.win, w.q("mpFab")); return w.q("musicPlayer").hidden === false && w.q("mpFab").hidden === true; })());
   check("b2. goi dung GET /api/music/list tren backend",
     w.fetchCalls.length === 1 && w.fetchCalls[0] === BASE + "/api/music/list",
     w.fetchCalls.join(","));
@@ -208,8 +210,11 @@ async function scenarioB() {
 async function scenarioC() {
   const w = makeWindow({ songs: SONGS, playReject: true, randomSeq: [0.1] });
   await flush();
-  check("c1. autoplay bi chan: blocked=true, van hien player",
-    w.mp.blocked === true && w.mp.playing === false && w.q("musicPlayer").hidden === false);
+  check("c1. autoplay bi chan: blocked=true, van hien NUT TRON (bar an)",
+    w.mp.blocked === true && w.mp.playing === false && w.q("mpFab").hidden === false && w.q("musicPlayer").hidden === true);
+  check("c1b. autoplay bi chan: nut tron co vong nhan need-tap",
+    w.q("mpFab").classList.contains("need-tap"),
+    w.q("mpFab").className);
   check("c2. autoplay bi chan: hien chu 'Bấm để phát nhạc' + class need-tap",
     w.q("mpTitle").textContent === "Bấm để phát nhạc" &&
     w.q("musicPlayer").classList.contains("need-tap"),

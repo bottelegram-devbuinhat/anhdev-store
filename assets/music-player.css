@@ -89,6 +89,18 @@
   width:22px; height:22px; stroke:currentColor; fill:none;
   stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
 }
+/* Nut tron dang phat: not nhac nhay nhe (chi transform). */
+.mp-fab.is-playing svg{animation:mp-fab-beat 1.2s ease-in-out infinite;}
+@keyframes mp-fab-beat{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.18);}
+}
+/* Autoplay bi chan: vong nhan tren nut tron de biet can bam 1 lan. */
+.mp-fab.need-tap::after{
+  content:""; position:absolute; inset:-4px; border-radius:50%;
+  border:2px solid var(--wine); opacity:0;
+  animation:mp-ring 1.6s ease-out infinite;
+}
 @media (max-width:899px){
   .mp{left:12px; right:12px; width:auto; bottom:calc(78px + env(safe-area-inset-bottom));}
   .mp-fab{left:12px; bottom:calc(78px + env(safe-area-inset-bottom));}
@@ -99,4 +111,6 @@
 @media (prefers-reduced-motion:reduce){
   .mp.is-playing .mp-eq span{animation:none; transform:scaleY(.7);}
   .mp.need-tap .mp-play::after{animation:none; opacity:0;}
+  .mp-fab.is-playing svg{animation:none;}
+  .mp-fab.need-tap::after{animation:none; opacity:0;}
 }

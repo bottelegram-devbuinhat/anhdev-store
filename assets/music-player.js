@@ -9,10 +9,14 @@
    - Hanh vi: tai trang -> chon NGAU NHIEN 1 bai de phat (moi lan refresh
      la 1 bai ngau nhien khac); het bai ('ended') -> tu dong chuyen sang
      bai ngau nhien khac (khong lap lai bai vua phat ngay).
+   - Mac dinh mo trang: chi hien NUT TRON (FAB), khong mo thanh bar.
+     Nhac van TU PHAT nen ngay khi tai trang; bam nut tron moi mo bar
+     de bam Play/Pause/Next/Prev, chinh am luong. Nut thu gon tren bar
+     dua ve nut tron.
    - Trinh duyet chan autoplay co tieng truoc khi nguoi dung tuong tac:
-     thu phat khi tai trang; neu bi chan (NotAllowedError) thi hien nut
-     Play nhan manh + chu "Bam de phat nhac"; nguoi dung bam 1 lan la
-     phat binh thuong, cac lan chuyen bai sau do tu dong.
+     thu phat khi tai trang; neu bi chan (NotAllowedError) thi nut tron
+     hien vong nhan nhap nhay; nguoi dung bam 1 lan (vao nut tron hoac
+     bat cu dau) la phat binh thuong, cac lan chuyen bai sau do tu dong.
    - Chua co bai nao (list rong / API loi / chua cau hinh backend):
      player AN di, khong vo layout, khong spam loi console.
    - Khong dung localStorage/sessionStorage; trang thai chi trong RAM.
@@ -60,6 +64,9 @@
 
   function hideAll(){ root.hidden = true; fab.hidden = true; }
   function showPlayer(){ root.hidden = false; fab.hidden = true; }
+  /* Mac dinh mo trang: chi hien nut tron (FAB), khong mo thanh bar —
+     nhac van tu phat nen, bam nut tron moi mo bar de chinh. */
+  function showFab(){ root.hidden = true; fab.hidden = false; }
 
   function updateTexts(){
     playBtn.setAttribute("aria-label", playing ? t("pause") : t("play"));
@@ -76,6 +83,8 @@
   function setPlayingUI(){
     root.classList.toggle("is-playing", playing);
     root.classList.toggle("need-tap", blocked);
+    fab.classList.toggle("is-playing", playing);
+    fab.classList.toggle("need-tap", blocked);
     updateTexts();
   }
 
@@ -185,7 +194,7 @@
       }).filter(function(s){ return !!s.url; });
       if (!songs.length) { hideAll(); return false; }
       ready = true;
-      showPlayer();
+      showFab();
       updateTexts();
       playSong(pickRandom(-1), true); /* refresh trang = bai ngau nhien moi */
       return true;
